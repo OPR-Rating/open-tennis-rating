@@ -926,7 +926,7 @@ async function adminLoadMatches(){
     const score=(m.t1_sets)+'–'+(m.t2_sets);
     h+='<div style="border:1px solid #eadff2;border-radius:9px;padding:9px 11px;margin-bottom:7px;">'
       + '<div style="font-size:11px;color:#9b80b3;">'+m.match_date+' · '+m.match_type+' · '+(m.event||'Social')+(m.submitted_by?' · entered by '+m.submitted_by:'')+'</div>'
-      + '<div style="font-size:13px;margin:3px 0;">'+m.t1p1+' &amp; '+m.t1p2+' <b>'+score+'</b> '+m.t2p1+' &amp; '+m.t2p2+'</div>'
+      + '<div style="font-size:13px;margin:3px 0;">'+sideName(m.t1p1,m.t1p2,' &amp; ')+' <b>'+score+'</b> '+sideName(m.t2p1,m.t2p2,' &amp; ')+'</div>'
       + '<button class="ac-btn ac-btn-ghost" style="font-size:12px;padding:5px 10px;" onclick="adminEditMatch('+m.id+')">Edit</button> '
       + '<button class="ac-btn ac-btn-danger" style="font-size:12px;padding:5px 10px;" onclick="adminDeleteMatch('+m.id+')">Delete</button>'
       + '</div>';
@@ -979,9 +979,9 @@ function adminEditMatch(id){
   box.innerHTML='<div class="ac-card" style="border:1.5px solid #7D3C98;"><h4>Edit match</h4>'
     + '<label style="font-size:11px;color:#9b80b3;">Date (yyyy-mm-dd)</label><input id="emDate" value="'+m.match_date+'" style="'+fld+'">'
     + '<label style="font-size:11px;color:#9b80b3;">Event</label><input id="emEvent" value="'+(m.event||'Social').replace(/"/g,'&quot;')+'" style="'+fld+'">'
-    + '<div style="font-size:12px;margin:4px 0;">'+m.t1p1+' &amp; '+m.t1p2+'</div>'
+    + '<div style="font-size:12px;margin:4px 0;">'+sideName(m.t1p1,m.t1p2,' &amp; ')+'</div>'
     + '<div class="ac-row"><input id="emT1s" type="number" value="'+m.t1_sets+'" placeholder="sets" style="'+fld+'"><input id="emT1g" type="number" value="'+m.t1_games+'" placeholder="games" style="'+fld+'"></div>'
-    + '<div style="font-size:12px;margin:4px 0;">'+m.t2p1+' &amp; '+m.t2p2+'</div>'
+    + '<div style="font-size:12px;margin:4px 0;">'+sideName(m.t2p1,m.t2p2,' &amp; ')+'</div>'
     + '<div class="ac-row"><input id="emT2s" type="number" value="'+m.t2_sets+'" placeholder="sets" style="'+fld+'"><input id="emT2g" type="number" value="'+m.t2_games+'" placeholder="games" style="'+fld+'"></div>'
     + '<label style="font-size:11px;color:#9b80b3;">Set scores (e.g. 6-4,6-3)</label><input id="emSet" value="'+(m.set_scores||'').replace(/"/g,'&quot;')+'" style="'+fld+'">'
     + '<button class="ac-btn ac-btn-primary" style="width:100%;" onclick="adminSaveMatch('+id+')">Save changes</button>'
@@ -1165,12 +1165,14 @@ const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 // This is the ONE value that makes this app belong to a specific club.
 const CLUB_ID = 1;
 const CLUB_NAME = "Demo";  // shown in the logo and browser tab
-const OPR_VERSION = "OTR v2026.07.12-01";  // tennis phone fork (stage 1)
+const OPR_VERSION = "OTR v2026.07.12-03";  // tennis phone fork (stage 1)
 async function sbGet(pathq){
   const r = await fetch(SB_URL + "/rest/v1/" + pathq, { headers:{ apikey:SB_ANON, Authorization:"Bearer "+SB_ANON } });
   if(!r.ok) throw new Error("HTTP "+r.status);
   return await r.json();
 }
+// Singles-aware side name: "A & B" for doubles, just "A" when partner is null.
+function sideName(p1,p2,sep){ sep=sep||" & "; return p2?((p1||"")+sep+p2):(p1||""); }
 function rankBadge(n){ const cls=n===1?'rank-1':n===2?'rank-2':n===3?'rank-3':''; return `<span class="rank-badge ${cls}">${n}</span>`; }
 
 async function togglePairMatches(i){
@@ -1687,11 +1689,24 @@ function setStep(n){
 
 async function renderStep1(){
   setStep(1);
+  // FULL RESET — clear any state left over from a previous entry so the form
+  // never gets "stuck" (stale ladder lists, format filter, or division set).
+  entryData = {};
+  window._ladderTeams = null;
+  window._ladderCat = null;
+  window._ladderEligible = null;
+  window._eventDivs = null;
   const today=new Date().toISOString().split('T')[0];
   document.getElementById('entryContent').innerHTML=`
     <div class="field"><label>Event</label>
       <select id="matchEvent">
         <option value="">Select event...</option>
+      </select>
+    </div>
+    <div class="field"><label>Format</label>
+      <select id="matchFormat" onchange="onFormatChange()">
+        <option value="doubles">Doubles (2 v 2)</option>
+        <option value="singles">Singles (1 v 1)</option>
       </select>
     </div>
     <div class="field"><label>Date</label><input type="date" id="matchDate" value="${today}"></div>
@@ -1714,6 +1729,10 @@ async function renderStep1(){
     </div>
     <div id="err1" class="error-msg">Please fill in all fields.</div>
     <button class="btn btn-primary" onclick="step1Next()">Next: Enter Player Names &rarr;</button>`;
+  // Guarantee a clean starting state for the format-dependent fields:
+  const _mf=document.getElementById('matchFormat'); if(_mf){ _mf.value='doubles'; _mf.disabled=false; [..._mf.options].forEach(o=>o.disabled=false); }
+  const _mt=document.getElementById('matchType');
+  if(_mt){ _mt.innerHTML='<option value="">Select type...</option><option value="Men\'s">Men\'s</option><option value="Ladies">Ladies</option><option value="Mixed">Mixed</option><option value="All Sorts">All Sorts</option>'; _mt.value=''; }
   loadActiveTournaments();
 }
 
@@ -1765,22 +1784,45 @@ async function loadActiveTournaments(){
         }
       }catch(e){}
     } else if(ev==='Ladder Match'){
-      // limit to categories whose ladder is ACTIVATED
+      // Check ALL active ladders (singles + doubles); drive Format accordingly.
+      const fmtSel=document.getElementById('matchFormat');
+      let activeCats=[];
       try{
         const st=await sbGet(`club_ladder_state?select=category,activated&club_id=eq.${CLUB_ID}&activated=eq.true`) || [];
-        const active=st.map(s=>s.category);
-        allowed = active.length ? ALL.map(a=>a[0]).filter(c=>active.indexOf(c)>=0) : [];
-        // Tell the user immediately if there are NO active ladders (instead of a silent empty dropdown).
-        if(allowed.length===0){
-          alert('There are no active ladders at this club yet.\n\nA ladder must first be created and activated on the “Good ’ol Club Ladder” page before ladder matches can be entered. You can still enter a Social match in the meantime.');
+        activeCats = st.map(s=>s.category);
+      }catch(e){ activeCats=[]; }
+      const singlesActive = activeCats.some(c=>/singles/i.test(c));
+      const doublesActive = activeCats.some(c=>!/singles/i.test(c));
+      if(!singlesActive && !doublesActive){
+        alert('There are no active ladders at this club yet.\n\nA ladder (singles or doubles) must first be created and activated on the “Good ’ol Club Ladder” page before ladder matches can be entered. You can still enter a Social match in the meantime.');
+        if(fmtSel){ fmtSel.disabled=true; }
+        allowed=[]; window._eventDivs=[["",""]];
+      } else {
+        if(fmtSel){
+          fmtSel.disabled=false;
+          const optS=[...fmtSel.options].find(o=>o.value==='singles');
+          const optD=[...fmtSel.options].find(o=>o.value==='doubles');
+          if(optS) optS.disabled=!singlesActive;
+          if(optD) optD.disabled=!doublesActive;
+          if(fmtSel.value==='singles' && !singlesActive) fmtSel.value='doubles';
+          if(fmtSel.value==='doubles' && !doublesActive) fmtSel.value='singles';
         }
-      }catch(e){ allowed=[]; }
+        const fmt=(fmtSel&&fmtSel.value)||'doubles';
+        const DIVS = (fmt==='singles') ? [["Men's","Men's"],["Ladies","Ladies"]] : ALL;
+        const catFor = (d)=> (fmt==='singles') ? (d+' Singles') : d;
+        allowed = DIVS.map(a=>a[0]).filter(c=>activeCats.indexOf(catFor(c))>=0);
+        window._eventDivs = DIVS;
+      }
+    } else {
+      const fmtSel=document.getElementById('matchFormat');
+      if(fmtSel){ fmtSel.disabled=false; [...fmtSel.options].forEach(o=>o.disabled=false); }
     }
+    const DIVS_RENDER = window._eventDivs || ALL;
+    window._eventDivs = null;
     const prev=typeSel.value;
     typeSel.innerHTML='<option value="">Select type...</option>'+
-      ALL.filter(a=>allowed.indexOf(a[0])>=0).map(a=>`<option value="${a[0]}">${a[1]}</option>`).join('');
+      DIVS_RENDER.filter(a=>allowed.indexOf(a[0])>=0).map(a=>`<option value="${a[0]}">${a[1]}</option>`).join('');
     if(allowed.indexOf(prev)>=0) typeSel.value=prev;
-    // if only one division, preselect it for convenience
     if(allowed.length===1) typeSel.value=allowed[0];
   };
 }
@@ -1815,7 +1857,7 @@ function renderRecentList(){
         <span class="match-type">${m.match_type||''}</span>${tag}
         <span style="color:#6C3483;font-size:11px;">▼</span>
       </div>
-      <div class="match-teams"><strong>${m.t1p1||''} & ${m.t1p2||''}</strong> ${m.t1_sets||0}-${m.t2_sets||0} <strong>${m.t2p1||''} & ${m.t2p2||''}</strong></div>
+      <div class="match-teams"><strong>${m.t1p2?((m.t1p1||'')+' & '+m.t1p2):(m.t1p1||'')}</strong> ${m.t1_sets||0}-${m.t2_sets||0} <strong>${m.t2p2?((m.t2p1||'')+' & '+m.t2p2):(m.t2p1||'')}</strong></div>
       <div class="match-detail" id="detail_${idx}" style="display:none;margin-top:6px;padding-top:6px;border-top:1px solid #D7BDE2;"></div>
     </div>`;}).join('');
 }
@@ -1847,32 +1889,66 @@ async function toggleRecent(idx){
   }
 }
 
+function onFormatChange(){
+  const fmt=(document.getElementById('matchFormat')||{}).value||'doubles';
+  const mt=document.getElementById('matchType');
+  if(!mt) return;
+  const cur=mt.value;
+  // Singles only exists as Men's / Ladies (there is no Mixed/All-Sorts singles).
+  // Doubles offers all four. This holds for every event type.
+  const opts = (fmt==='singles')
+    ? [["","Select type..."],["Men's","Men's"],["Ladies","Ladies"]]
+    : [["","Select type..."],["Men's","Men's"],["Ladies","Ladies"],["Mixed","Mixed"],["All Sorts","All Sorts"]];
+  mt.innerHTML = opts.map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('');
+  if(opts.some(o=>o[0]===cur)) mt.value=cur; else mt.value='';
+  // Only for a LADDER MATCH does the active-ladder set further restrict things —
+  // re-run the event handler so the division list matches active ladders.
+  const evSel=document.getElementById('matchEvent');
+  if(evSel && (evSel.value||'')==='Ladder Match' && typeof evSel.onchange==='function'){ evSel.onchange(); }
+}
+
+function step2NextSinglesLadder(){
+  const players = window._ladderTeams || [];
+  const i1 = document.getElementById('ladderS1').value;
+  const i2 = document.getElementById('ladderS2').value;
+  const err = document.getElementById('err2');
+  if(i1==='' || i2===''){ err.textContent='Please select both players.'; err.style.display='block'; return; }
+  if(i1===i2){ err.textContent='A player cannot play themselves — pick two different players.'; err.style.display='block'; return; }
+  const a=players[Number(i1)], b=players[Number(i2)];
+  entryData.t1p1=a.p1; entryData.t1p2=null; entryData.t2p1=b.p1; entryData.t2p2=null;
+  renderStep3();
+}
+
 async function step1Next(){
   const date=document.getElementById('matchDate').value;
   const type=document.getElementById('matchType').value;
   const sets=document.getElementById('setsPlayed').value;
   const event=document.getElementById('matchEvent').value;
+  const format=(document.getElementById('matchFormat')||{}).value||'doubles';
   if(!date||!type||!sets||!event){document.getElementById('err1').style.display='block';return;}
-  entryData={date,type,sets:parseInt(sets),event};
+  entryData={date,type,sets:parseInt(sets),event,format};
   // For a Ladder Match, the ladder for this category must EXIST and be ACTIVATED.
   window._ladderEligible = null;
+  window._ladderCat = null;
   if(event==='Ladder Match'){
+    const ladderCat = (format==='singles') ? (type+' Singles') : type;
+    window._ladderCat = ladderCat;
     let activated=false;
     try{
-      const st = await sbGet(`club_ladder_state?select=activated&club_id=eq.${CLUB_ID}&category=eq.${encodeURIComponent(type)}&limit=1`);
+      const st = await sbGet(`club_ladder_state?select=activated&club_id=eq.${CLUB_ID}&category=eq.${encodeURIComponent(ladderCat)}&limit=1`);
       activated = !!(st && st.length && st[0].activated);
     }catch(e){}
     if(!activated){
-      alert('The '+type+' ladder is not activated yet. A ladder match can only be entered once the '+type+' ladder has been activated on the Good \u2019ol Club Ladder page.');
+      alert('The '+ladderCat+' ladder is not activated yet. A ladder match can only be entered once that ladder has been activated on the Good \u2019ol Club Ladder page.');
       return; // stay on step 1, do not proceed
     }
     try{
-      const lad = await sbGet(`club_ladder?select=p1,p2,position&club_id=eq.${CLUB_ID}&category=eq.${encodeURIComponent(type)}&order=position.asc`) || [];
-      const set=new Set(); lad.forEach(r=>{ set.add(r.p1); set.add(r.p2); });
+      const lad = await sbGet(`club_ladder?select=p1,p2,position&club_id=eq.${CLUB_ID}&category=eq.${encodeURIComponent(ladderCat)}&order=position.asc`) || [];
+      const set=new Set(); lad.forEach(r=>{ set.add(r.p1); if(r.p2) set.add(r.p2); });
       window._ladderEligible = set;
-      window._ladderTeams = lad.map(r=>({p1:r.p1, p2:r.p2, position:r.position})); // for the team dropdown
+      window._ladderTeams = lad.map(r=>({p1:r.p1, p2:r.p2, position:r.position}));
       if(set.size===0){
-        alert('No teams are on the '+type+' ladder yet.');
+        alert('No one is on the '+ladderCat+' ladder yet.');
         return;
       }
     }catch(e){}
@@ -1910,7 +1986,8 @@ function populateSel(sel,players,exclude,selected){
 function renderStep2(){
   setStep(2);
   // LADDER MATCH: pick whole teams from the ladder (no building pairs by hand).
-  if((entryData.event||'')==='Ladder Match' && Array.isArray(window._ladderTeams) && window._ladderTeams.length){
+  // Singles ladder matches skip this and use the normal 2-player entry below.
+  if((entryData.event||'')==='Ladder Match' && entryData.format!=='singles' && Array.isArray(window._ladderTeams) && window._ladderTeams.length){
     const teams = window._ladderTeams; // [{p1,p2,position}]
     const opts = teams.map((t,i)=>`<option value="${i}">${t.position}. ${t.p1} & ${t.p2}</option>`).join('');
     document.getElementById('entryContent').innerHTML=`
@@ -1940,42 +2017,77 @@ function renderStep2(){
       </div>`;
     return;
   }
-  document.getElementById('entryContent').innerHTML=`
-    <div class="team-card">
-      <div class="team-label"><span>1</span>Team 1</div>
-      <div class="field">
-        <label>Player 1</label>
-        <input type="hidden" id="t1p1_val">
-        <button class="player-display" id="t1p1_btn" onclick="openPlayerModal('t1p1','Team 1 - Player 1')">
-          <span id="t1p1_lbl">Tap to select...</span><span class="arrow">&#9660;</span>
-        </button>
+  // SINGLES LADDER MATCH: pick two players from the singles ladder, shown in
+  // standings order (1. Andre, 2. Lendl, …) so you can see who is above you.
+  if((entryData.event||'')==='Ladder Match' && entryData.format==='singles' && Array.isArray(window._ladderTeams) && window._ladderTeams.length){
+    const players = window._ladderTeams; // [{p1,p2:null,position}]
+    const opts = players.map((t,i)=>`<option value="${i}">${t.position}. ${t.p1}</option>`).join('');
+    document.getElementById('entryContent').innerHTML=`
+      <p class="sub" style="margin-bottom:10px;">Pick the two players who played, in ladder order. Only players on the ${entryData.type} Singles ladder are listed.</p>
+      <div class="team-card">
+        <div class="team-label"><span>1</span>Player 1</div>
+        <div class="field"><label>Ladder player</label>
+          <select id="ladderS1" style="width:100%;padding:12px;border:1.5px solid #d9cfe3;border-radius:9px;font-size:15px;">
+            <option value="">Select player...</option>${opts}
+          </select>
+        </div>
       </div>
+      <div class="team-card">
+        <div class="team-label"><span>2</span>Player 2</div>
+        <div class="field"><label>Ladder player</label>
+          <select id="ladderS2" style="width:100%;padding:12px;border:1.5px solid #d9cfe3;border-radius:9px;font-size:15px;">
+            <option value="">Select player...</option>${opts}
+          </select>
+        </div>
+      </div>
+      <div id="err2" class="error-msg">Please select both players.</div>
+      <div class="nav-row">
+        <button class="btn btn-secondary" onclick="renderStep1()">&larr; Back</button>
+        <button class="btn btn-primary" onclick="step2NextSinglesLadder()">Next: Enter Scores &rarr;</button>
+      </div>`;
+    return;
+  }
+  const _p1label = _singles ? 'Player' : 'Player 1';
+  const _t1label = _singles ? 'Player 1' : 'Team 1';
+  const _t2label = _singles ? 'Player 2' : 'Team 2';
+  const _p2slotT1 = _singles ? '' : `
       <div class="field">
         <label>Player 2</label>
         <input type="hidden" id="t1p2_val">
         <button class="player-display" id="t1p2_btn" onclick="openPlayerModal('t1p2','Team 1 - Player 2')">
           <span id="t1p2_lbl">Tap to select...</span><span class="arrow">&#9660;</span>
         </button>
-      </div>
-    </div>
-    <div class="team-card">
-      <div class="team-label"><span>2</span>Team 2</div>
-      <div class="field">
-        <label>Player 1</label>
-        <input type="hidden" id="t2p1_val">
-        <button class="player-display" id="t2p1_btn" onclick="openPlayerModal('t2p1','Team 2 - Player 1')">
-          <span id="t2p1_lbl">Tap to select...</span><span class="arrow">&#9660;</span>
-        </button>
-      </div>
+      </div>`;
+  const _p2slotT2 = _singles ? '' : `
       <div class="field">
         <label>Player 2</label>
         <input type="hidden" id="t2p2_val">
         <button class="player-display" id="t2p2_btn" onclick="openPlayerModal('t2p2','Team 2 - Player 2')">
           <span id="t2p2_lbl">Tap to select...</span><span class="arrow">&#9660;</span>
         </button>
-      </div>
+      </div>`;
+  document.getElementById('entryContent').innerHTML=`
+    <div class="team-card">
+      <div class="team-label"><span>1</span>${_t1label}</div>
+      <div class="field">
+        <label>${_p1label}</label>
+        <input type="hidden" id="t1p1_val">
+        <button class="player-display" id="t1p1_btn" onclick="openPlayerModal('t1p1','${_singles?'Player 1':'Team 1 - Player 1'}')">
+          <span id="t1p1_lbl">Tap to select...</span><span class="arrow">&#9660;</span>
+        </button>
+      </div>${_p2slotT1}
     </div>
-    <div id="err2" class="error-msg">Please select all four players.</div>
+    <div class="team-card">
+      <div class="team-label"><span>2</span>${_t2label}</div>
+      <div class="field">
+        <label>${_p1label}</label>
+        <input type="hidden" id="t2p1_val">
+        <button class="player-display" id="t2p1_btn" onclick="openPlayerModal('t2p1','${_singles?'Player 2':'Team 2 - Player 1'}')">
+          <span id="t2p1_lbl">Tap to select...</span><span class="arrow">&#9660;</span>
+        </button>
+      </div>${_p2slotT2}
+    </div>
+    <div id="err2" class="error-msg">${_singles?'Please select both players.':'Please select all four players.'}</div>
     <div class="nav-row">
       <button class="btn btn-secondary" onclick="renderStep1()">&larr; Back</button>
       <button class="btn btn-primary" onclick="step2Next()">Next: Enter Scores &rarr;</button>
@@ -1999,6 +2111,16 @@ function filterDrops(){
 }
 
 function step2Next(){
+  const singles=(entryData.format==='singles');
+  if(singles){
+    const a=(document.getElementById('t1p1_val')||{}).value?document.getElementById('t1p1_val').value.trim():'';
+    const b=(document.getElementById('t2p1_val')||{}).value?document.getElementById('t2p1_val').value.trim():'';
+    if(!a||!b){document.getElementById('err2').textContent='Please select both players.';document.getElementById('err2').style.display='block';return;}
+    if(a===b){document.getElementById('err2').textContent='The two players must be different.';document.getElementById('err2').style.display='block';return;}
+    entryData.t1p1=a;entryData.t1p2=null;entryData.t2p1=b;entryData.t2p2=null;
+    renderStep3();
+    return;
+  }
   const ids=['t1p1','t1p2','t2p1','t2p2'];
   const vals=ids.map(id=>{
     const el=document.getElementById(id+'_val');
@@ -2013,8 +2135,8 @@ function step2Next(){
 function renderStep3(){
   setStep(3);
   const s=entryData.sets;
-  const t1=entryData.t1p1+' & '+entryData.t1p2;
-  const t2=entryData.t2p1+' & '+entryData.t2p2;
+  const t1=(entryData.format==='singles')?entryData.t1p1:(entryData.t1p1+' & '+entryData.t1p2);
+  const t2=(entryData.format==='singles')?entryData.t2p1:(entryData.t2p1+' & '+entryData.t2p2);
   let tbl=`<table class="set-table"><thead><tr><th></th>`;
   for(let i=1;i<=s;i++)tbl+=`<th>Set ${i}</th>`;
   tbl+=`</tr></thead><tbody><tr><td>${t1}</td>`;
@@ -2063,16 +2185,19 @@ function renderStep4(){
   setStep(4);
   const t1w=entryData.t1sets>entryData.t2sets;
   const scoreStr=Array.from({length:entryData.sets},(_,i)=>`${entryData['set'+(i+1)+'t1']}-${entryData['set'+(i+1)+'t2']}`).join('  ');
-  const players=[entryData.t1p1,entryData.t1p2,entryData.t2p1,entryData.t2p2];
+  const _sing=(entryData.format==='singles');
+  const players=_sing?[entryData.t1p1,entryData.t2p1]:[entryData.t1p1,entryData.t1p2,entryData.t2p1,entryData.t2p2];
   const playerOptions=players.map(p=>`<option value="${p}">${p}</option>`).join('');
+  const _t1names=_sing?entryData.t1p1:(entryData.t1p1+'<br>'+entryData.t1p2);
+  const _t2names=_sing?entryData.t2p1:(entryData.t2p1+'<br>'+entryData.t2p2);
   document.getElementById('entryContent').innerHTML=`
     <div class="result-card ${t1w?'winner':'loser'}">
-      <div>${t1w?'<div class="winner-label">Winner</div>':''}<div class="result-names">${entryData.t1p1}<br>${entryData.t1p2}</div></div>
+      <div>${t1w?'<div class="winner-label">Winner</div>':''}<div class="result-names">${_t1names}</div></div>
       <div style="text-align:right;"><div class="result-sets">${entryData.t1sets}</div><div class="result-games">${entryData.t1games} games</div></div>
     </div>
     <div style="text-align:center;font-size:12px;color:#888;padding:5px 0;">${scoreStr}</div>
     <div class="result-card ${!t1w?'winner':'loser'}">
-      <div>${!t1w?'<div class="winner-label">Winner</div>':''}<div class="result-names">${entryData.t2p1}<br>${entryData.t2p2}</div></div>
+      <div>${!t1w?'<div class="winner-label">Winner</div>':''}<div class="result-names">${_t2names}</div></div>
       <div style="text-align:right;"><div class="result-sets">${entryData.t2sets}</div><div class="result-games">${entryData.t2games} games</div></div>
     </div>
     <div style="background:#F5EEF8;border:1.5px solid #D7BDE2;border-radius:12px;padding:14px;margin-top:12px;">
@@ -2115,7 +2240,7 @@ async function submitMatch(){
   // window so two pairs who legitimately play again weeks later aren't falsely flagged.
   // If found, warn naming who entered it and when, and let the operator proceed or cancel.
   try{
-    const four=[entryData.t1p1,entryData.t1p2,entryData.t2p1,entryData.t2p2].map(x=>x.trim()).sort().join('|');
+    const four=[entryData.t1p1,entryData.t1p2,entryData.t2p1,entryData.t2p2].map(x=>(x||'').trim()).sort().join('|');
     const recent = await sbGet(`matches?select=match_date,t1p1,t1p2,t2p1,t2p2,submitted_by&club_id=eq.${CLUB_ID}&order=id.desc&limit=30`) || [];
     const dup = recent.find(m=>{
       const mf=[m.t1p1,m.t1p2,m.t2p1,m.t2p2].map(x=>(x||'').trim()).sort().join('|');
@@ -2133,20 +2258,32 @@ async function submitMatch(){
   // re-join as a new pair. So reject any team that isn't an exact pair on the ladder.
   if((entryData.event||'')==='Ladder Match'){
     try{
-      const cat=entryData.type;
+      const singlesLM = (entryData.format==='singles');
+      const cat = singlesLM ? (entryData.type+' Singles') : entryData.type;
       const rows = await sbGet(`club_ladder?select=p1,p2&club_id=eq.${CLUB_ID}&category=eq.${encodeURIComponent(cat)}`) || [];
-      const norm = (a,b)=>[a,b].sort().join(' || ');
-      const ladderSet = new Set(rows.map(r=>norm(r.p1,r.p2)));
-      const t1 = norm(entryData.t1p1, entryData.t1p2);
-      const t2 = norm(entryData.t2p1, entryData.t2p2);
-      const t1ok = ladderSet.has(t1), t2ok = ladderSet.has(t2);
-      if(!t1ok || !t2ok){
-        const bad = [];
-        if(!t1ok) bad.push(entryData.t1p1+' & '+entryData.t1p2);
-        if(!t2ok) bad.push(entryData.t2p1+' & '+entryData.t2p2);
-        err.innerHTML = 'Not a ladder team: <b>'+bad.join('</b> and <b>')+'</b>.<br>Ladder matches must be exact registered pairs — no substitutes. If a partnership changed, remove the old pair and add the new pair on the ladder first.';
-        err.style.display='block';
-        return;
+      if(singlesLM){
+        const set = new Set(rows.map(r=>r.p1));
+        const p1ok = set.has(entryData.t1p1), p2ok = set.has(entryData.t2p1);
+        if(!p1ok || !p2ok){
+          const bad=[]; if(!p1ok) bad.push(entryData.t1p1); if(!p2ok) bad.push(entryData.t2p1);
+          err.innerHTML = 'Not on the '+cat+' ladder: <b>'+bad.join('</b> and <b>')+'</b>.<br>Both players must be registered on the singles ladder first (Good \u2019ol Club Ladder → Singles).';
+          err.style.display='block';
+          return;
+        }
+      } else {
+        const norm = (a,b)=>[a,b].sort().join(' || ');
+        const ladderSet = new Set(rows.map(r=>norm(r.p1,r.p2)));
+        const t1 = norm(entryData.t1p1, entryData.t1p2);
+        const t2 = norm(entryData.t2p1, entryData.t2p2);
+        const t1ok = ladderSet.has(t1), t2ok = ladderSet.has(t2);
+        if(!t1ok || !t2ok){
+          const bad = [];
+          if(!t1ok) bad.push(entryData.t1p1+' & '+entryData.t1p2);
+          if(!t2ok) bad.push(entryData.t2p1+' & '+entryData.t2p2);
+          err.innerHTML = 'Not a ladder team: <b>'+bad.join('</b> and <b>')+'</b>.<br>Ladder matches must be exact registered pairs — no substitutes. If a partnership changed, remove the old pair and add the new pair on the ladder first.';
+          err.style.display='block';
+          return;
+        }
       }
     }catch(e){ /* if the check fails, fall through — the Edge Function also guards activation */ }
   }
@@ -2259,6 +2396,7 @@ async function doSubmit(btn){
       t1_sets:entryData.t1sets, t2_sets:entryData.t2sets,
       t1_games:entryData.t1games, t2_games:entryData.t2games,
       set_scores:setParts.join(','),
+      match_format: entryData.format || 'doubles',
       force_fixture_round: entryData._forceFixtureRound || null
     };
     entryData._forceFixtureRound = null; // one-shot; don't carry to the next match
@@ -2286,16 +2424,19 @@ async function doSubmit(btn){
     }
 
     const who=result.submitted_by||entryData._submitter;
+    window._ratingMap = null; // ratings changed — clear cache
 
     // If this was a Ladder Match, apply the position change (insert/shift).
     if((entryData.event||'')==='Ladder Match'){
       try{
+        const _singlesLM = (entryData.format==='singles');
+        const _ladCat = _singlesLM ? (entryData.type+' Singles') : entryData.type;
         const t1won = Number(entryData.t1sets) > Number(entryData.t2sets);
         const winner = t1won ? {p1:entryData.t1p1,p2:entryData.t1p2} : {p1:entryData.t2p1,p2:entryData.t2p2};
         const loser  = t1won ? {p1:entryData.t2p1,p2:entryData.t2p2} : {p1:entryData.t1p1,p2:entryData.t1p2};
         await fetch(SB_URL+'/functions/v1/ladder',{method:'POST',
           headers:{apikey:SB_ANON,Authorization:'Bearer '+SB_ANON,'Content-Type':'application/json'},
-          body:JSON.stringify({action:'apply_ladder_result',club_id:CLUB_ID,category:entryData.type,winner,loser})});
+          body:JSON.stringify({action:'apply_ladder_result',club_id:CLUB_ID,category:_ladCat,winner,loser})});
       }catch(e){ /* ladder update is best-effort; the match itself is saved */ }
     }
 
@@ -2308,7 +2449,7 @@ async function doSubmit(btn){
       <div class="success-icon">✅</div>
       <div style="text-align:center;">
         <div style="font-size:18px;font-weight:700;color:#1e8449;margin-bottom:8px;">Match Submitted!</div>
-        <div style="font-size:13px;color:#666;">${entryData.t1p1} & ${entryData.t1p2}<br>vs<br>${entryData.t2p1} & ${entryData.t2p2}</div>
+        <div style="font-size:13px;color:#666;">${entryData.format==='singles'?entryData.t1p1:(entryData.t1p1+' & '+entryData.t1p2)}<br>vs<br>${entryData.format==='singles'?entryData.t2p1:(entryData.t2p1+' & '+entryData.t2p2)}</div>
         <div style="font-size:12px;color:#888;margin-top:6px;">${entryData.t1sets}-${entryData.t2sets} sets</div>
         <div style="font-size:11px;color:#aaa;margin-top:4px;">Submitted by ${who}</div>
         ${fxNote}
@@ -2654,12 +2795,15 @@ const TM = (function () {
      Reads master's published current ratings, computes pair rating, FREEZES it
      on the entry. Sorting high->low later assigns seeds. No recompute, no calls. */
   async function readCurrentRating(name) {
-    // master keeps player_results.current_rating up to date
-    const rows = await sbGet(
-      `player_results?select=current_rating&name=eq.${encodeURIComponent(name)}&club_id=eq.${CLUB_ID}`
-    );
-    if (rows && rows.length && rows[0].current_rating != null) return Number(rows[0].current_rating);
-    return null; // caller decides how to handle an unrated player
+    if(!window._ratingMap){
+      try{
+        const all = await sbGet(`player_results?select=name,current_rating&club_id=eq.${CLUB_ID}`) || [];
+        window._ratingMap = {};
+        all.forEach(r=>{ window._ratingMap[r.name] = (r.current_rating!=null?Number(r.current_rating):null); });
+      }catch(e){ window._ratingMap = {}; }
+    }
+    const v = window._ratingMap[name];
+    return (v!=null) ? v : null;
   }
   // Build a seeded Teams&Bands list from a set of entries (each {p1,p2,category,seed_rating}).
   function seedEntries(entries) {
@@ -3369,6 +3513,12 @@ async function tmGenerateFixedDraw(tournament, chosenTotal, division) {
    GOOD OL' CLUB LADDER  (master feature — perpetual position ladder)
    ============================================================================ */
 let CL_CAT = "Men's";
+let CL_FORMAT = 'doubles';  // 'doubles' or 'singles' — top-level ladder toggle
+const CL_CATS_DOUBLES = ["Men's","Ladies","Mixed","All Sorts"];
+const CL_CATS_SINGLES = ["Men's Singles","Ladies Singles"];
+function clIsSingles(cat){ return typeof cat==='string' && /singles/i.test(cat); }
+function clDivLabel(cat){ return clIsSingles(cat) ? cat.replace(/\s*Singles$/i,'') : cat; }
+function clRungName(r){ return (r.p2==null || r.p2==='') ? (r.p1||'') : (r.p1+' / '+r.p2); }
 async function loadClubLadder(){
   const body = document.getElementById('clBody');
   if(!body) return;
@@ -3394,12 +3544,22 @@ async function renderClubLadder(){
     activated = !!(st && st.length && st[0].activated);
   } catch(e){}
   window._clActivated = activated;
+  const singles = clIsSingles(cat);
   const sel = 'width:100%;padding:11px;border:1.5px solid #d9cfe3;border-radius:9px;font-size:15px;box-sizing:border-box;margin-bottom:10px;';
 
-  // division pills (Men's / Ladies / Mixed / All Sorts) — centred, equal width
+  // TOP-LEVEL format toggle: Singles Ladder / Doubles Ladder
+  let fmtBar = '<div class="tm-divbar cl-divbar" style="margin-bottom:8px;">'
+    + '<button class="'+(CL_FORMAT==='singles'?'active':'')+'" onclick="clSetFormat(\'singles\')">🎾 Singles Ladder</button>'
+    + '<button class="'+(CL_FORMAT==='doubles'?'active':'')+'" onclick="clSetFormat(\'doubles\')">👥 Doubles Ladder</button>'
+    + '</div>';
+
+  // division pills — depend on the selected format
+  const divs = (CL_FORMAT==='singles') ? CL_CATS_SINGLES : CL_CATS_DOUBLES;
   let divBar = '<div class="tm-divbar cl-divbar">';
-  CL_CATS.forEach(d=>{ divBar += '<button class="'+(d===cat?'active':'')+'" onclick="clPick(\''+d.replace(/'/g,"\\'")+'\')">'+d+'</button>'; });
+  divs.forEach(d=>{ divBar += '<button class="'+(d===cat?'active':'')+'" onclick="clPick(\''+d.replace(/'/g,"\\'")+'\')">'+clDivLabel(d)+'</button>'; });
   divBar += '</div>';
+  divBar = fmtBar + divBar;
+
 
   // tab nav (Ladder | Enter)
   let nav = '<div class="tm-nav">'
@@ -3425,8 +3585,8 @@ async function renderClubLadder(){
       bodyHTML += '<table><thead><tr><th class="num">#</th><th>Team</th><th class="num"></th></tr></thead><tbody>';
       rows.forEach(r=>{
         bodyHTML += '<tr><td class="num"><span class="seed'+(r.position===1?' s1':'')+'">'+r.position+'</span></td>'
-          + '<td><b>'+r.p1+' / '+r.p2+'</b></td>'
-          + '<td class="num"><button onclick="clRemove('+r.id+',\''+(r.p1+' / '+r.p2).replace(/'/g,"\\'")+'\')" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:16px;" title="Remove (admin)">×</button></td></tr>';
+          + '<td><b>'+clRungName(r)+'</b></td>'
+          + '<td class="num"><button onclick="clRemove('+r.id+',\''+clRungName(r).replace(/'/g,"\\'")+'\')" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:16px;" title="Remove (admin)">×</button></td></tr>';
       });
       bodyHTML += '</tbody></table>';
     }
@@ -3436,15 +3596,16 @@ async function renderClubLadder(){
     const joinHint = activated
       ? 'This ladder is active — new pairs join at the bottom and challenge their way up.'
       : 'Add pairs, then activate the ladder (admin) to set the opening order by rating.';
-    bodyHTML = '<div class="card"><h2>Join the '+cat+' ladder <span class="tm-divtag">'+cat+'</span></h2>'
-      + '<p class="sub">'+joinHint+' Pick two players — names already on this ladder are removed from the list. Type to search.</p>'
-      + '<label style="font-size:12px;color:#6b6b76;">Player 1</label>'
+    bodyHTML = '<div class="card"><h2>Join the '+clDivLabel(cat)+' '+(singles?'Singles':'')+' ladder <span class="tm-divtag">'+clDivLabel(cat)+'</span></h2>'
+      + '<p class="sub">'+joinHint+' '+(singles?'Pick a player':'Pick two players')+' — names already on this ladder are removed from the list. Type to search.</p>'
+      + '<label style="font-size:12px;color:#6b6b76;">Player'+(singles?'':' 1')+'</label>'
       + '<input type="hidden" id="clP1">'
       + '<button type="button" class="name-pick-btn" id="clP1btn" onclick="clPickName(1)">— select —</button>'
-      + '<label style="font-size:12px;color:#6b6b76;">Player 2</label>'
-      + '<input type="hidden" id="clP2">'
-      + '<button type="button" class="name-pick-btn" id="clP2btn" onclick="clPickName(2)">— select —</button>'
-      + '<button class="ac-btn ac-btn-green" style="width:100%;margin-top:6px;" onclick="clJoin()">Add pair to ladder</button>'
+      + (singles ? '' : (
+          '<label style="font-size:12px;color:#6b6b76;">Player 2</label>'
+        + '<input type="hidden" id="clP2">'
+        + '<button type="button" class="name-pick-btn" id="clP2btn" onclick="clPickName(2)">— select —</button>'))
+      + '<button class="ac-btn ac-btn-green" style="width:100%;margin-top:6px;" onclick="clJoin()">'+(singles?'Add player to ladder':'Add pair to ladder')+'</button>'
       + '<div id="clMsg" style="margin-top:10px;font-size:13px;"></div></div>';
 
     // Show the teams already entered, right here on the Enter/Join tab, so you can
@@ -3456,8 +3617,8 @@ async function renderClubLadder(){
       bodyHTML += '<table><thead><tr><th class="num">'+(activated?'#':'')+'</th><th>Team</th><th class="num"></th></tr></thead><tbody>';
       rows.forEach((r,i)=>{
         bodyHTML += '<tr><td class="num">'+(activated?('<span class="seed'+(r.position===1?' s1':'')+'">'+r.position+'</span>'):(i+1))+'</td>'
-          + '<td><b>'+r.p1+' / '+r.p2+'</b></td>'
-          + '<td class="num"><button onclick="clRemove('+r.id+',\''+(r.p1+' / '+r.p2).replace(/'/g,"\\'")+'\')" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:16px;" title="Remove">×</button></td></tr>';
+          + '<td><b>'+clRungName(r)+'</b></td>'
+          + '<td class="num"><button onclick="clRemove('+r.id+',\''+clRungName(r).replace(/'/g,"\\'")+'\')" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:16px;" title="Remove">×</button></td></tr>';
       });
       bodyHTML += '</tbody></table>';
       if(!activated) bodyHTML += '<p class="sub" style="margin-top:8px;">Order shown is entry order. On activation, teams are ranked by combined rating.</p>';
@@ -3490,31 +3651,42 @@ async function renderClubLadder(){
   }
 
   body.innerHTML = divBar + nav + bodyHTML;
+  if(CL_TAB==='ladder'){ addExportBar('clBody','Club_Ladder','Club Ladder — '+cat); }
 }
 
 function clSetTab(t){ CL_TAB = t; renderClubLadder(); }
+function clSetFormat(f){
+  CL_FORMAT = f;
+  CL_CAT = (f==='singles') ? CL_CATS_SINGLES[0] : CL_CATS_DOUBLES[0];
+  CL_TAB = 'ladder';
+  renderClubLadder();
+}
 function clPick(d){ CL_CAT = d; CL_TAB='ladder'; renderClubLadder(); }
 // Item 3: first-letter search — filter the select to names starting with typed text
 // Open the modal name picker for a ladder slot (gender by category + dedupe by ladder).
 function clPickName(which){
   const players = window._clPlayers || [];
   const onLadder = window._clRows || [];
-  const used = new Set(); onLadder.forEach(r=>{ used.add(r.p1); used.add(r.p2); });
-  const thisVal = document.getElementById('clP'+which).value;
-  const otherVal = document.getElementById('clP'+(which===1?2:1)).value;
+  const singlesPick = clIsSingles(CL_CAT);
+  const used = new Set(); onLadder.forEach(r=>{ used.add(r.p1); if(r.p2) used.add(r.p2); });
+  const thisEl = document.getElementById('clP'+which);
+  const thisVal = thisEl ? thisEl.value : '';
+  // Singles has only one picker (clP1) — there is no "other" slot.
+  const otherEl = singlesPick ? null : document.getElementById('clP'+(which===1?2:1));
+  const otherVal = otherEl ? otherEl.value : '';
   const avail = players.filter(p => (p.name!==otherVal) && (!used.has(p.name) || p.name===thisVal));
   const men = avail.filter(p=>p.gender==='M').map(p=>p.name);
   const ladies = avail.filter(p=>p.gender==='F').map(p=>p.name);
   const all = avail.map(p=>p.name);
   let list;
-  if(CL_CAT==="Men's"){ list=men; }
-  else if(CL_CAT==='Ladies'){ list=ladies; }
+  if(CL_CAT==="Men's" || CL_CAT==="Men's Singles"){ list=men; }
+  else if(CL_CAT==='Ladies' || CL_CAT==='Ladies Singles'){ list=ladies; }
   else if(CL_CAT==='Mixed'){
     const partnerIsMan = players.some(p=>p.name===otherVal && p.gender==='M');
     const partnerIsLady = players.some(p=>p.name===otherVal && p.gender==='F');
     list = otherVal ? (partnerIsMan? ladies : partnerIsLady? men : all) : all;
   } else { list=all; } // All Sorts
-  openNamePicker('Player '+which, list, function(name){
+  openNamePicker(singlesPick?'Player':('Player '+which), list, function(name){
     document.getElementById('clP'+which).value = name;
     document.getElementById('clP'+which+'btn').textContent = name;
     document.getElementById('clP'+which+'btn').classList.add('selected');
@@ -3522,9 +3694,15 @@ function clPickName(which){
 }
 
 async function clJoin(){
-  const p1=document.getElementById('clP1').value, p2=document.getElementById('clP2').value;
+  const singles = clIsSingles(CL_CAT);
+  const p1=document.getElementById('clP1').value;
+  const p2=singles ? null : (document.getElementById('clP2')||{}).value;
   const msg=document.getElementById('clMsg');
-  if(!p1||!p2||p1===p2){ msg.innerHTML='<span style="color:#c0392b;">Pick two different players.</span>'; return; }
+  if(singles){
+    if(!p1){ msg.innerHTML='<span style="color:#c0392b;">Pick a player.</span>'; return; }
+  } else {
+    if(!p1||!p2||p1===p2){ msg.innerHTML='<span style="color:#c0392b;">Pick two different players.</span>'; return; }
+  }
   const r=await fetch(SB_URL+'/functions/v1/ladder',{method:'POST',
     headers:{apikey:SB_ANON,Authorization:'Bearer '+SB_ANON,'Content-Type':'application/json'},
     body:JSON.stringify({action:'join_ladder',club_id:CLUB_ID,category:CL_CAT,p1,p2})});
@@ -3543,9 +3721,15 @@ async function clActivate(force){
   if(!rows.length){ msg.innerHTML='<span style="color:#c0392b;">No teams to activate yet.</span>'; return; }
   msg.textContent='Reading ratings…';
   const withR=[];
+  const _singlesAct = clIsSingles(CL_CAT);
   for(const r of rows){
-    const a=await TM.readCurrentRating(r.p1), b=await TM.readCurrentRating(r.p2);
-    withR.push({p1:r.p1,p2:r.p2, rating: TM.pairRating(a||0,b||0,CL_CAT)});
+    if(_singlesAct){
+      const a=await TM.readCurrentRating(r.p1);
+      withR.push({p1:r.p1,p2:null, rating:(a||0)});
+    } else {
+      const a=await TM.readCurrentRating(r.p1), b=await TM.readCurrentRating(r.p2);
+      withR.push({p1:r.p1,p2:r.p2, rating: TM.pairRating(a||0,b||0,CL_CAT)});
+    }
   }
   withR.sort((x,y)=>y.rating-x.rating);
   const resp=await fetch(SB_URL+'/functions/v1/ladder',{method:'POST',
