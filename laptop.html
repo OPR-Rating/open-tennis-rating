@@ -552,7 +552,6 @@
           <p style="margin:0;">Win % treats a narrow win the same as a crushing one, and ignores who you played. Form rewards convincing performances and accounts for opponent strength. For doubles, Form shows how a <strong>partnership performs as a team</strong>.</p>
         </div>
         <div class="ladders-grid one-col" id="tFormButtons"></div>
-        </div>
       </div>
       </div>
     </div>
@@ -1431,7 +1430,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.13-04";  // (no code change) reissue clean source — homeScreen active
+const OPR_VERSION = "OTR-LAPTOP v2026.07.13-05";  // FIX: removed stray </div> that prematurely closed .app and caused giant top gap on all screens
 
 // ---- Excel/CSV export (laptop) ----------------------------------------
 // Generic: reads any rendered <table> and downloads it as a clean CSV that
