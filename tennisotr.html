@@ -1169,7 +1169,7 @@ const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 // This is the ONE value that makes this app belong to a specific club.
 const CLUB_ID = 1;
 const CLUB_NAME = "Demo";  // shown in the logo and browser tab
-const OPR_VERSION = "OTR v2026.07.13-03";  // stats sheet: division buttons list-driven from live divisions (no dead tabs) + singles stats/form loaders
+const OPR_VERSION = "OTR v2026.07.13-04";  // FIX: tournament buttons built via JS handlers (apostrophe broke inline onclick -> empty tables)
 async function sbGet(pathq){
   const r = await fetch(SB_URL + "/rest/v1/" + pathq, { headers:{ apikey:SB_ANON, Authorization:"Bearer "+SB_ANON } });
   if(!r.ok) throw new Error("HTTP "+r.status);
@@ -1400,16 +1400,20 @@ async function renderTournamentButtons(){
     if(d==="Mixed") return "Mixed Doubles";
     return d;
   };
-  const esc=(s)=>String(s).replace(/'/g,"\\'");
   const anyDoubles = divs.some(d=>!/singles/i.test(d));
-  let sHtml='';
-  divs.forEach(d=>{ sHtml+=`<button class="menu-btn" onclick="loadTournament('${esc(d)}','${esc(label(d))}')">${label(d)}</button>`; });
-  if(anyDoubles){ sHtml+=`<button class="menu-btn" style="grid-column:span 2;" onclick="loadTournament('Universal','Universal')">Universal</button>`; }
-  statsBox.innerHTML=sHtml;
-  let fHtml='';
-  divs.forEach(d=>{ fHtml+=`<button class="menu-btn" onclick="loadTournamentForm('${esc(d)}','${esc(label(d))} Form')">${label(d)} Form</button>`; });
-  if(anyDoubles){ fHtml+=`<button class="menu-btn" onclick="loadTournamentForm('Universal','Universal Form')">Universal Form</button>`; }
-  formBox.innerHTML=fHtml;
+  const mkBtn=(text, cat, title, isForm, span2)=>{
+    const b=document.createElement('button');
+    b.className='menu-btn';
+    b.textContent=text;
+    if(span2) b.style.gridColumn='span 2';
+    b.addEventListener('click', ()=>{ isForm ? loadTournamentForm(cat,title) : loadTournament(cat,title); });
+    return b;
+  };
+  statsBox.innerHTML=''; formBox.innerHTML='';
+  divs.forEach(d=>{ statsBox.appendChild(mkBtn(label(d), d, label(d), false, false)); });
+  if(anyDoubles){ statsBox.appendChild(mkBtn('Universal','Universal','Universal', false, true)); }
+  divs.forEach(d=>{ formBox.appendChild(mkBtn(label(d)+' Form', d, label(d)+' Form', true, false)); });
+  if(anyDoubles){ formBox.appendChild(mkBtn('Universal Form','Universal','Universal Form', true, false)); }
 }
 function setTourView(v){ window._tourInternalView = v; loadTournamentPicker(); }
 // Open the internal tournament module view (it navigates to the sheet screen itself)

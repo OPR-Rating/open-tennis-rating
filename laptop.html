@@ -1430,7 +1430,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.13-05";  // FIX: removed stray </div> that prematurely closed .app and caused giant top gap on all screens
+const OPR_VERSION = "OTR-LAPTOP v2026.07.13-06";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
 
 // ---- Excel/CSV export (laptop) ----------------------------------------
 // Generic: reads any rendered <table> and downloads it as a clean CSV that
@@ -1727,25 +1727,29 @@ async function renderTournamentButtons(){
   // Fallback: if the tournament has no stored divisions (older/external rows),
   // show the classic four doubles divisions so nothing regresses.
   if(divs.length===0) divs=["Men's","Ladies","Mixed","All Sorts"];
-  // Friendly labels for each division category.
   const label=(d)=>{
     if(d==="Men's") return "Men's Doubles";
     if(d==="Ladies") return "Ladies Doubles";
     if(d==="Mixed") return "Mixed Doubles";
-    return d; // "All Sorts", "Men's Singles", "Ladies Singles" read fine as-is
+    return d; // "All Sorts","Men's Singles","Ladies Singles" read fine
   };
-  const esc=(s)=>String(s).replace(/'/g,"\\'");
   const anyDoubles = divs.some(d=>!/singles/i.test(d));
-  // STATS buttons
-  let sHtml='';
-  divs.forEach(d=>{ sHtml+=`<button class="menu-btn" onclick="loadTournament('${esc(d)}','${esc(label(d))}')">${label(d)}</button>`; });
-  if(anyDoubles){ sHtml+=`<button class="menu-btn" style="grid-column:span 2;" onclick="loadTournament('Universal','Universal')">Universal</button>`; }
-  statsBox.innerHTML=sHtml;
-  // FORM buttons (same divisions; singles get a team_form too, single-player)
-  let fHtml='';
-  divs.forEach(d=>{ fHtml+=`<button class="menu-btn" onclick="loadTournamentForm('${esc(d)}','${esc(label(d))} Form')">${label(d)} Form</button>`; });
-  if(anyDoubles){ fHtml+=`<button class="menu-btn" onclick="loadTournamentForm('Universal','Universal Form')">Universal Form</button>`; }
-  formBox.innerHTML=fHtml;
+  // Build buttons WITHOUT inline onclick strings — attach handlers in JS so
+  // division names containing apostrophes (Men's, Men's Singles) can't break
+  // the attribute quoting. This is what previously left the tables empty.
+  const mkBtn=(text, cat, title, isForm, span2)=>{
+    const b=document.createElement('button');
+    b.className='menu-btn';
+    b.textContent=text;
+    if(span2) b.style.gridColumn='span 2';
+    b.addEventListener('click', ()=>{ isForm ? loadTournamentForm(cat,title) : loadTournament(cat,title); });
+    return b;
+  };
+  statsBox.innerHTML=''; formBox.innerHTML='';
+  divs.forEach(d=>{ statsBox.appendChild(mkBtn(label(d), d, label(d), false, false)); });
+  if(anyDoubles){ statsBox.appendChild(mkBtn('Universal','Universal','Universal', false, true)); }
+  divs.forEach(d=>{ formBox.appendChild(mkBtn(label(d)+' Form', d, label(d)+' Form', true, false)); });
+  if(anyDoubles){ formBox.appendChild(mkBtn('Universal Form','Universal','Universal Form', true, false)); }
 }
 function setTourView(v){ window._tourInternalView = v; loadTournamentPicker(); }
 // Open the internal tournament module view (it navigates to the sheet screen itself)
