@@ -610,6 +610,10 @@
           <div class="ac-card">
             <h4>Create a tournament</h4>
             <input id="atName" placeholder="Tournament name (e.g. Summer Swing)" class="ac-field">
+            <select id="atMatchFormat" class="ac-field" onchange="atToggleMatchFormat()">
+              <option value="doubles">Doubles (2 v 2)</option>
+              <option value="singles">Singles (1 v 1)</option>
+            </select>
             <select id="atType" class="ac-field" onchange="atToggleType()">
               <option value="external">External — OPR tracks stats only</option>
               <option value="internal">Internal — OPR runs it (pairings &amp; rounds)</option>
@@ -1019,6 +1023,17 @@ function atToggleType(){
   const t=document.getElementById('atType').value;
   document.getElementById('atInternalOpts').style.display = (t==='internal')?'':'none';
 }
+// Singles tournaments run Men's / Ladies only (no Mixed / All Sorts singles).
+function atToggleMatchFormat(){
+  const mf=(document.getElementById('atMatchFormat')||{}).value||'doubles';
+  const singles=(mf==='singles');
+  [['Mixed','Mixed'],['AllSorts','AllSorts']].forEach(([id])=>{
+    const cb=document.getElementById('atDiv'+id);
+    const cap=document.getElementById('atCap'+id);
+    if(cb){ if(singles){ cb.checked=false; } cb.disabled=singles; }
+    if(cap){ cap.disabled = singles || !(cb&&cb.checked); if(singles) cap.value=''; }
+  });
+}
 // enable/disable each division's cap field with its checkbox
 function atSyncCap(which){
   const cb=document.getElementById('atDiv'+which);
@@ -1029,14 +1044,18 @@ async function adminCreateTournament(){
   const cid=document.getElementById('adminClubSelect').value;
   const name=document.getElementById('atName').value.trim();
   const type=document.getElementById('atType').value;
+  const match_format=(document.getElementById('atMatchFormat')||{}).value||'doubles';
   const msg=document.getElementById('adminTourMsg');
   if(!name){ msg.innerHTML='<span style="color:#c0392b;">Tournament name required.</span>'; return; }
   let divisions=null, caps=null;
   if(type==='internal'){
-    const defs=[['Men',"Men's"],['Ladies','Ladies'],['Mixed','Mixed'],['AllSorts','All Sorts']];
+    const defs = (match_format==='singles')
+      ? [['Men',"Men's"],['Ladies','Ladies']]
+      : [['Men',"Men's"],['Ladies','Ladies'],['Mixed','Mixed'],['AllSorts','All Sorts']];
     const ds=[]; caps={};
     defs.forEach(([id,label])=>{
-      if(document.getElementById('atDiv'+id).checked){
+      const cb=document.getElementById('atDiv'+id);
+      if(cb && cb.checked){
         ds.push(label);
         const c=document.getElementById('atCap'+id).value;
         if(c) caps[label]=Number(c);
@@ -1045,9 +1064,9 @@ async function adminCreateTournament(){
     if(ds.length===0){ msg.innerHTML='<span style="color:#c0392b;">Pick at least one division.</span>'; return; }
     divisions = ds.join(',');
   }
-  const r=await adminCall('create_tournament',{ club_id:Number(cid), name, type, format:'divisional', divisions, caps:caps?JSON.stringify(caps):null });
+  const r=await adminCall('create_tournament',{ club_id:Number(cid), name, type, format:'divisional', match_format, divisions, caps:caps?JSON.stringify(caps):null });
   if(!r.ok){ msg.innerHTML='<span style="color:#c0392b;">'+r.error+'</span>'; return; }
-  msg.innerHTML='<span style="color:#1e8449;">Created "'+name+'" ('+type+').</span>';
+  msg.innerHTML='<span style="color:#1e8449;">Created "'+name+'" ('+type+', '+match_format+').</span>';
   document.getElementById('atName').value='';
   ['Men','Ladies','Mixed','AllSorts'].forEach(x=>{ const c=document.getElementById('atCap'+x); if(c) c.value=''; });
   adminLoadTournaments();
@@ -1165,7 +1184,7 @@ const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 // This is the ONE value that makes this app belong to a specific club.
 const CLUB_ID = 1;
 const CLUB_NAME = "Demo";  // shown in the logo and browser tab
-const OPR_VERSION = "OTR v2026.07.12-06";  // revert submit URL to submit_match (matches deployed URL); _singles fix retained
+const OPR_VERSION = "OTR v2026.07.13-01";  // singles/doubles tournaments: create-form Format selector + format-aware entry guard
 async function sbGet(pathq){
   const r = await fetch(SB_URL + "/rest/v1/" + pathq, { headers:{ apikey:SB_ANON, Authorization:"Bearer "+SB_ANON } });
   if(!r.ok) throw new Error("HTTP "+r.status);
@@ -2233,6 +2252,20 @@ async function submitMatch(){
   if(!pin||pin.length<4){err.textContent='Please enter your 4-digit PIN.';err.style.display='block';return;}
 
   err.style.display='none';
+  // A tournament match's format must match the tournament's format (singles vs doubles).
+  // Social and Ladder Match are unaffected.
+  if(entryData.event && entryData.event!=='Social' && entryData.event!=='Ladder Match'){
+    let tourFmt='doubles';
+    try{
+      const trow = await sbGet(`tournaments?select=match_format&name=eq.${encodeURIComponent(entryData.event)}&club_id=eq.${CLUB_ID}&limit=1`);
+      if(trow && trow.length && trow[0].match_format) tourFmt=trow[0].match_format;
+    }catch(e){}
+    if((entryData.format||'doubles')!==tourFmt){
+      err.textContent='“'+entryData.event+'” is a '+tourFmt+' tournament. This is a '+(entryData.format||'doubles')+' match — pick a '+tourFmt+' match, or choose a different event.';
+      err.style.display='block';
+      return;
+    }
+  }
   const btn=document.getElementById('submitBtn');
   // DUPLICATE FAILSAFE (all match types, incl. social): before saving, check whether the
   // SAME FOUR PLAYERS already appear in the most RECENTLY ENTERED matches. This guards the
