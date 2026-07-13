@@ -1422,7 +1422,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.12-12";  // tennis fork stage 1 + sets-played col + dark-blue test button
+const OPR_VERSION = "OTR-LAPTOP v2026.07.12-15";  // revert submit URL to submit_match (matches deployed URL); _singles fix retained
 
 // ---- Excel/CSV export (laptop) ----------------------------------------
 // Generic: reads any rendered <table> and downloads it as a clean CSV that
@@ -2374,6 +2374,7 @@ function renderStep2(){
       </div>`;
     return;
   }
+  const _singles = (entryData.format==='singles');
   const _p1label = _singles ? 'Player' : 'Player 1';
   const _t1label = _singles ? 'Player 1' : 'Team 1';
   const _t2label = _singles ? 'Player 2' : 'Team 2';
