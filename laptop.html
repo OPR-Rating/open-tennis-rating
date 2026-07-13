@@ -738,21 +738,21 @@
           <div class="ac-card">
             <h4>Create a tournament</h4>
             <input id="atName" placeholder="Tournament name (e.g. Summer Swing)" class="ac-field">
-            <select id="atMatchFormat" class="ac-field" onchange="atToggleMatchFormat()">
-              <option value="doubles">Doubles (2 v 2)</option>
-              <option value="singles">Singles (1 v 1)</option>
-            </select>
             <select id="atType" class="ac-field" onchange="atToggleType()">
               <option value="external">External — OTR tracks stats only</option>
               <option value="internal">Internal — OTR runs it (pairings &amp; rounds)</option>
             </select>
-            <div id="atInternalOpts" style="display:none;">
+            <div id="atDivBlock">
               <label style="font-size:12px;color:#9b80b3;font-weight:700;">Divisions &amp; team caps</label>
-              <p style="font-size:11px;color:#9b80b3;margin:2px 0 8px;">Tick each division to run. Set an optional team cap for each (leave blank for no cap).</p>
+              <p id="atDivHint" style="font-size:11px;color:#9b80b3;margin:2px 0 8px;">Tick each division this tournament runs. Only ticked divisions appear in stats and entry. Set an optional cap for each (leave blank for no cap).</p>
               <div id="atDivRows">
-                <div class="at-divrow"><label><input type="checkbox" id="atDivMen" checked onchange="atSyncCap('Men')"> Men's</label><input id="atCapMen" type="number" min="4" step="2" placeholder="cap" class="ac-capf"></div>
-                <div class="at-divrow"><label><input type="checkbox" id="atDivLadies" checked onchange="atSyncCap('Ladies')"> Ladies</label><input id="atCapLadies" type="number" min="4" step="2" placeholder="cap" class="ac-capf"></div>
-                <div class="at-divrow"><label><input type="checkbox" id="atDivMixed" onchange="atSyncCap('Mixed')"> Mixed</label><input id="atCapMixed" type="number" min="4" step="2" placeholder="cap" class="ac-capf" disabled></div>
+                <div style="font-size:11px;color:#7ba392;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:4px 0 4px;">Singles</div>
+                <div class="at-divrow"><label><input type="checkbox" id="atDivMenSingles" onchange="atSyncCap('MenSingles')"> Men's Singles</label><input id="atCapMenSingles" type="number" min="2" step="1" placeholder="cap" class="ac-capf" disabled></div>
+                <div class="at-divrow"><label><input type="checkbox" id="atDivLadiesSingles" onchange="atSyncCap('LadiesSingles')"> Ladies Singles</label><input id="atCapLadiesSingles" type="number" min="2" step="1" placeholder="cap" class="ac-capf" disabled></div>
+                <div style="font-size:11px;color:#7ba392;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:10px 0 4px;">Doubles</div>
+                <div class="at-divrow"><label><input type="checkbox" id="atDivMen" checked onchange="atSyncCap('Men')"> Men's Doubles</label><input id="atCapMen" type="number" min="4" step="2" placeholder="cap" class="ac-capf"></div>
+                <div class="at-divrow"><label><input type="checkbox" id="atDivLadies" checked onchange="atSyncCap('Ladies')"> Ladies Doubles</label><input id="atCapLadies" type="number" min="4" step="2" placeholder="cap" class="ac-capf"></div>
+                <div class="at-divrow"><label><input type="checkbox" id="atDivMixed" onchange="atSyncCap('Mixed')"> Mixed Doubles</label><input id="atCapMixed" type="number" min="4" step="2" placeholder="cap" class="ac-capf" disabled></div>
                 <div class="at-divrow"><label><input type="checkbox" id="atDivAllSorts" onchange="atSyncCap('AllSorts')"> All Sorts</label><input id="atCapAllSorts" type="number" min="4" step="2" placeholder="cap" class="ac-capf" disabled></div>
               </div>
             </div>
@@ -1193,22 +1193,18 @@ async function adminDeleteMatch(id){
   if(!r.ok){ alert(r.error||'Could not delete.'); return; }
   adminLoadMatches();
 }
-// show internal options only when type=internal
+// The divisions block is shown for BOTH external and internal. The only difference:
+// internal ALSO generates draws for the ticked divisions; external just tracks their stats.
+// A short hint reflects that. The division list is the single source of truth for which
+// divisions are "live" — every downstream view (stats sheet, entry) reads it.
 function atToggleType(){
   const t=document.getElementById('atType').value;
-  document.getElementById('atInternalOpts').style.display = (t==='internal')?'':'none';
-}
-// Singles tournaments run Men's / Ladies only (there is no Mixed / All Sorts singles).
-// When Singles is picked, force-uncheck and disable those two divisions.
-function atToggleMatchFormat(){
-  const mf=(document.getElementById('atMatchFormat')||{}).value||'doubles';
-  const singles=(mf==='singles');
-  [['Mixed','Mixed'],['AllSorts','AllSorts']].forEach(([id])=>{
-    const cb=document.getElementById('atDiv'+id);
-    const cap=document.getElementById('atCap'+id);
-    if(cb){ if(singles){ cb.checked=false; } cb.disabled=singles; }
-    if(cap){ cap.disabled = singles || !(cb&&cb.checked); if(singles) cap.value=''; }
-  });
+  const hint=document.getElementById('atDivHint');
+  if(hint){
+    hint.textContent = (t==='internal')
+      ? 'Tick each division this tournament runs. Only ticked divisions get a draw and appear in entry & stats. Set an optional cap for each (blank = no cap).'
+      : 'Tick each division this tournament tracks. Only ticked divisions appear in the tournament stats. Set an optional cap for each (blank = no cap).';
+  }
 }
 // enable/disable each division's cap field with its checkbox
 function atSyncCap(which){
@@ -1216,36 +1212,39 @@ function atSyncCap(which){
   const cap=document.getElementById('atCap'+which);
   if(cb && cap){ cap.disabled = !cb.checked; if(!cb.checked) cap.value=''; }
 }
+// All six divisions: form id -> stored division label.
+// NOTE: doubles labels are kept EXACTLY as before ("Men's","Ladies","Mixed","All Sorts")
+// so existing tournaments and the doubles entry path are unaffected. Singles are new labels.
+const AT_DIV_DEFS = [
+  ['MenSingles',    "Men's Singles"],
+  ['LadiesSingles', "Ladies Singles"],
+  ['Men',           "Men's"],
+  ['Ladies',        "Ladies"],
+  ['Mixed',         "Mixed"],
+  ['AllSorts',      "All Sorts"]
+];
 async function adminCreateTournament(){
   const cid=document.getElementById('adminClubSelect').value;
   const name=document.getElementById('atName').value.trim();
   const type=document.getElementById('atType').value;
-  const match_format=(document.getElementById('atMatchFormat')||{}).value||'doubles';
   const msg=document.getElementById('adminTourMsg');
   if(!name){ msg.innerHTML='<span style="color:#c0392b;">Tournament name required.</span>'; return; }
-  let divisions=null, caps=null;
-  if(type==='internal'){
-    // Singles offers Men's / Ladies only; doubles offers all four.
-    const defs = (match_format==='singles')
-      ? [['Men',"Men's"],['Ladies','Ladies']]
-      : [['Men',"Men's"],['Ladies','Ladies'],['Mixed','Mixed'],['AllSorts','All Sorts']];
-    const ds=[]; caps={};
-    defs.forEach(([id,label])=>{
-      const cb=document.getElementById('atDiv'+id);
-      if(cb && cb.checked){
-        ds.push(label);
-        const c=document.getElementById('atCap'+id).value;
-        if(c) caps[label]=Number(c);
-      }
-    });
-    if(ds.length===0){ msg.innerHTML='<span style="color:#c0392b;">Pick at least one division.</span>'; return; }
-    divisions = ds.join(',');
-  }
-  const r=await adminCall('create_tournament',{ club_id:Number(cid), name, type, format:'divisional', match_format, divisions, caps:caps?JSON.stringify(caps):null });
+  const ds=[]; const caps={};
+  AT_DIV_DEFS.forEach(([id,label])=>{
+    const cb=document.getElementById('atDiv'+id);
+    if(cb && cb.checked){
+      ds.push(label);
+      const c=document.getElementById('atCap'+id).value;
+      if(c) caps[label]=Number(c);
+    }
+  });
+  if(ds.length===0){ msg.innerHTML='<span style="color:#c0392b;">Pick at least one division.</span>'; return; }
+  const divisions = ds.join(',');
+  const r=await adminCall('create_tournament',{ club_id:Number(cid), name, type, format:'divisional', divisions, caps:Object.keys(caps).length?JSON.stringify(caps):null });
   if(!r.ok){ msg.innerHTML='<span style="color:#c0392b;">'+r.error+'</span>'; return; }
-  msg.innerHTML='<span style="color:#1e8449;">Created "'+name+'" ('+type+', '+match_format+').</span>';
+  msg.innerHTML='<span style="color:#1e8449;">Created "'+name+'" ('+type+') — '+ds.length+' division'+(ds.length===1?'':'s')+'.</span>';
   document.getElementById('atName').value='';
-  ['Men','Ladies','Mixed','AllSorts'].forEach(x=>{ const c=document.getElementById('atCap'+x); if(c) c.value=''; });
+  AT_DIV_DEFS.forEach(([id])=>{ const c=document.getElementById('atCap'+id); if(c){ c.value=''; } });
   adminLoadTournaments();
 }
 async function adminToggleTournament(id, active){
@@ -1443,7 +1442,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.13-01";  // singles/doubles tournaments: create-form Format selector + format-aware entry guard
+const OPR_VERSION = "OTR-LAPTOP v2026.07.13-02";  // tournament create: six-division checklist (2 singles + 4 doubles) for both external/internal; division-aware entry guard
 
 // ---- Excel/CSV export (laptop) ----------------------------------------
 // Generic: reads any rendered <table> and downloads it as a clean CSV that
@@ -2593,17 +2592,32 @@ async function submitMatch(){
   if(!pin||pin.length<4){err.textContent='Please enter your 4-digit PIN.';err.style.display='block';return;}
 
   err.style.display='none';
-  // SINGLES/DOUBLES + Tournament: a match's format must match the tournament's format.
-  // A tournament is either a singles or a doubles competition (tournaments.match_format).
+  // TOURNAMENT ENTRY GUARD (division-aware). A tournament runs a set of live divisions
+  // (stored in tournaments.divisions). Singles divisions carry the word "Singles"
+  // (e.g. "Men's Singles"); doubles divisions do not ("Men's","Mixed","All Sorts").
+  // This match must target a division the tournament actually runs, of the matching format.
   // Social and Ladder Match are unaffected (Ladder handles singles via singles ladders).
   if(entryData.event && entryData.event!=='Social' && entryData.event!=='Ladder Match'){
-    let tourFmt='doubles';
+    let liveDivs=[];
     try{
-      const trow = await sbGet(`tournaments?select=match_format&name=eq.${encodeURIComponent(entryData.event)}&club_id=eq.${CLUB_ID}&limit=1`);
-      if(trow && trow.length && trow[0].match_format) tourFmt=trow[0].match_format;
+      const trow = await sbGet(`tournaments?select=divisions&name=eq.${encodeURIComponent(entryData.event)}&club_id=eq.${CLUB_ID}&limit=1`);
+      if(trow && trow.length && trow[0].divisions) liveDivs = trow[0].divisions.split(',').map(s=>s.trim()).filter(Boolean);
     }catch(e){}
-    if((entryData.format||'doubles')!==tourFmt){
-      err.textContent='“'+entryData.event+'” is a '+tourFmt+' tournament. This is a '+(entryData.format||'doubles')+' match — pick a '+tourFmt+' match, or choose a different event.';
+    const isSingles=(entryData.format==='singles');
+    // Resolve the division this match targets: singles -> "<Type> Singles"; doubles -> "<Type>".
+    const targetDiv = isSingles ? (entryData.type+' Singles') : entryData.type;
+    if(liveDivs.length && liveDivs.indexOf(targetDiv)<0){
+      const singlesLive = liveDivs.filter(d=>/singles/i.test(d));
+      const doublesLive = liveDivs.filter(d=>!/singles/i.test(d));
+      let hint;
+      if(isSingles && singlesLive.length===0){
+        hint='“'+entryData.event+'” has no singles divisions — it runs: '+liveDivs.join(', ')+'.';
+      } else if(!isSingles && doublesLive.length===0){
+        hint='“'+entryData.event+'” has no doubles divisions — it runs: '+liveDivs.join(', ')+'.';
+      } else {
+        hint='“'+entryData.event+'” doesn’t run a '+targetDiv+' division. It runs: '+liveDivs.join(', ')+'.';
+      }
+      err.textContent=hint+' Pick a matching event, or choose Social.';
       err.style.display='block';
       return;
     }
