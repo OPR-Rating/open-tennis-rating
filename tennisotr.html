@@ -425,13 +425,7 @@
       <div id="tournamentPicker" style="margin-bottom:14px;"></div>
       <div id="tournamentBody">
       <div class="ladders-group-title">Tournament Statistics</div>
-      <div class="ladders-grid">
-        <button class="menu-btn" onclick="loadTournament('Men\'s','Men\'s Doubles')">Men's Doubles</button>
-        <button class="menu-btn" onclick="loadTournament('Ladies','Ladies Doubles')">Ladies Doubles</button>
-        <button class="menu-btn" onclick="loadTournament('Mixed','Mixed Doubles')">Mixed Doubles</button>
-        <button class="menu-btn" onclick="loadTournament('All Sorts','All Sorts')">All Sorts</button>
-        <button class="menu-btn" style="grid-column:span 2;" onclick="loadTournament('Universal','Universal')">Universal</button>
-      </div>
+      <div class="ladders-grid" id="tStatsButtons"></div>
       <div class="ladders-group-title">Tournament Form</div>
       <div class="ladders-grid one-col">
         <button class="menu-btn form-toggle" id="tFormToggleBtn" style="border-color:#7D3C98;box-shadow:0 0 12px rgba(125,60,152,0.4);font-weight:700;" onclick="toggleTFormMenu()">Tournament Form &nbsp;<span id="tFormChevron" style="font-size:12px;">▼</span></button>
@@ -462,13 +456,7 @@
           <p style="margin:0 0 4px;"><strong>Why Form, not just Win %?</strong></p>
           <p style="margin:0;">Win % treats a narrow win the same as a crushing one, and ignores who you played. Form rewards convincing performances and accounts for opponent strength. For doubles, Form shows how a <strong>partnership performs as a team</strong>.</p>
         </div>
-        <div class="ladders-grid one-col">
-          <button class="menu-btn" onclick="loadTournamentForm('Men\'s',&quot;Men's Doubles Form&quot;)">Men's Doubles Form</button>
-          <button class="menu-btn" onclick="loadTournamentForm('Ladies','Ladies Doubles Form')">Ladies Doubles Form</button>
-          <button class="menu-btn" onclick="loadTournamentForm('Mixed','Mixed Doubles Form')">Mixed Doubles Form</button>
-          <button class="menu-btn" onclick="loadTournamentForm('All Sorts','All Sorts Form')">All Sorts Form</button>
-          <button class="menu-btn" onclick="loadTournamentForm('Universal','Universal Form')">Universal Form</button>
-        </div>
+        <div class="ladders-grid one-col" id="tFormButtons"></div>
       </div>
       </div>
     </div>
@@ -1181,7 +1169,7 @@ const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 // This is the ONE value that makes this app belong to a specific club.
 const CLUB_ID = 1;
 const CLUB_NAME = "Demo";  // shown in the logo and browser tab
-const OPR_VERSION = "OTR v2026.07.13-02";  // tournament create: six-division checklist (2 singles + 4 doubles) for both external/internal; division-aware entry guard
+const OPR_VERSION = "OTR v2026.07.13-03";  // stats sheet: division buttons list-driven from live divisions (no dead tabs) + singles stats/form loaders
 async function sbGet(pathq){
   const r = await fetch(SB_URL + "/rest/v1/" + pathq, { headers:{ apikey:SB_ANON, Authorization:"Bearer "+SB_ANON } });
   if(!r.ok) throw new Error("HTTP "+r.status);
@@ -1392,6 +1380,36 @@ async function loadTournamentPicker(){
     body.style.display='';
     internalDiv.style.display='none';
   }
+  renderTournamentButtons();
+}
+// Build the Tournament Statistics + Tournament Form buttons from the SELECTED
+// tournament's LIVE divisions only — so there are never dead/unresponsive tabs.
+async function renderTournamentButtons(){
+  const statsBox=document.getElementById('tStatsButtons');
+  const formBox=document.getElementById('tFormButtons');
+  if(!statsBox||!formBox) return;
+  let divs=[];
+  try{
+    const trow=await sbGet(`tournaments?select=divisions&name=eq.${encodeURIComponent(TOURNAMENT_EVENT)}&club_id=eq.${CLUB_ID}&limit=1`);
+    if(trow && trow.length && trow[0].divisions) divs=trow[0].divisions.split(',').map(s=>s.trim()).filter(Boolean);
+  }catch(e){}
+  if(divs.length===0) divs=["Men's","Ladies","Mixed","All Sorts"];
+  const label=(d)=>{
+    if(d==="Men's") return "Men's Doubles";
+    if(d==="Ladies") return "Ladies Doubles";
+    if(d==="Mixed") return "Mixed Doubles";
+    return d;
+  };
+  const esc=(s)=>String(s).replace(/'/g,"\\'");
+  const anyDoubles = divs.some(d=>!/singles/i.test(d));
+  let sHtml='';
+  divs.forEach(d=>{ sHtml+=`<button class="menu-btn" onclick="loadTournament('${esc(d)}','${esc(label(d))}')">${label(d)}</button>`; });
+  if(anyDoubles){ sHtml+=`<button class="menu-btn" style="grid-column:span 2;" onclick="loadTournament('Universal','Universal')">Universal</button>`; }
+  statsBox.innerHTML=sHtml;
+  let fHtml='';
+  divs.forEach(d=>{ fHtml+=`<button class="menu-btn" onclick="loadTournamentForm('${esc(d)}','${esc(label(d))} Form')">${label(d)} Form</button>`; });
+  if(anyDoubles){ fHtml+=`<button class="menu-btn" onclick="loadTournamentForm('Universal','Universal Form')">Universal Form</button>`; }
+  formBox.innerHTML=fHtml;
 }
 function setTourView(v){ window._tourInternalView = v; loadTournamentPicker(); }
 // Open the internal tournament module view (it navigates to the sheet screen itself)
@@ -1418,6 +1436,7 @@ async function loadTournament(category, title) {
   showScreen('tournamentSheetScreen');
   document.getElementById('tournamentSheetTitle').textContent = title;
   try {
+    const isSingles = /singles/i.test(category);
     const usesCombined = (category==="Men's" || category==='Ladies');
     // Tournament STATISTICS table: rank by PERFORMANCE, not rating.
     // Tournament merit order: sets WON (volume — you earn rank by winning) → win % (efficiency) → sets played.
@@ -1425,14 +1444,16 @@ async function loadTournament(category, title) {
     // (This ordering applies ONLY to this tournament-stats table — not ladders or rating sheets.)
     const data = await sbGet(`${tourTable()}?select=rank,p1,p2,combined,weighted,level,sets,sets_won,set_win_pct&event=eq.${encodeURIComponent(TOURNAMENT_EVENT)}&category=eq.${encodeURIComponent(category)}&order=sets_won.desc.nullslast,set_win_pct.desc.nullslast,sets.desc&club_id=eq.${CLUB_ID}`);
     if(data.length===0){document.getElementById('tournamentSheetContent').innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>No tournament matches in this category yet.</p></div>';return;}
-    const ratingHdr = usesCombined ? 'Rating (Comb)' : 'Rating (Wtd)';
-    let html=`<table class="ladder-table"><thead><tr><th>Rank</th><th>Pair</th><th>Sets</th><th>Won</th><th>% Won</th><th>${ratingHdr}</th><th>Level</th></tr></thead><tbody>`;
+    const ratingHdr = isSingles ? 'Rating' : (usesCombined ? 'Rating (Comb)' : 'Rating (Wtd)');
+    const nameHdr = isSingles ? 'Player' : 'Pair';
+    let html=`<table class="ladder-table"><thead><tr><th>Rank</th><th>${nameHdr}</th><th>Sets</th><th>Won</th><th>% Won</th><th>${ratingHdr}</th><th>Level</th></tr></thead><tbody>`;
     let pos=0;
     data.forEach(p=>{
       pos++;
-      const rating = usesCombined ? Math.round(p.combined) : Math.round(p.weighted);
+      const rating = isSingles ? Math.round(p.combined) : (usesCombined ? Math.round(p.combined) : Math.round(p.weighted));
       const swp = p.set_win_pct==null?'—':Number(p.set_win_pct).toFixed(1);
-      html += `<tr><td>${rankBadge(pos)}</td><td>${p.p1} & ${p.p2}</td><td>${p.sets}</td><td>${p.sets_won==null?'—':Math.round(p.sets_won)}</td><td>${swp}</td><td>${rating}</td><td>${Number(p.level).toFixed(1)}</td></tr>`;
+      const nameCell = isSingles ? p.p1 : (p.p1+' & '+p.p2);
+      html += `<tr><td>${rankBadge(pos)}</td><td>${nameCell}</td><td>${p.sets}</td><td>${p.sets_won==null?'—':Math.round(p.sets_won)}</td><td>${swp}</td><td>${rating}</td><td>${Number(p.level).toFixed(1)}</td></tr>`;
     });
     html+='</tbody></table>';
     document.getElementById('tournamentSheetContent').className='';
@@ -1448,14 +1469,17 @@ async function loadTournamentForm(category, title) {
   showScreen('tournamentSheetScreen');
   document.getElementById('tournamentSheetTitle').textContent = title;
   try {
+    const isSingles = /singles/i.test(category);
     const data = await sbGet(`${tourTable()}?select=p1,p2,sets,sets_won,set_win_pct,game_diff_per_set,team_form&event=eq.${encodeURIComponent(TOURNAMENT_EVENT)}&category=eq.${encodeURIComponent(category)}&team_form=not.is.null&order=team_form.desc&club_id=eq.${CLUB_ID}`);
     // Tie-break merit order: 1. Form  2. Win %  3. Game diff/set  4. Sets won
     if(data&&data.sort) data.sort((a,b)=>(b.team_form-a.team_form)||((b.set_win_pct||0)-(a.set_win_pct||0))||((b.game_diff_per_set||0)-(a.game_diff_per_set||0))||((b.sets_won||0)-(a.sets_won||0)));
-    let html='<table class="ladder-table"><thead><tr><th>Pair</th><th>Sets</th><th>Sets Won</th><th>Win %</th><th>Game Diff/Set</th><th>Form</th></tr></thead><tbody>';
+    const nameHdr = isSingles ? 'Player' : 'Pair';
+    let html='<table class="ladder-table"><thead><tr><th>'+nameHdr+'</th><th>Sets</th><th>Sets Won</th><th>Win %</th><th>Game Diff/Set</th><th>Form</th></tr></thead><tbody>';
     data.forEach(p=>{
       const winpct = p.set_win_pct==null?'—':Number(p.set_win_pct).toFixed(1);
       const gdps = p.game_diff_per_set==null?'—':Number(p.game_diff_per_set).toFixed(2);
-      html += `<tr><td>${p.p1} & ${p.p2}</td><td>${p.sets}</td><td>${p.sets_won==null?'—':Math.round(p.sets_won)}</td><td>${winpct}</td><td>${gdps}</td><td><strong>${Number(p.team_form).toFixed(3)}</strong></td></tr>`;
+      const nameCell = isSingles ? p.p1 : (p.p1+' & '+p.p2);
+      html += `<tr><td>${nameCell}</td><td>${p.sets}</td><td>${p.sets_won==null?'—':Math.round(p.sets_won)}</td><td>${winpct}</td><td>${gdps}</td><td><strong>${Number(p.team_form).toFixed(3)}</strong></td></tr>`;
     });
     html+='</tbody></table>';
     if(data.length===0){ html='<div class="empty-state" style="padding:16px 0;"><p>No pairs have reached 12 tournament sets in this category yet.</p></div>'; }
