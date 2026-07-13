@@ -1430,7 +1430,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.13-06";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
+const OPR_VERSION = "OTR-LAPTOP v2026.07.13-07";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
 
 // ---- Excel/CSV export (laptop) ----------------------------------------
 // Generic: reads any rendered <table> and downloads it as a clean CSV that
@@ -3185,24 +3185,51 @@ const TM = (function () {
     }
     return { rounds, history, ok: true };
   }
-  // Swiss round from a ranked seed order. Widens bands a notch if (and only if)
-  // a strict no-rematch draw is impossible. Returns {pairs, widened} or null.
+  // Swiss round from a ranked seed order.
+  // -------------------------------------------------------------------------
+  // FIX (2026-07): protect TRUE SWISS — strength must meet strength.
+  // The old version treated "no rematch" as an ABSOLUTE rule and widened the
+  // bands until it found any rematch-free draw. In later rounds that forced the
+  // top team down the table to find a fresh opponent, so the event drifted into
+  // a round-robin (and could fail outright when every legal pairing was a
+  // rematch — the "round 6 won't generate" problem).
+  //
+  // New rule: pick the pairing that MINIMISES total standings-distance, with a
+  // rematch allowed but PENALISED (worth REMATCH_PENALTY places). A rematch is
+  // therefore chosen ONLY when avoiding it would force a pairing more than
+  // REMATCH_PENALTY places apart. Winners keep playing winners, and because a
+  // rematch is always available as a last resort, it can NEVER run out of
+  // options and fail to generate a round. Returns { pairs, widened, rematches }.
   function swissRound(N, rankedOrder, history) {
-    const baseH = Math.round(2 + N / 8);
     const pos = {}; rankedOrder.forEach((s, i) => pos[s] = i);
-    const sc = (a, b) => Math.abs(pos[a] - pos[b]);
-    for (let h = baseH; h <= N; h++) {
-      const bands = {};
-      for (let s = 1; s <= N; s++) {
-        let lo = s - h, hi = s + h;
-        if (lo < 1) { hi += (1 - lo); lo = 1; }
-        if (hi > N) { lo -= (hi - N); hi = N; }
-        bands[s] = [Math.max(1, lo), Math.min(N, hi)];
+    const REMATCH_PENALTY = 3; // a rematch costs as much as being 3 places apart
+    const played = (a, b) => history.has([a, b].sort((x, y) => x - y).join('-'));
+    const cost = (a, b) => Math.abs(pos[a] - pos[b]) + (played(a, b) ? REMATCH_PENALTY : 0);
+    let best = null, bestCost = Infinity, budget = 400000;
+    function build(rem, acc, pairs) {
+      if (--budget <= 0) return;
+      if (acc >= bestCost) return;
+      if (rem.length === 0) { bestCost = acc; best = pairs.slice(); return; }
+      const a = rem[0], rest = rem.slice(1);
+      const cand = rest.map(b => [b, cost(a, b)]).sort((x, y) => x[1] - y[1]);
+      for (const [b, c] of cand) {
+        if (acc + c >= bestCost) break;
+        build(rest.filter(x => x !== b), acc + c, pairs.concat([[a, b].sort((m, n) => m - n)]));
       }
-      const p = backtrackPair(rankedOrder, bands, history, sc);
-      if (p !== null) return { pairs: p.map(x => x.sort((m, n) => m - n)), widened: h - baseH };
     }
-    return null; // field exhausted — cannot avoid a rematch
+    build(rankedOrder, 0, []);
+    if (best === null) {
+      const rem = rankedOrder.slice(), pairs = [];
+      while (rem.length) {
+        const a = rem.shift();
+        let bi = 0, bc = Infinity;
+        for (let i = 0; i < rem.length; i++) { const c = cost(a, rem[i]); if (c < bc) { bc = c; bi = i; } }
+        const b = rem.splice(bi, 1)[0];
+        pairs.push([a, b].sort((m, n) => m - n));
+      }
+      return { pairs, widened: 0, rematches: pairs.filter(([a, b]) => played(a, b)).length };
+    }
+    return { pairs: best, widened: 0, rematches: best.filter(([a, b]) => played(a, b)).length };
   }
   // How many no-rematch band-legal rounds a field can safely sustain.
   function maxSafeRounds(N) {
