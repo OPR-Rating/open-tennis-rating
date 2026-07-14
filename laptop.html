@@ -751,6 +751,13 @@
               <option value="external">External — OTR tracks stats only</option>
               <option value="internal">Internal — OTR runs it (pairings &amp; rounds)</option>
             </select>
+            <div id="atFormatBlock">
+              <label style="font-size:12px;color:#9b80b3;font-weight:700;">Format</label>
+              <select id="atFormat" class="ac-field">
+                <option value="swiss">Banded Swiss — everyone keeps playing, ranked by results</option>
+                <option value="knockout">Knockout + Plate — single elimination, losers drop to a Plate</option>
+              </select>
+            </div>
             <div id="atDivBlock">
               <label style="font-size:12px;color:#9b80b3;font-weight:700;">Divisions &amp; team caps</label>
               <p id="atDivHint" style="font-size:11px;color:#9b80b3;margin:2px 0 8px;">Tick each division this tournament runs. Only ticked divisions appear in stats and entry. Set an optional cap for each (leave blank for no cap).</p>
@@ -1208,6 +1215,8 @@ async function adminDeleteMatch(id){
 // divisions are "live" — every downstream view (stats sheet, entry) reads it.
 function atToggleType(){
   const t=document.getElementById('atType').value;
+  const fmt=document.getElementById('atFormatBlock');
+  if(fmt) fmt.style.display = (t==='internal') ? 'block' : 'none';
   const hint=document.getElementById('atDivHint');
   if(hint){
     hint.textContent = (t==='internal')
@@ -1249,7 +1258,8 @@ async function adminCreateTournament(){
   });
   if(ds.length===0){ msg.innerHTML='<span style="color:#c0392b;">Pick at least one division.</span>'; return; }
   const divisions = ds.join(',');
-  const r=await adminCall('create_tournament',{ club_id:Number(cid), name, type, format:'divisional', divisions, caps:Object.keys(caps).length?JSON.stringify(caps):null });
+  const fmt = (document.getElementById('atFormat') && type==='internal') ? document.getElementById('atFormat').value : 'divisional';
+  const r=await adminCall('create_tournament',{ club_id:Number(cid), name, type, format:fmt, divisions, caps:Object.keys(caps).length?JSON.stringify(caps):null });
   if(!r.ok){ msg.innerHTML='<span style="color:#c0392b;">'+r.error+'</span>'; return; }
   msg.innerHTML='<span style="color:#1e8449;">Created "'+name+'" ('+type+') — '+ds.length+' division'+(ds.length===1?'':'s')+'.</span>';
   document.getElementById('atName').value='';
@@ -1451,7 +1461,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.14-05";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
+const OPR_VERSION = "OTR-LAPTOP v2026.07.14-06";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
 
 // ---- Excel/CSV export (laptop) ----------------------------------------
 // Generic: reads any rendered <table> and downloads it as a clean CSV that
@@ -3865,10 +3875,11 @@ async function renderEnterScreen(){
   // tournament config: allowed divisions + per-division caps
   let allowedDivs = ["Men's","Ladies","Mixed"]; let caps = {};
   try{
-    const trow = await sbGet(`tournaments?select=divisions,caps&name=eq.${encodeURIComponent(tournament)}&club_id=eq.${CLUB_ID}&limit=1`);
+    const trow = await sbGet(`tournaments?select=divisions,caps,format&name=eq.${encodeURIComponent(tournament)}&club_id=eq.${CLUB_ID}&limit=1`);
     if(trow && trow.length){
       if(trow[0].divisions) allowedDivs = trow[0].divisions.split(',').map(s=>s.trim());
       if(trow[0].caps){ try{ caps = JSON.parse(trow[0].caps); }catch(_){ caps={}; } }
+      window._etTourFormat = (trow[0].format==='knockout') ? 'knockout' : (trow[0].format==='swiss' ? 'swiss' : 'swiss');
     }
   }catch(e){}
   window._etAllowed = allowedDivs; window._etCaps = caps;
@@ -3987,7 +3998,7 @@ async function renderEnterScreen(){
         genCard += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">'
           + '<input type="range" min="' + plan.minAllowed + '" max="' + plan.maxAllowed + '" value="' + window._etRounds[d] + '" ' + (plan.minAllowed===plan.maxAllowed?'disabled':'') + ' style="flex:1;" oninput="etSetDivRounds(\'' + d.replace(/'/g,"\\'") + '\',this.value,\'' + key + '\')">'
           + '<span id="etRL_' + key + '" style="font-weight:800;color:var(--purple,#6C3483);min-width:70px;text-align:right;font-size:12px;" id="etRL_' + key + '">' + window._etRounds[d] + ' rounds</span></div>'
-          + '<div style="display:flex;gap:6px;margin-bottom:8px;"><label style="flex:1;font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="radio" name="etFmt_'+key+'" value="swiss" checked onchange="etSetDivFmt(\''+d.replace(/'/g,"\\'")+'\',\'swiss\')"> Banded Swiss</label><label style="flex:1;font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="radio" name="etFmt_'+key+'" value="knockout" onchange="etSetDivFmt(\''+d.replace(/'/g,"\\'")+'\',\'knockout\')"> Knockout + Plate</label></div>'
+          + '<div style="margin-bottom:8px;font-size:12px;color:#6b6b76;">Format: <b style="color:var(--purple,#6C3483);">'+((window._etTourFormat==='knockout')?'Knockout + Plate':'Banded Swiss')+'</b> <span style="color:#aaa;">(set when the tournament was created)</span></div>'
           + '<button class="ac-btn ac-btn-primary" style="width:100%;" onclick="etGenerateDiv(\'' + d.replace(/'/g,"\\'") + '\')">Generate ' + d + ' draw</button>';
       }
       genCard += '</div>';
@@ -4131,7 +4142,7 @@ async function etGenerateDiv(division){
   const existing = await tmLoadFixtures(tournament, division);
   if(existing.length && !confirm(division+' already has a draw. Regenerate it? (This replaces the existing '+division+' fixtures.)')) return;
   TM_ADMIN_PIN = pin;
-  const fmt = (window._etFmt && window._etFmt[division]) || 'swiss';
+  const fmt = window._etTourFormat || (window._etFmt && window._etFmt[division]) || 'swiss';
   if(fmt==='knockout'){
     gmsg.textContent = 'Generating '+division+' knockout draw…';
     await tmGenerateKnockoutDraw(tournament, division);
