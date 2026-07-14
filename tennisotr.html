@@ -1190,7 +1190,7 @@ const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 // This is the ONE value that makes this app belong to a specific club.
 const CLUB_ID = 1;
 const CLUB_NAME = "Demo";  // shown in the logo and browser tab
-const OPR_VERSION = "OTR v2026.07.14-03";  // FIX: tournament buttons built via JS handlers (apostrophe broke inline onclick -> empty tables)
+const OPR_VERSION = "OTR v2026.07.14-05";  // FIX: tournament buttons built via JS handlers (apostrophe broke inline onclick -> empty tables)
 async function sbGet(pathq){
   const r = await fetch(SB_URL + "/rest/v1/" + pathq, { headers:{ apikey:SB_ANON, Authorization:"Bearer "+SB_ANON } });
   if(!r.ok) throw new Error("HTTP "+r.status);
@@ -3492,8 +3492,11 @@ async function renderEnterScreen(){
 
   // load all entries + which divisions already have a draw (locked)
   const allEntries = await tmLoadEntries(tournament);
-  const order = ["Men's","Ladies","Mixed","All Sorts"];
   const byDiv = {}; allEntries.forEach(e=>{ (byDiv[e.category]=byDiv[e.category]||[]).push(e); });
+  // canonical division order INCLUDING singles; then append any present category not listed.
+  const CANON = ["Men's Singles","Ladies Singles","Men's","Ladies","Mixed","All Sorts"];
+  const order = CANON.slice();
+  Object.keys(byDiv).forEach(c=>{ if(order.indexOf(c)<0) order.push(c); });
   // names already used per division (for dedupe in the picker)
   window._etUsedInDiv = {};
   allEntries.forEach(e=>{ (window._etUsedInDiv[e.category]=window._etUsedInDiv[e.category]||[]).push(e.p1, e.p2); });
@@ -3669,12 +3672,16 @@ function etPick(which){
   const cat = document.getElementById('etCat').value;
   const otherVal = (which===1) ? (document.getElementById('etP2').value) : (document.getElementById('etP1').value);
   const thisVal = (which===1) ? (document.getElementById('etP1').value) : (document.getElementById('etP2').value);
-  const used = new Set(window._etUsedInDiv && window._etUsedInDiv[cat] ? window._etUsedInDiv[cat] : []);
+  const usedRaw = (window._etUsedInDiv && window._etUsedInDiv[cat]) ? window._etUsedInDiv[cat] : [];
+  const used = new Set(usedRaw.filter(x=>x)); // drop nulls (singles partner slots)
   // exclude the partner already chosen, and names already entered in this division
-  const avail = players.filter(p => (p.name!==otherVal) && (!used.has(p.name) || p.name===thisVal));
+  let avail = players.filter(p => (p.name!==otherVal) && (!used.has(p.name) || p.name===thisVal));
   const men = avail.filter(p=>p.gender==='M').map(p=>p.name);
   const ladies = avail.filter(p=>p.gender==='F').map(p=>p.name);
-  const all = avail.map(p=>p.name);
+  let all = avail.map(p=>p.name);
+  // SAFETY: if everyone got filtered out but the club has players, show the full roster
+  // (prevents a silently-empty picker when gender is unset or the used-list is stale).
+  if(!all.length && players.length){ all = players.map(p=>p.name); }
   let list;
   if(tmIsSingles(cat)){
     // gender from the division name; if that yields nobody (e.g. gender not set on members), show everyone
