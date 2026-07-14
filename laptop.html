@@ -1451,7 +1451,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.14-02";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
+const OPR_VERSION = "OTR-LAPTOP v2026.07.14-03";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
 
 // ---- Excel/CSV export (laptop) ----------------------------------------
 // Generic: reads any rendered <table> and downloads it as a clean CSV that
@@ -3912,7 +3912,9 @@ async function renderEnterScreen(){
 
   // entry card (no dropdown — division chosen via the buttons above)
   let entryCard = '<div class="card"><h2>Enter a team <span class="tm-divtag">'+cat+'</span></h2>';
-  if(cat==='All Sorts'){
+  if(tmIsSingles(cat)){
+    entryCard += '<p class="sub">Pick a player for the '+cat+' division. Each division is its own competition, seeded separately.</p>';
+  } else if(cat==='All Sorts'){
     entryCard += '<p class="sub">All Sorts — any two players, any combination. Seeded by weighted rating.</p>';
   } else {
     entryCard += '<p class="sub">Pick two players for the '+cat+' division. Each division is its own competition, seeded separately.</p>';
@@ -3943,14 +3945,17 @@ async function renderEnterScreen(){
   let listCard = '<div class="card"><h2>Entered teams</h2>';
   if (!allEntries.length) listCard += '<p class="sub">No teams entered yet. Pick a division above and add a few — each division seeds separately.</p>';
   else {
-    divsPresent.forEach(d=>{
+    // show the SELECTED division first (matches the tab you're on), then the rest.
+    const ordered = divsPresent.slice().sort((a,b)=> (a===cat?-1:0) - (b===cat?-1:0));
+    ordered.forEach(d=>{
       const seeded = [...byDiv[d]].sort((x,y)=>y.seed_rating-x.seed_rating);
       const dl = lockedDivs.has(d);
-      listCard += '<div style="margin:6px 0 4px;"><span class="tm-divtag">' + d + '</span> <span style="font-size:11px;color:#888;">' + seeded.length + ' team' + (seeded.length!==1?'s':'') + (dl?' · draw done':'') + '</span></div>';
-      listCard += '<table style="margin-bottom:12px;"><thead><tr><th class="num">Seed</th><th>Team</th><th class="num">Rating</th><th></th></tr></thead><tbody>';
+      const isSel = (d===cat);
+      listCard += '<div style="margin:6px 0 4px;'+(isSel?'':'opacity:.62;')+'"><span class="tm-divtag"'+(isSel?' style="background:#6C3483;color:#fff;"':'')+'>' + d + '</span> <span style="font-size:11px;color:#888;">' + seeded.length + ' team' + (seeded.length!==1?'s':'') + (dl?' · draw done':'') + (isSel?' · selected':'') + '</span></div>';
+      listCard += '<table style="margin-bottom:12px;'+(isSel?'':'opacity:.72;')+'"><thead><tr><th class="num">Seed</th><th>Team</th><th class="num">Rating</th><th></th></tr></thead><tbody>';
       seeded.forEach((e,i)=> {
         const rm = dl ? '' : '<button onclick="etRemoveTeam('+e.id+')" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:16px;" title="Remove">×</button>';
-        listCard += '<tr><td class="num"><span class="seed' + (i===0?' s1':'') + '">' + (i+1) + '</span></td><td><b>' + e.p1 + ' / ' + e.p2 + '</b></td><td class="num">' + Math.round(e.seed_rating) + '</td><td class="num">'+rm+'</td></tr>';
+        listCard += '<tr><td class="num"><span class="seed' + (i===0?' s1':'') + '">' + (i+1) + '</span></td><td><b>' + tmTeamName(e.p1, e.p2) + '</b></td><td class="num">' + Math.round(e.seed_rating) + '</td><td class="num">'+rm+'</td></tr>';
       });
       listCard += '</tbody></table>';
     });
@@ -4054,7 +4059,13 @@ function etPick(which){
   const ladies = avail.filter(p=>p.gender==='F').map(p=>p.name);
   const all = avail.map(p=>p.name);
   let list;
-  if(tmIsSingles(cat)){ list = /men/i.test(cat)&&!/women|ladies/i.test(cat) ? men : (/ladies|women/i.test(cat)? ladies : all); }
+  if(tmIsSingles(cat)){
+    // gender from the division name; if that yields nobody (e.g. gender not set on members), show everyone
+    const wantLadies = /ladies|women/i.test(cat);
+    const wantMen = /men/i.test(cat) && !wantLadies;
+    list = wantMen ? men : wantLadies ? ladies : all;
+    if(!list.length) list = all; // never present an empty picker
+  }
   else if(cat==="Men's"){ list=men; }
   else if(cat==='Ladies'){ list=ladies; }
   else if(cat==='Mixed'){
