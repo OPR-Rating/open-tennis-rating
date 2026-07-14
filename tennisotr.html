@@ -238,6 +238,27 @@
   .tm-divbar button { border:1.5px solid #d9cfe3; background:#fff; color:#6C3483; border-radius:20px; padding:8px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
   .tm-divbar button.active { background:#6C3483; color:#fff; border-color:#6C3483; }
   .tm-divtag { display:inline-block; background:#efe9f3; color:#6C3483; border-radius:10px; padding:2px 10px; font-size:12px; font-weight:700; vertical-align:middle; }
+  .bkt-card{overflow-x:auto;}
+  .bkt-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+  .bkt-print-btn{display:inline-block;width:auto;padding:8px 14px;border-color:#F1C40F;font-weight:700;}
+  .bkt-meta{color:#8a7a9c;font-size:12px;margin:2px 0 10px;}
+  .bkt-block{margin-top:14px;}
+  .bkt-title{font-size:15px;color:#6C3483;margin:10px 0 6px;border-bottom:2px solid #efe9f3;padding-bottom:4px;}
+  .bkt-champ{margin:6px 0 10px;padding:7px 12px;background:#f9f3dd;border:1px solid #F1C40F;border-radius:9px;font-weight:700;color:#7d6608;display:inline-block;}
+  .bkt-tree{display:flex;gap:22px;align-items:stretch;min-width:min-content;padding-bottom:6px;}
+  .bkt-colwrap{display:flex;flex-direction:column;min-width:158px;}
+  .bkt-rlabel{font-size:11px;font-weight:700;color:#9a8ab0;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;text-align:center;}
+  .bkt-col{display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:12px;}
+  .bkt-match{border:1px solid #d9cbe8;border-radius:9px;overflow:hidden;cursor:pointer;transition:box-shadow .15s;background:#fff;}
+  .bkt-match:hover{box-shadow:0 2px 8px rgba(108,52,131,.18);}
+  .bkt-bye{cursor:default;opacity:.75;}
+  .bkt-team{display:flex;align-items:center;gap:6px;padding:6px 9px;font-size:12.5px;border-bottom:1px solid #f0ecf4;}
+  .bkt-team:last-child{border-bottom:none;}
+  .bkt-win{background:#eafaf0;font-weight:700;color:#1e7a34;}
+  .bkt-sd{display:inline-block;min-width:19px;height:19px;line-height:19px;text-align:center;background:#6C3483;color:#fff;border-radius:5px;font-size:10px;font-weight:700;flex:none;}
+  .bkt-sc{margin-left:auto;font-weight:700;color:#444;}
+  .bkt-byerow{color:#aaa;font-style:italic;}
+
   #tournamentSheetContent .rsel { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
   #tournamentSheetContent .rsel button { border:1.5px solid #d9cfe3; background:#fff; border-radius:20px; padding:7px 15px; font-weight:700; font-size:13px; cursor:pointer; color:#6C3483; font-family:inherit; }
   #tournamentSheetContent .rsel button.active { background:#6C3483; color:#fff; border-color:#6C3483; }
@@ -1169,7 +1190,7 @@ const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 // This is the ONE value that makes this app belong to a specific club.
 const CLUB_ID = 1;
 const CLUB_NAME = "Demo";  // shown in the logo and browser tab
-const OPR_VERSION = "OTR v2026.07.13-05";  // FIX: tournament buttons built via JS handlers (apostrophe broke inline onclick -> empty tables)
+const OPR_VERSION = "OTR v2026.07.14-02";  // FIX: tournament buttons built via JS handlers (apostrophe broke inline onclick -> empty tables)
 async function sbGet(pathq){
   const r = await fetch(SB_URL + "/rest/v1/" + pathq, { headers:{ apikey:SB_ANON, Authorization:"Bearer "+SB_ANON } });
   if(!r.ok) throw new Error("HTTP "+r.status);
@@ -2918,6 +2939,42 @@ const TM = (function () {
   };
 })();
 
+// SINGLES-AWARE team-name helper: "A / B" for doubles, just "A" for singles (p2 null/empty).
+function tmTeamName(p1, p2){ return (p2==null || p2==='') ? (p1||'') : (p1 + ' / ' + p2); }
+// True when a division/category is singles (name carries "Singles").
+function tmIsSingles(cat){ return typeof cat==='string' && /singles/i.test(cat); }
+
+// ============================================================================
+// KNOCKOUT + PLATE draw engine (singles & doubles). Seeds 1..N already ordered.
+// Standard bracket seeding (top seeds meet late); byes to top seeds for non-2^n
+// fields; first-round LOSERS drop to a Plate single-elim draw. Bye teams did NOT
+// lose so are NOT in the Plate. Fixtures reuse tournament_fixtures via write_fixtures.
+//   Main-draw rounds are numbered 1,2,3... ; Plate rounds are 51,52,53...
+//   round_type 'ko' (main) / 'plate'. band holds a human label (e.g. 'R1','QF','SF','F','P-R1').
+// ============================================================================
+const KO = (function(){
+  function nextPow2(n){ let p=1; while(p<n)p*=2; return p; }
+  function seedSlots(size){ let r=[1,2]; while(r.length<size){ const n=r.length*2, nx=[]; for(const s of r){ nx.push(s); nx.push(n+1-s);} r=nx; } return r; }
+  // Round-1 main-draw pairs (seed vs seed) + byes for N<size.
+  function mainRound1(N){
+    const size=nextPow2(N);
+    const slots=seedSlots(size).map(s=> s<=N ? s : null);
+    const pairs=[], byes=[];
+    for(let i=0;i<slots.length;i+=2){ const a=slots[i], b=slots[i+1];
+      if(a&&b) pairs.push([a,b]); else if(a&&!b) byes.push(a); else if(!a&&b) byes.push(b); }
+    return { size, pairs, byes };
+  }
+  // Human label for a main-draw round given how many teams remain in that round.
+  function roundLabel(teamsInRound){
+    if(teamsInRound<=2) return 'F';
+    if(teamsInRound<=4) return 'SF';
+    if(teamsInRound<=8) return 'QF';
+    return 'R'+teamsInRound;
+  }
+  return { nextPow2, seedSlots, mainRound1, roundLabel };
+})();
+
+
 
 /* ============================================================================
    DATA LOADERS  (read entries + fixtures + results for a tournament)
@@ -2970,7 +3027,7 @@ async function loadTournamentSheet(tournament, division) {
   // stash for the fixture-result entry (called from onclick outside this scope)
   window._tmCtx = { tournament, division: TM_DIVISION };
   window._tmFixturesById = {}; fixtures.forEach(f=>{ window._tmFixturesById[f.id]=f; });
-  window._tmSeedNames = {}; entries.forEach(e=>{ window._tmSeedNames[e.seed] = e.p1 + ' / ' + e.p2; });
+  window._tmSeedNames = {}; entries.forEach(e=>{ window._tmSeedNames[e.seed] = tmTeamName(e.p1, e.p2); });
 
   // division selector pills (only divisions that have entries)
   let divBar = '<div class="tm-divbar">';
@@ -2980,7 +3037,7 @@ async function loadTournamentSheet(tournament, division) {
   const N = entries.length;
   const BANDS = TM.makeBands(N);
   const bySeed = {}; entries.forEach(e => bySeed[e.seed] = e);
-  const tName = s => bySeed[s] ? (bySeed[s].p1 + ' / ' + bySeed[s].p2) : ('Seed ' + s);
+  const tName = s => (s===0) ? 'BYE' : (bySeed[s] ? tmTeamName(bySeed[s].p1, bySeed[s].p2) : ('Seed ' + s));
 
   const rounds = {};
   fixtures.forEach(f => { if(f.round < 90){ (rounds[f.round] = rounds[f.round] || []).push(f); } });
@@ -3042,11 +3099,80 @@ async function loadTournamentSheet(tournament, division) {
         + '<td class="num"><span class="seed' + (f.seed_b === 1 ? ' s1' : '') + '">' + f.seed_b + '</span></td>'
         + '<td class="num">' + (played ? '<span class="res-done">' + score + '</span>' : '<span style="color:#7D3C98;font-weight:700;">enter ▸</span>') + '</td></tr>';
     });
-    h += '</tbody></table><p class="sub" style="margin-top:8px;">Tap a fixture to enter or edit its score (admin).</p>'
-      + '<div style="text-align:center;margin-top:10px;"><button class="menu-btn" style="display:inline-block;width:auto;padding:10px 18px;border-color:#7D3C98;font-weight:700;" onclick="tmGenerateNextRound()">➕ Generate next round (Swiss)</button>'
-      + '<div class="sub" style="margin-top:6px;">Enter all current-round results first. Available once the fixed rounds are complete.</div></div></div>';
+    // KO-aware action button: knockout draws advance winners (+ plate); swiss generates next round.
+    const _isKO = (rounds[curRound] && rounds[curRound][0] && (rounds[curRound][0].round_type==='ko' || rounds[curRound][0].round_type==='plate'))
+                  || Object.values(rounds).some(rr=>rr[0] && (rr[0].round_type==='ko'||rr[0].round_type==='plate'));
+    h += '</tbody></table><p class="sub" style="margin-top:8px;">Tap a fixture to enter or edit its score (admin).</p>';
+    if(_isKO){
+      h += '<div style="text-align:center;margin-top:10px;"><button class="menu-btn" style="display:inline-block;width:auto;padding:10px 18px;border-color:#F1C40F;font-weight:700;" onclick="tmAdvanceKnockout(window._tmCtx.tournament, window._tmCtx.division)">▶ Advance knockout / plate</button>'
+        + '<div class="sub" style="margin-top:6px;">Enter all current-round results, then advance. First-round losers form the Plate automatically.</div></div></div>';
+    } else {
+      h += '<div style="text-align:center;margin-top:10px;"><button class="menu-btn" style="display:inline-block;width:auto;padding:10px 18px;border-color:#7D3C98;font-weight:700;" onclick="tmGenerateNextRound()">➕ Generate next round (Swiss)</button>'
+        + '<div class="sub" style="margin-top:6px;">Enter all current-round results first. Available once the fixed rounds are complete.</div></div></div>';
+    }
     return h;
   }
+
+  // ---- KNOCKOUT BRACKET (tree view) + PLATE + print. Shown when division is KO. ----
+  function isKnockoutDiv(){
+    return fixtures.some(f=> f.round_type==='ko' || f.round_type==='plate');
+  }
+  function koWinner(f){ return f.seed_b===0 ? f.seed_a : (f.sets_a==null ? null : (f.sets_a>f.sets_b ? f.seed_a : f.seed_b)); }
+  function bracketColumnHTML(roundFixtures){
+    // one column of the tree: each fixture is a small two-row box
+    let h = '<div class="bkt-col">';
+    roundFixtures.forEach(f=>{
+      const played = f.sets_a!=null;
+      const w = koWinner(f);
+      const aWin = w===f.seed_a, bWin = w===f.seed_b;
+      const bye = f.seed_b===0;
+      const score = played ? (f.sets_a+'–'+f.sets_b) : '';
+      h += '<div class="bkt-match'+(bye?' bkt-bye':'')+'" '+(bye?'':'onclick="tmEnterFixtureResult('+f.id+')" title="Tap to enter/edit score"')+'>'
+        + '<div class="bkt-team'+(aWin?' bkt-win':'')+'"><span class="bkt-sd">'+f.seed_a+'</span>'+tName(f.seed_a)+'<span class="bkt-sc">'+(played?f.sets_a:'')+'</span></div>'
+        + (bye
+            ? '<div class="bkt-team bkt-byerow"><span class="bkt-sd">–</span>BYE<span class="bkt-sc"></span></div>'
+            : '<div class="bkt-team'+(bWin?' bkt-win':'')+'"><span class="bkt-sd">'+f.seed_b+'</span>'+tName(f.seed_b)+'<span class="bkt-sc">'+(played?f.sets_b:'')+'</span></div>')
+        + '</div>';
+    });
+    h += '</div>';
+    return h;
+  }
+  function drawTreeHTML(type, title){
+    const fx = fixtures.filter(f=> f.round_type===type);
+    if(!fx.length) return '';
+    const byR = {}; fx.forEach(f=>{ (byR[f.round]=byR[f.round]||[]).push(f); });
+    const rNos = Object.keys(byR).map(Number).sort((a,b)=>a-b);
+    let cols = '';
+    rNos.forEach(r=>{
+      const label = (byR[r][0] && byR[r][0].band && byR[r][0].band!=='bye') ? byR[r][0].band : ('R'+r);
+      // sort within a column by seed_a for stable visual order
+      const col = byR[r].slice().sort((x,y)=>x.seed_a-y.seed_a);
+      cols += '<div class="bkt-colwrap"><div class="bkt-rlabel">'+label+'</div>'+bracketColumnHTML(col)+'</div>';
+    });
+    // champion banner if the last round has a single completed final
+    const lastR = rNos[rNos.length-1];
+    const lastFix = byR[lastR];
+    let champ = '';
+    if(lastFix.length===1 && lastFix[0].sets_a!=null){
+      const w = koWinner(lastFix[0]);
+      champ = '<div class="bkt-champ">🏆 '+(type==='plate'?'Plate Winner':'Champion')+': <b>'+tName(w)+'</b></div>';
+    }
+    return '<div class="bkt-block"><h3 class="bkt-title">'+title+'</h3>'+champ+'<div class="bkt-tree">'+cols+'</div></div>';
+  }
+  function bracketHTML(){
+    if(!isKnockoutDiv()) return '<div class="card"><p class="sub">This division is not a knockout draw.</p></div>';
+    const main = drawTreeHTML('ko', 'Main Draw');
+    const plate = drawTreeHTML('plate', 'Plate (first-round losers)');
+    let h = '<div class="card bkt-card" id="bktPrintArea">'
+      + '<div class="bkt-head"><h2>Knockout Draw <span class="tm-divtag">'+TM_DIVISION+'</span></h2>'
+      + '<button class="menu-btn bkt-print-btn" onclick="tmPrintBracket()">🖨 Print draw</button></div>'
+      + '<div class="bkt-meta">'+TOURNAMENT_EVENT+' · '+TM_DIVISION+'</div>'
+      + main + (plate || '')
+      + (plate ? '' : '<p class="sub" style="margin-top:8px;">The Plate appears once round-1 results are in and the draw is advanced.</p>')
+      + '</div>';
+    return h;
+  }
+
   function standingsHTML() {
     if(!N) return '<div class="card"><p class="sub">No teams yet.</p></div>';
     let h = '<div class="card"><h2>Standings <span class="tm-divtag">' + TM_DIVISION + '</span></h2>'
@@ -3128,16 +3254,46 @@ async function loadTournamentSheet(tournament, division) {
     const swissFix = fixtures.filter(f=> f.round < 90);
     const swissComplete = swissFix.length>0 && swissFix.every(f=> f.sets_a!=null);
     const showFinals = swissComplete || finalsFix.length>0;
-    const tabs = [['teams', '👥 Teams & Bands'], ['rounds', '🎾 Rounds'], ['standings', '📊 Standings']];
+    const _ko = isKnockoutDiv();
+    const tabs = _ko
+      ? [['teams', '👥 Teams & Bands'], ['rounds', '🎾 Rounds'], ['bracket', '🗂 Bracket'], ['standings', '📊 Standings']]
+      : [['teams', '👥 Teams & Bands'], ['rounds', '🎾 Rounds'], ['standings', '📊 Standings']];
     if(showFinals) tabs.push(['finals', '🏆 Finals']);
     let nav = '<div class="tm-nav">';
     tabs.forEach(([id, lbl]) => nav += '<button class="' + (id === activeTab ? 'active' : '') + '" onclick="tmSetTab(\'' + id + '\')">' + lbl + '</button>');
     nav += '</div>';
-    let bodyHTML = activeTab === 'teams' ? teamsHTML() : activeTab === 'rounds' ? roundsHTML() : activeTab === 'finals' ? finalsHTML() : standingsHTML();
+    let bodyHTML = activeTab === 'teams' ? teamsHTML() : activeTab === 'rounds' ? roundsHTML() : activeTab === 'bracket' ? bracketHTML() : activeTab === 'finals' ? finalsHTML() : standingsHTML();
     box.innerHTML = divBar + nav + bodyHTML;
     box._tab = activeTab; box._round = curRound;
   }
+  window.tmPrintBracket = function(){
+    const area = document.getElementById('bktPrintArea');
+    if(!area){ alert('Open the Bracket tab first.'); return; }
+    const css = `
+      body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:18px;color:#222;}
+      h2{margin:0 0 2px;} .bkt-meta{color:#666;font-size:13px;margin-bottom:14px;}
+      .bkt-print-btn{display:none!important;} .bkt-head{display:flex;justify-content:space-between;align-items:center;}
+      .bkt-title{margin:16px 0 6px;font-size:15px;color:#6C3483;border-bottom:2px solid #eee;padding-bottom:3px;}
+      .bkt-champ{margin:6px 0;padding:6px 10px;background:#f9f3dd;border:1px solid #F1C40F;border-radius:8px;font-weight:700;display:inline-block;}
+      .bkt-tree{display:flex;gap:26px;align-items:flex-start;overflow:visible;}
+      .bkt-colwrap{display:flex;flex-direction:column;justify-content:space-around;min-width:150px;}
+      .bkt-rlabel{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;text-align:center;}
+      .bkt-col{display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:14px;}
+      .bkt-match{border:1px solid #cbb8dd;border-radius:8px;overflow:hidden;margin:4px 0;}
+      .bkt-team{display:flex;align-items:center;gap:6px;padding:5px 8px;font-size:12px;border-bottom:1px solid #eee;}
+      .bkt-team:last-child{border-bottom:none;} .bkt-win{background:#eafaf0;font-weight:700;color:#1e7a34;}
+      .bkt-sd{display:inline-block;min-width:18px;height:18px;line-height:18px;text-align:center;background:#6C3483;color:#fff;border-radius:4px;font-size:10px;font-weight:700;}
+      .bkt-sc{margin-left:auto;font-weight:700;} .bkt-byerow{color:#999;font-style:italic;}
+      @media print{ @page{ size:landscape; margin:10mm; } }
+    `;
+    const w = window.open('', '_blank');
+    if(!w){ alert('Allow pop-ups to print the draw.'); return; }
+    w.document.write('<html><head><title>'+TOURNAMENT_EVENT+' — '+TM_DIVISION+' draw</title><style>'+css+'</style></head><body>'+area.innerHTML+'</body></html>');
+    w.document.close();
+    setTimeout(function(){ w.focus(); w.print(); }, 350);
+  };
   window.tmSetTab = function (id) { activeTab = id; render(); };
+
   window.tmSetRound = function (r) { curRound = r; render(); };
   window.tmPickDivision = function (t, d) { box._tab='teams'; box._round=null; loadTournamentSheet(t, d); };
 
@@ -3385,12 +3541,14 @@ async function renderEnterScreen(){
   } else if(catAtCap){
     entryCard += '<p class="sub" style="color:#c0392b;">' + cat + ' has reached its cap of ' + cap + ' teams — entry closed. An admin can raise the cap.</p>';
   } else {
-    entryCard += '<label style="font-size:12px;color:#6b6b76;">Player 1</label>'
+    const _entSingles = tmIsSingles(cat);
+    entryCard += '<label style="font-size:12px;color:#6b6b76;">'+(_entSingles?'Player':'Player 1')+'</label>'
       + '<input type="hidden" id="etP1">'
       + '<button type="button" class="name-pick-btn" id="etP1btn" onclick="etPick(1)">— select —</button>'
-      + '<label style="font-size:12px;color:#6b6b76;">Player 2</label>'
-      + '<input type="hidden" id="etP2">'
-      + '<button type="button" class="name-pick-btn" id="etP2btn" onclick="etPick(2)">— select —</button>'
+      + (_entSingles ? '' :
+          ('<label style="font-size:12px;color:#6b6b76;">Player 2</label>'
+           + '<input type="hidden" id="etP2">'
+           + '<button type="button" class="name-pick-btn" id="etP2btn" onclick="etPick(2)">— select —</button>'))
       + '<div id="etSeedPrev" class="sub" style="margin:8px 0;"></div>'
       + '<button class="ac-btn ac-btn-green" style="width:100%;" onclick="submitTournamentEntry()">Add team</button>'
       + '<div id="etMsg" style="margin-top:10px;font-size:13px;"></div>';
@@ -3437,7 +3595,8 @@ async function renderEnterScreen(){
       else {
         genCard += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">'
           + '<input type="range" min="' + plan.minAllowed + '" max="' + plan.maxAllowed + '" value="' + window._etRounds[d] + '" ' + (plan.minAllowed===plan.maxAllowed?'disabled':'') + ' style="flex:1;" oninput="etSetDivRounds(\'' + d.replace(/'/g,"\\'") + '\',this.value,\'' + key + '\')">'
-          + '<span id="etRL_' + key + '" style="font-weight:800;color:var(--purple,#6C3483);min-width:70px;text-align:right;font-size:12px;">' + window._etRounds[d] + ' rounds</span></div>'
+          + '<span id="etRL_' + key + '" style="font-weight:800;color:var(--purple,#6C3483);min-width:70px;text-align:right;font-size:12px;" id="etRL_' + key + '">' + window._etRounds[d] + ' rounds</span></div>'
+          + '<div style="display:flex;gap:6px;margin-bottom:8px;"><label style="flex:1;font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="radio" name="etFmt_'+key+'" value="swiss" checked onchange="etSetDivFmt(\''+d.replace(/'/g,"\\'")+'\',\'swiss\')"> Banded Swiss</label><label style="flex:1;font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="radio" name="etFmt_'+key+'" value="knockout" onchange="etSetDivFmt(\''+d.replace(/'/g,"\\'")+'\',\'knockout\')"> Knockout + Plate</label></div>'
           + '<button class="ac-btn ac-btn-primary" style="width:100%;" onclick="etGenerateDiv(\'' + d.replace(/'/g,"\\'") + '\')">Generate ' + d + ' draw</button>';
       }
       genCard += '</div>';
@@ -3476,8 +3635,19 @@ function etSetDivRounds(d, v, key){
 
 function etUpdateSeedPreview(){
   const prev = document.getElementById('etSeedPrev'); if(!prev) return;
-  const p1 = document.getElementById('etP1').value, p2 = document.getElementById('etP2').value;
+  const p1 = document.getElementById('etP1').value;
+  const p2El = document.getElementById('etP2'); const p2 = p2El ? p2El.value : '';
   const cat = document.getElementById('etCat').value;
+  const singles = tmIsSingles(cat);
+  if(singles){
+    if(!p1){ prev.innerHTML=''; return; }
+    prev.innerHTML = 'Reading rating…';
+    TM.readCurrentRating(p1).then(a=>{
+      if(a==null){ prev.innerHTML='<span style="color:#B9770E;">This player has no published rating yet.</span>'; return; }
+      prev.innerHTML = 'Seed rating: <b>' + Math.round(a) + '</b> (' + p1 + '\'s own rating)';
+    });
+    return;
+  }
   if(!p1 || !p2 || p1===p2){ prev.innerHTML=''; return; }
   prev.innerHTML = 'Reading ratings…';
   Promise.all([TM.readCurrentRating(p1), TM.readCurrentRating(p2)]).then(([a,b])=>{
@@ -3501,7 +3671,8 @@ function etPick(which){
   const ladies = avail.filter(p=>p.gender==='F').map(p=>p.name);
   const all = avail.map(p=>p.name);
   let list;
-  if(cat==="Men's"){ list=men; }
+  if(tmIsSingles(cat)){ list = /men/i.test(cat)&&!/women|ladies/i.test(cat) ? men : (/ladies|women/i.test(cat)? ladies : all); }
+  else if(cat==="Men's"){ list=men; }
   else if(cat==='Ladies'){ list=ladies; }
   else if(cat==='Mixed'){
     // partner gender constrains this slot
@@ -3523,27 +3694,30 @@ async function submitTournamentEntry() {
   const tournament = document.getElementById('etTour').value;
   const category = document.getElementById('etCat').value;
   const p1 = document.getElementById('etP1').value;
-  const p2 = document.getElementById('etP2').value;
+  const p2El = document.getElementById('etP2'); const p2 = p2El ? p2El.value : '';
   const msg = document.getElementById('etMsg');
-  if (!tournament || !p1 || !p2 || p1 === p2) { msg.innerHTML = '<span style="color:#c0392b;">Pick two different players.</span>'; return; }
+  const singles = tmIsSingles(category);
+  if (!tournament || !p1) { msg.innerHTML = '<span style="color:#c0392b;">Pick a player.</span>'; return; }
+  if (!singles && (!p2 || p1 === p2)) { msg.innerHTML = '<span style="color:#c0392b;">Pick two different players.</span>'; return; }
 
   msg.textContent = 'Reading ratings…';
   const r1 = await TM.readCurrentRating(p1);
-  const r2 = await TM.readCurrentRating(p2);
-  if (r1 == null || r2 == null) { msg.innerHTML = '<span style="color:#c0392b;">One of these players has no published rating yet.</span>'; return; }
-  const seed_rating = TM.pairRating(r1, r2, category);
+  const r2 = singles ? null : await TM.readCurrentRating(p2);
+  if (r1 == null || (!singles && r2 == null)) { msg.innerHTML = '<span style="color:#c0392b;">One of these players has no published rating yet.</span>'; return; }
+  const seed_rating = singles ? r1 : TM.pairRating(r1, r2, category);
 
   const resp = await fetch(SB_URL + '/functions/v1/tournament', {
     method: 'POST',
     headers: { apikey: SB_ANON, Authorization: 'Bearer ' + SB_ANON, 'Content-Type': 'application/json' },
     body: JSON.stringify({ action:'enter_team', club_id: CLUB_ID,
-      entry: { tournament, category, p1, p2, seed_rating } })
+      entry: { tournament, category, p1, p2: (singles ? null : p2), seed_rating } })
   });
   if (!resp.ok) { msg.innerHTML = '<span style="color:#c0392b;">Could not save entry (' + resp.status + ').</span>'; return; }
   renderEnterScreen();
 }
 
 // Admin-gated generate for ONE division.
+function etSetDivFmt(d, fmt){ if(!window._etFmt) window._etFmt={}; window._etFmt[d]=fmt; }
 async function etGenerateDiv(division){
   const tournament = window._etTournament;
   const pin = (document.getElementById('etPin').value || '').trim();
@@ -3552,15 +3726,124 @@ async function etGenerateDiv(division){
   const entries = TM.seedEntries(await tmLoadEntries(tournament, division));
   const N = entries.length;
   if(N < 4){ gmsg.innerHTML='<span style="color:#c0392b;">'+division+' needs at least 4 teams.</span>'; return; }
-  if(N % 2 !== 0){ gmsg.innerHTML='<span style="color:#B9770E;">'+division+' has an odd number ('+N+'). Add or remove one.</span>'; return; }
   // warn if a draw already exists for this division
   const existing = await tmLoadFixtures(tournament, division);
   if(existing.length && !confirm(division+' already has a draw. Regenerate it? (This replaces the existing '+division+' fixtures.)')) return;
   TM_ADMIN_PIN = pin;
+  const fmt = (window._etFmt && window._etFmt[division]) || 'swiss';
+  if(fmt==='knockout'){
+    gmsg.textContent = 'Generating '+division+' knockout draw…';
+    await tmGenerateKnockoutDraw(tournament, division);
+    return;
+  }
+  // Swiss needs an even field
+  if(N % 2 !== 0){ gmsg.innerHTML='<span style="color:#B9770E;">'+division+' has an odd number ('+N+'). Banded Swiss needs an even field — add/remove one, or use Knockout.</span>'; return; }
   const total = (window._etRounds && window._etRounds[division]) || null;
   gmsg.textContent = 'Generating '+division+' draw…';
   await tmGenerateFixedDraw(tournament, total, division);
 }
+
+// ---- KNOCKOUT + PLATE draw generation (admin). Reuses write_fixtures store. ----
+// Builds ALL main-draw round-1 fixtures (seed vs seed), applies byes (top seeds
+// auto-advance to round 2 as a fixture vs the eventual R1 winner — represented by
+// leaving the slot to be filled when results come in). To keep it robust and simple,
+// we write ONLY round-1 main fixtures now; subsequent rounds + the plate are generated
+// by "Advance knockout" once each round's results are in (same pattern as Swiss).
+async function tmGenerateKnockoutDraw(tournament, division){
+  const entries = TM.seedEntries(await tmLoadEntries(tournament, division));
+  const N = entries.length;
+  if(N < 4){ alert('Need at least 4 teams for a knockout.'); return; }
+  const r1 = KO.mainRound1(N);
+  const label = KO.roundLabel(r1.size); // teams in the full first main round
+  const rows = [];
+  r1.pairs.forEach(([a,b])=>{
+    rows.push({ tournament, division, round:1, round_type:'ko',
+      band: (r1.size>=32?'R'+r1.size:label), seed_a:a, seed_b:b });
+  });
+  // Byes: record as a played fixture where the bye seed "wins" vs seed 0 (BYE marker),
+  // so the bracket shows the top seed advancing. seed_b=0 => BYE (rendered as such).
+  r1.byes.forEach(sd=>{
+    rows.push({ tournament, division, round:1, round_type:'ko',
+      band:'bye', seed_a:sd, seed_b:0 });
+  });
+  if(!TM_ADMIN_PIN){ TM_ADMIN_PIN = prompt('Admin PIN to generate the knockout draw:')||''; }
+  if(!TM_ADMIN_PIN) return;
+  const resp = await fetch(SB_URL + '/functions/v1/tournament', {
+    method:'POST', headers:{ apikey:SB_ANON, Authorization:'Bearer '+SB_ANON, 'Content-Type':'application/json' },
+    body: JSON.stringify({ action:'write_fixtures', club_id:CLUB_ID, admin_pin:TM_ADMIN_PIN,
+      tournament, division, replace:true, fixtures:rows })
+  });
+  const j = await resp.json().catch(()=>({}));
+  if(!j.ok){ alert('Could not generate knockout: '+((j&&j.error)||resp.status)); return; }
+  alert(division+' knockout draw created: '+r1.pairs.length+' first-round matches'+(r1.byes.length?(' + '+r1.byes.length+' byes'):'')+'. First-round losers form the Plate as results come in.');
+  loadTournamentSheet(tournament, division);
+}
+
+// ---- Advance the knockout: build the next main round from this round's winners,
+//      and (after round 1) seed the Plate from the round-1 losers. Admin action. ----
+async function tmAdvanceKnockout(tournament, division){
+  const fx = await tmLoadFixtures(tournament, division);
+  const ko = fx.filter(f=>f.round_type==='ko');
+  const plate = fx.filter(f=>f.round_type==='plate');
+  if(!ko.length){ alert('No knockout draw found for '+division+'.'); return; }
+  // group main rounds
+  const byRound={}; ko.forEach(f=>{ (byRound[f.round]=byRound[f.round]||[]).push(f); });
+  const roundNos=Object.keys(byRound).map(Number).sort((a,b)=>a-b);
+  const lastR=roundNos[roundNos.length-1];
+  const lastFix=byRound[lastR];
+  // winner of a fixture: bye => seed_a; else higher sets
+  const winnerOf=f=> f.seed_b===0 ? f.seed_a : (f.sets_a==null ? null : (f.sets_a>f.sets_b ? f.seed_a : f.seed_b));
+  const loserOf =f=> f.seed_b===0 ? null : (f.sets_a==null ? null : (f.sets_a>f.sets_b ? f.seed_b : f.seed_a));
+  const openMain=lastFix.filter(f=>f.seed_b!==0 && f.sets_a==null).length;
+  if(openMain>0){ alert('Round '+lastR+' still has '+openMain+' unplayed match(es). Enter all results before advancing.'); return; }
+  const winners=lastFix.map(winnerOf).filter(x=>x!=null);
+  if(!TM_ADMIN_PIN){ TM_ADMIN_PIN = prompt('Admin PIN to advance the knockout:')||''; }
+  if(!TM_ADMIN_PIN) return;
+  const newFix=[];
+  // build the next main round if >1 winner
+  if(winners.length>1){
+    const label=KO.roundLabel(winners.length);
+    for(let i=0;i<winners.length;i+=2){
+      if(winners[i+1]!=null) newFix.push({ tournament, division, round:lastR+1, round_type:'ko', band:label, seed_a:winners[i], seed_b:winners[i+1] });
+    }
+  }
+  // seed the plate from ROUND-1 losers (only once, when advancing from round 1)
+  if(lastR===1 && !plate.length){
+    const losers=byRound[1].map(loserOf).filter(x=>x!=null);
+    if(losers.length>1){
+      const plabel='P-'+KO.roundLabel(losers.length);
+      for(let i=0;i<losers.length;i+=2){
+        if(losers[i+1]!=null) newFix.push({ tournament, division, round:51, round_type:'plate', band:plabel, seed_a:losers[i], seed_b:losers[i+1] });
+      }
+      // odd plate entrant gets a bye
+      if(losers.length%2===1) newFix.push({ tournament, division, round:51, round_type:'plate', band:'bye', seed_a:losers[losers.length-1], seed_b:0 });
+    }
+  }
+  // advance the plate too, if it exists and its last round is complete
+  if(plate.length){
+    const pByR={}; plate.forEach(f=>{ (pByR[f.round]=pByR[f.round]||[]).push(f); });
+    const pRounds=Object.keys(pByR).map(Number).sort((a,b)=>a-b);
+    const pLast=pRounds[pRounds.length-1]; const pFix=pByR[pLast];
+    const pOpen=pFix.filter(f=>f.seed_b!==0 && f.sets_a==null).length;
+    if(pOpen===0){
+      const pWin=pFix.map(winnerOf).filter(x=>x!=null);
+      if(pWin.length>1){
+        const plabel='P-'+KO.roundLabel(pWin.length);
+        for(let i=0;i<pWin.length;i+=2){ if(pWin[i+1]!=null) newFix.push({ tournament, division, round:pLast+1, round_type:'plate', band:plabel, seed_a:pWin[i], seed_b:pWin[i+1] }); }
+      }
+    }
+  }
+  if(!newFix.length){ alert('Nothing to advance — the knockout (and plate) are complete, or waiting on results.'); return; }
+  const resp = await fetch(SB_URL + '/functions/v1/tournament', {
+    method:'POST', headers:{ apikey:SB_ANON, Authorization:'Bearer '+SB_ANON, 'Content-Type':'application/json' },
+    body: JSON.stringify({ action:'write_fixtures', club_id:CLUB_ID, admin_pin:TM_ADMIN_PIN, tournament, division, replace:false, fixtures:newFix })
+  });
+  const j=await resp.json().catch(()=>({}));
+  if(!j.ok){ alert('Could not advance: '+((j&&j.error)||resp.status)); return; }
+  loadTournamentSheet(tournament, division);
+}
+
+
 
 /* ============================================================================
    GENERATE THE DRAW for one division (admin action).
