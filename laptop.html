@@ -1475,7 +1475,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.14-18";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
+const OPR_VERSION = "OTR-LAPTOP v2026.07.15-01";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
 
 // ---- Excel/CSV export (laptop) ----------------------------------------
 // Generic: reads any rendered <table> and downloads it as a clean CSV that
@@ -2731,11 +2731,20 @@ async function submitMatch(){
   // window so two pairs who legitimately play again weeks later aren't falsely flagged.
   // If found, warn naming who entered it and when, and let the operator proceed or cancel.
   try{
-    const four=[entryData.t1p1,entryData.t1p2,entryData.t2p1,entryData.t2p2].map(x=>(x||'').trim()).sort().join('|');
-    const recent = await sbGet(`matches?select=match_date,t1p1,t1p2,t2p1,t2p2,submitted_by&club_id=eq.${CLUB_ID}&order=id.desc&limit=30`) || [];
+    // Build the key from REAL names only (drop null/empty slots). A singles match has
+    // two names; a doubles match has four. Comparing raw 4-slot arrays made every
+    // singles match look alike (the null slots collapsed to empty strings), so the
+    // duplicate warning fired on every submission.
+    const nameKey = arr => arr.map(x=>(x||'').trim()).filter(x=>x!=='').sort().join('|');
+    const mine = nameKey([entryData.t1p1,entryData.t1p2,entryData.t2p1,entryData.t2p2]);
+    const recent = await sbGet(`matches?select=match_date,t1p1,t1p2,t2p1,t2p2,submitted_by,event,match_type&club_id=eq.${CLUB_ID}&order=id.desc&limit=30`) || [];
     const dup = recent.find(m=>{
-      const mf=[m.t1p1,m.t1p2,m.t2p1,m.t2p2].map(x=>(x||'').trim()).sort().join('|');
-      return mf===four;
+      const theirs = nameKey([m.t1p1,m.t1p2,m.t2p1,m.t2p2]);
+      // must be the same PEOPLE, the same size of match, AND the same event —
+      // otherwise a knockout result legitimately re-flags a social match, etc.
+      if(theirs !== mine) return false;
+      if((m.event||'') !== (entryData.event||'')) return false;
+      return true;
     });
     if(dup){
       const who=(dup.submitted_by && dup.submitted_by.trim()) ? dup.submitted_by : 'someone';
@@ -2795,7 +2804,11 @@ async function submitMatch(){
           }
         }
         const ents = await sbGet(`tournament_entries?select=seed,p1,p2&tournament=eq.${encodeURIComponent(ev)}&category=eq.${encodeURIComponent(_mDiv)}&club_id=eq.${CLUB_ID}`) || [];
-        const seedOf=(a,b)=>{ const e=ents.find(e=>e.p1===a||e.p2===a||e.p1===b||e.p2===b); return e?e.seed:null; };
+        // SINGLES-SAFE: ignore null slots. Without the truthiness guard, a singles entry
+        // (p2=null) matched ANY singles match (b=null) via null===null, returning the
+        // wrong seed and mis-flagging duplicates.
+        const seedOf=(a,b)=>{ const e=ents.find(e=>
+          (a && (e.p1===a || e.p2===a)) || (b && (e.p1===b || e.p2===b))); return e?e.seed:null; };
         const sa=seedOf(entryData.t1p1,entryData.t1p2), sb=seedOf(entryData.t2p1,entryData.t2p2);
         if(sa && sb && sa!==sb){
           const fxs = await sbGet(`tournament_fixtures?select=round,sets_a&tournament=eq.${encodeURIComponent(ev)}&division=eq.${encodeURIComponent(_mDiv)}&club_id=eq.${CLUB_ID}&or=(and(seed_a.eq.${sa},seed_b.eq.${sb}),and(seed_a.eq.${sb},seed_b.eq.${sa}))`) || [];
@@ -2819,7 +2832,13 @@ async function submitMatch(){
       if(trow && trow.length && trow[0].type==='internal'){
         const ents = await sbGet(`tournament_entries?select=seed,p1,p2&tournament=eq.${encodeURIComponent(ev)}&category=eq.${encodeURIComponent(_mDiv)}&club_id=eq.${CLUB_ID}`) || [];
         const pairOf=(seed)=>ents.find(e=>e.seed===seed);
-        const hits=(p,x,y)=>{ if(!p) return 0; let n=0; if(x===p.p1||x===p.p2)n++; if(y===p.p1||y===p.p2)n++; return n; };
+        // SINGLES-SAFE: only count REAL names. Previously a singles match (y=null) against
+        // a singles entry (p.p2=null) scored a phantom hit because null===null is true,
+        // so results matched the wrong fixture (or none) and never reached the board.
+        const hits=(p,x,y)=>{ if(!p) return 0; let n=0;
+          if(x && (x===p.p1 || x===p.p2)) n++;
+          if(y && (y===p.p1 || y===p.p2)) n++;
+          return n; };
         const fixes = await sbGet(`tournament_fixtures?select=id,round,seed_a,seed_b,sets_a&tournament=eq.${encodeURIComponent(ev)}&division=eq.${encodeURIComponent(_mDiv)}&club_id=eq.${CLUB_ID}&order=round.asc`) || [];
         // score each UNPLAYED fixture by name-count (max over both orientations)
         let scored=[];
@@ -2829,7 +2848,10 @@ async function submitMatch(){
           const s1=hits(pa,entryData.t1p1,entryData.t1p2)+hits(pb,entryData.t2p1,entryData.t2p2);
           const s2=hits(pb,entryData.t1p1,entryData.t1p2)+hits(pa,entryData.t2p1,entryData.t2p2);
           const sc=Math.max(s1,s2);
-          if(sc>=2) scored.push({round:f.round, score:sc});
+          // doubles: >=2 of 4 names is a confident match (allows a stand-in).
+          // singles: there are only 2 names, so BOTH must match — no stand-ins possible.
+          const _need = (entryData.format==='singles') ? 2 : 2;
+          if(sc>=_need) scored.push({round:f.round, score:sc});
         });
         // any already-PLAYED fixtures for this same pairing (to flag double-ups)
         const playedRounds = fixes.filter(f=>f.sets_a!=null).map(f=>{
