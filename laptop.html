@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>OTR</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600;1,9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="manifest" href='data:application/manifest+json,{"name":"OTR · TourTest","short_name":"OTR TourTest","start_url":"./tourtest.html","scope":"./","display":"standalone","background_color":"%236C3483","theme_color":"%236C3483","icons":[{"src":"./icon-192.png","sizes":"192x192","type":"image/png"},{"src":"./icon-512.png","sizes":"512x512","type":"image/png"}]}'>
-<meta name="theme-color" content="#6C3483">
+<link rel="manifest" href='data:application/manifest+json,{"name":"OTR · TourTest","short_name":"OTR TourTest","start_url":"./tourtest.html","scope":"./","display":"standalone","background_color":"%23071a12","theme_color":"%23071a12","icons":[{"src":"./icon-192.png","sizes":"192x192","type":"image/png"},{"src":"./icon-512.png","sizes":"512x512","type":"image/png"}]}'>
+<meta name="theme-color" content="#0F6E56">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="OPR Demo">
+<meta name="apple-mobile-web-app-title" content="OTR Demo">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -17,7 +17,7 @@
   .app { max-width: 480px; margin: 0 auto; background: #ffffff; min-height: 100vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
 
   /* Header */
-  .header { background:url("header_bg2.png") center center/cover no-repeat; color: white; padding: 16px 20px; display: flex; align-items: center; gap: 12px; min-height: 64px; text-shadow:0 2px 6px rgba(0,0,0,0.45); }
+  .header { background:linear-gradient(rgba(7,26,18,0.0),rgba(7,26,18,0.0)),radial-gradient(120% 90% at 78% 8%, rgba(57,255,176,.20), transparent 55%),radial-gradient(130% 100% at 12% 96%, rgba(15,110,86,.55), transparent 60%),#071a12; background-size:cover; color: white; padding: 16px 20px; display: flex; align-items: center; gap: 12px; min-height: 64px; text-shadow:0 2px 6px rgba(0,0,0,0.45); }
   .header h1 { font-size: 18px; font-weight: 600; flex: 1; }
   .back-btn { background: none; border: none; color: white; font-size: 22px; cursor: pointer; padding: 4px 8px 4px 0; }
 
@@ -28,37 +28,37 @@
   .screen-content { flex: 1; overflow-y: auto; padding: 16px; }
 
   /* Home */
-  .home-hero { background:url("header_bg2.png") center center / cover no-repeat; padding:0; margin:0; text-align:center; position:relative; }
+  .home-hero { background:linear-gradient(rgba(7,26,18,0.0),rgba(7,26,18,0.0)),radial-gradient(120% 90% at 78% 8%, rgba(57,255,176,.20), transparent 55%),radial-gradient(130% 100% at 12% 96%, rgba(15,110,86,.55), transparent 60%),#071a12; padding:0; margin:0; text-align:center; position:relative; }
   .screen-content.home-content { padding-top: 0; margin-top: -26px; position: relative; z-index: 5; display:flex; flex-direction:column; overflow:hidden; }
   .home-hero .hero-logo-panel { display:block; width:100%; margin:0; background:transparent; border-radius:0; padding:42px 16px 40px; color:#fff; position:relative; }
-  .home-hero .hero-logo-panel::before { display:none; content:""; position:absolute; top:-30px; right:-30px; width:120px; height:120px; background:radial-gradient(circle, rgba(241,196,15,0.25), transparent 70%); border-radius:50%; }
-  .home-hero .hero-logo-panel::after { display:none; content:""; position:absolute; bottom:-40px; left:-20px; width:140px; height:140px; background:radial-gradient(circle, rgba(46,109,180,0.3), transparent 70%); border-radius:50%; }
+  .home-hero .hero-logo-panel::before { display:none; content:""; position:absolute; top:-30px; right:-30px; width:120px; height:120px; background:radial-gradient(circle, rgba(57,255,176,0.25), transparent 70%); border-radius:50%; }
+  .home-hero .hero-logo-panel::after { display:none; content:""; position:absolute; bottom:-40px; left:-20px; width:140px; height:140px; background:radial-gradient(circle, rgba(15,110,86,0.3), transparent 70%); border-radius:50%; }
   .home-hero .ball-row { display: flex; align-items: center; justify-content: center; gap: 22px; position: relative; z-index: 2; }
   .home-hero .ball-pair { display: inline-flex; align-items: center; gap: 8px; }
-  .home-hero .pball { width: 40px; height: 40px; display: block; filter: drop-shadow(0 0 8px rgba(241,196,15,0.4)) drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+  .home-hero .pball { width: 40px; height: 40px; display: block; filter: drop-shadow(0 0 8px rgba(198,255,64,0.45)) drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
   .home-hero h2 { font-size: 26px; font-weight: 800; margin: 12px 0 4px; color: #fff; position: relative; z-index: 2; text-shadow: 0 0 16px rgba(255,255,255,0.3); letter-spacing: 0.5px; }
   .home-hero p { font-size: 12px; opacity: 0.9; color: #fff; position: relative; z-index: 2; }
   .opr-logo { font-size: 44px; margin-bottom: 10px; }
-  .btn-enter { width: calc(100% - 0px); padding: 19px; background: linear-gradient(180deg, #1a3a6b, #0d2347); color: #ffffff; border: none; border-radius: 14px; font-size: 18px; font-weight: 800; cursor: pointer; margin: 0 0 16px; position: relative; z-index: 5; letter-spacing: 0.3px; box-shadow: 0 10px 26px rgba(150,100,0,0.45), inset 0 1px 0 rgba(255,255,255,0.55); transition: transform 0.1s; }
+  .btn-enter { width: calc(100% - 0px); padding: 19px; background: linear-gradient(180deg, #39ffb0, #12b488); color: #04241b; border: none; border-radius: 14px; font-size: 18px; font-weight: 800; cursor: pointer; margin: 0 0 16px; position: relative; z-index: 5; letter-spacing: 0.3px; box-shadow: 0 10px 26px rgba(15,110,86,0.5), inset 0 1px 0 rgba(255,255,255,0.55); transition: transform 0.1s; }
   .btn-enter:active { transform: scale(0.98); }
   .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
   /* Club panel (shows beside Recent Matches on laptop; stacks below on phone) */
   .home-lower { margin-top: 4px; }
-  .club-panel { background:#fff; border:1px solid #e5dced; border-radius:14px; overflow:hidden; box-shadow:0 2px 10px rgba(108,52,131,0.06); margin-top:22px; }
-  .club-panel-head { background:linear-gradient(135deg,#6C3483,#3a1d6e); color:#fff; font-size:13px; font-weight:800; letter-spacing:0.5px; padding:11px 16px; }
+  .club-panel { background:#fff; border:1px solid #d4ede4; border-radius:14px; overflow:hidden; box-shadow:0 2px 10px rgba(108,52,131,0.06); margin-top:22px; }
+  .club-panel-head { background:linear-gradient(135deg,#0F6E56,#063d2c); color:#fff; font-size:13px; font-weight:800; letter-spacing:0.5px; padding:11px 16px; }
   .club-stats { padding:6px 16px 4px; }
-  .club-stat { display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid #f0ebf5; font-size:13px; }
+  .club-stat { display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid #e2f6ee; font-size:13px; }
   .club-stat:last-child { border-bottom:none; }
   .club-stat .lbl { color:#7a6688; }
-  .club-stat .val { font-weight:800; color:#6C3483; font-size:15px; }
-  .club-panel-foot { padding:12px 16px; border-top:1px solid #f0ebf5; text-align:center; }
-  .club-panel-link { color:#6C3483; font-size:12px; font-weight:700; text-decoration:none; }
+  .club-stat .val { font-weight:800; color:#0F6E56; font-size:15px; }
+  .club-panel-foot { padding:12px 16px; border-top:1px solid #e2f6ee; text-align:center; }
+  .club-panel-link { color:#0F6E56; font-size:12px; font-weight:700; text-decoration:none; }
   .club-panel-link:hover { text-decoration:underline; }
   .menu-btn { padding: 14px 8px; background: #fff; border: 1.5px solid #1a1a1a; border-radius: 12px; font-size: 13px; font-weight: 600; color: #1a1a1a; cursor: pointer; text-align: center; transition: all 0.15s; display: flex; align-items: center; justify-content: center; min-height: 52px; }
-  .menu-btn:active { background: #F5EEF8; transform: scale(0.97); }
+  .menu-btn:active { background: #e6fff5; transform: scale(0.97); }
   .menu-btn .icon { font-size: 20px; display: block; margin-bottom: 3px; }
   .menu-btn.full-width { grid-column: span 2; }
-  .ladders-group-title { font-size: 11px; font-weight: 700; color: #6C3483; text-transform: uppercase; letter-spacing: 0.6px; margin: 14px 0 8px; }
+  .ladders-group-title { font-size: 11px; font-weight: 700; color: #0F6E56; text-transform: uppercase; letter-spacing: 0.6px; margin: 14px 0 8px; }
   .ladders-group-title:first-child { margin-top: 0; }
   .ladders-group-title.soon { color: #bbb; }
   .ladders-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -68,45 +68,45 @@
 
   /* Ladder */
   .ladder-table { width: auto; min-width: 100%; border-collapse: collapse; font-size: 12px; table-layout: auto; margin: 0; }
-  .ladder-table th { background: #3a1d6e; color: white; padding: 8px 10px; text-align: center; font-size: 11px; font-weight: 600; position: sticky; top: 0; white-space: nowrap; }
+  .ladder-table th { background: #063d2c; color: white; padding: 8px 10px; text-align: center; font-size: 11px; font-weight: 600; position: sticky; top: 0; white-space: nowrap; }
   .ladder-table th:first-child { text-align: left !important; padding-left: 4px; padding-right: 4px; }
   .ladder-table th:nth-child(2) { text-align: left !important; }
   .ladder-table td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; white-space: nowrap; text-align: center; }
   .ladder-table td:first-child { text-align: left !important; padding-left: 4px; padding-right: 4px; }
   .ladder-table td:nth-child(2) { text-align: left !important; }
-  .ladder-table tr:nth-child(even) td { background: #F5EEF8; }
+  .ladder-table tr:nth-child(even) td { background: #e6fff5; }
 .ladder-table tr.pair-row td { background: #fff; }
-.ladder-table tr.pair-row:hover td { background: #f3eef8; }
-  .ladder-table tr.division-row td { background: #6C3483; color: #fff; font-weight: 700; font-size: 12px; text-align: left; padding: 9px 10px; }
-  .ladder-table tr.heading-row td { background: #EBD9F2; color: #4A235A; font-weight: 700; text-align: left; }
-  .rank-badge { background: #6C3483; color: white; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+.ladder-table tr.pair-row:hover td { background: #e6fbf3; }
+  .ladder-table tr.division-row td { background: #0F6E56; color: #fff; font-weight: 700; font-size: 12px; text-align: left; padding: 9px 10px; }
+  .ladder-table tr.heading-row td { background: #EBD9F2; color: #083b2c; font-weight: 700; text-align: left; }
+  .rank-badge { background: #0F6E56; color: white; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
   .rank-1 { background: #F1C40F; color: #1a1a1a; }
   .rank-2 { background: #BDC3C7; color: #1a1a1a; }
   .rank-3 { background: #CD7F32; color: white; }
 
   /* Profile */
-  .search-box { width: 100%; padding: 10px 14px; border: 1.5px solid #D7BDE2; border-radius: 10px; font-size: 15px; margin-bottom: 12px; outline: none; }
-  .search-box:focus { border-color: #6C3483; }
+  .search-box { width: 100%; padding: 10px 14px; border: 1.5px solid #9fe1cb; border-radius: 10px; font-size: 15px; margin-bottom: 12px; outline: none; }
+  .search-box:focus { border-color: #0F6E56; }
   .player-list { list-style: none; }
   .player-item { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; cursor: pointer; display: flex; align-items: center; gap: 10px; }
-  .player-item:active { background: #F5EEF8; }
-  .player-avatar { width: 34px; height: 34px; border-radius: 50%; background: #6C3483; color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .player-item:active { background: #e6fff5; }
+  .player-avatar { width: 34px; height: 34px; border-radius: 50%; background: #0F6E56; color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
   .player-name { font-size: 14px; font-weight: 500; }
   .player-gender { font-size: 11px; color: #888; }
 
   /* Profile Card */
-  .profile-card { background: linear-gradient(135deg, #6C3483, #3a1d6e); color: white; border-radius: 16px; padding: 20px; margin-bottom: 12px; text-align: center; }
+  .profile-card { background: linear-gradient(135deg, #0F6E56, #063d2c); color: white; border-radius: 16px; padding: 20px; margin-bottom: 12px; text-align: center; }
   .profile-name { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
   .profile-rating { font-size: 48px; font-weight: 800; margin: 6px 0; line-height: 1; }
   .profile-level { font-size: 18px; font-weight: 600; opacity: 0.95; margin-bottom: 4px; }
   .profile-rank { font-size: 13px; opacity: 0.8; }
   .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-  .stat-card { background: #F5EEF8; border-radius: 10px; padding: 10px 6px; text-align: center; }
-  .stat-value { font-size: 20px; font-weight: 700; color: #6C3483; }
+  .stat-card { background: #e6fff5; border-radius: 10px; padding: 10px 6px; text-align: center; }
+  .stat-value { font-size: 20px; font-weight: 700; color: #0F6E56; }
   .stat-label { font-size: 10px; color: #888; margin-top: 2px; }
 
   /* Match History */
-  .section-header { font-size: 12px; font-weight: 600; color: #6C3483; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 8px; }
+  .section-header { font-size: 12px; font-weight: 600; color: #0F6E56; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 8px; }
   .match-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; gap: 8px; font-size: 12px; }
   .match-row:last-child { border-bottom: none; }
   .win-badge { background: #1e8449; color: white; border-radius: 4px; padding: 2px 6px; font-size: 10px; font-weight: 700; flex-shrink: 0; }
@@ -115,68 +115,68 @@
   .match-info .partners { font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .match-info .opponents { color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .match-meta { text-align: right; flex-shrink: 0; }
-  .match-meta .score { font-weight: 700; color: #6C3483; }
+  .match-meta .score { font-weight: 700; color: #0F6E56; }
   .match-meta .date { font-size: 10px; color: #aaa; }
 
   /* Score Entry */
   .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
   .field label { font-size: 13px; color: #444; font-weight: 500; }
   .field select, .field input[type=date] { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 14px; background: #fff; color: #222; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
-  .team-card { background: #F5EEF8; border: 1.5px solid #D7BDE2; border-radius: 12px; padding: 12px; margin-bottom: 10px; }
-  .team-label { font-size: 12px; font-weight: 700; color: #6C3483; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
-  .team-label span { background: #6C3483; color: white; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; }
+  .team-card { background: #e6fff5; border: 1.5px solid #9fe1cb; border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .team-label { font-size: 12px; font-weight: 700; color: #0F6E56; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .team-label span { background: #0F6E56; color: white; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; }
   .set-table { width: 100%; border-collapse: collapse; }
   .set-table th { font-size: 11px; color: #888; padding: 5px 4px; text-align: center; }
   .set-table td { padding: 5px 4px; text-align: center; }
   .set-table td:first-child { font-size: 11px; color: #555; text-align: left; }
   .set-input { width: 50px; padding: 7px 4px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 16px; font-weight: 600; text-align: center; }
-  .set-input:focus { outline: none; border-color: #6C3483; }
-  .set-input.winner { border-color: #6C3483; background: #F5EEF8; }
+  .set-input:focus { outline: none; border-color: #0F6E56; }
+  .set-input.winner { border-color: #0F6E56; background: #e6fff5; }
   .btn { width: 100%; padding: 13px; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.15s; margin-top: 8px; }
-  .btn-primary { background: #6C3483; color: white; }
-  .btn-primary:active { transform: scale(0.98); background: #3a1d6e; }
+  .btn-primary { background: #0F6E56; color: white; }
+  .btn-primary:active { transform: scale(0.98); background: #063d2c; }
   .btn-secondary { background: #f0f2f5; color: #444; }
   .btn-success { background: #1e8449; color: white; }
   .result-card { border-radius: 12px; padding: 14px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .result-card.winner { background: #F5EEF8; border: 2px solid #6C3483; }
+  .result-card.winner { background: #e6fff5; border: 2px solid #0F6E56; }
   .result-card.loser { background: #f8f9fb; border: 1px solid #e0e0e0; }
   .result-names { font-size: 13px; font-weight: 600; }
-  .result-sets { font-size: 24px; font-weight: 800; color: #6C3483; }
+  .result-sets { font-size: 24px; font-weight: 800; color: #0F6E56; }
   .result-games { font-size: 11px; color: #888; }
-  .winner-label { font-size: 10px; font-weight: 700; color: #6C3483; text-transform: uppercase; margin-bottom: 2px; }
+  .winner-label { font-size: 10px; font-weight: 700; color: #0F6E56; text-transform: uppercase; margin-bottom: 2px; }
   .nav-row { display: flex; gap: 8px; margin-top: 8px; }
   .nav-row .btn { flex: 1; margin-top: 0; }
   .error-msg { color: #c0392b; font-size: 12px; background: #fdf2f2; border: 1px solid #f5c6c6; border-radius: 8px; padding: 8px 10px; display: none; margin-bottom: 8px; }
   .step-indicator { display: flex; justify-content: center; gap: 8px; padding: 8px 0; }
   .step-dot { width: 7px; height: 7px; border-radius: 50%; background: #d0d0d0; transition: background 0.2s; }
-  .step-dot.active { background: #6C3483; }
-  .step-dot.done { background: #6C3483; opacity: 0.4; }
+  .step-dot.active { background: #0F6E56; }
+  .step-dot.done { background: #0F6E56; opacity: 0.4; }
   .success-icon { text-align: center; font-size: 52px; margin: 20px 0 10px; }
 
   /* Recent matches */
-  .recent-title { font-size: 12px; font-weight: 600; color: #6C3483; text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 8px; }
-  .recent-item { background: #fff; border: 1px solid #D7BDE2; border-radius: 9px; padding: 6px 10px; margin-bottom: 6px; font-size: 12px; }
+  .recent-title { font-size: 12px; font-weight: 600; color: #0F6E56; text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 8px; }
+  .recent-item { background: #fff; border: 1px solid #9fe1cb; border-radius: 9px; padding: 6px 10px; margin-bottom: 6px; font-size: 12px; }
   .recent-item .match-header { display: flex; justify-content: center; gap: 10px; margin-bottom: 1px; }
   .recent-item .match-date { color: #888; font-size: 11px; }
-  .recent-item .match-type { color: #6C3483; font-weight: 600; font-size: 11px; }
+  .recent-item .match-type { color: #0F6E56; font-weight: 600; font-size: 11px; }
   .recent-item .match-teams { color: #333; text-align: center; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* About */
   .about-section { margin-bottom: 20px; }
-  .about-section h3 { font-size: 15px; font-weight: 700; color: #6C3483; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid #D7BDE2; }
+  .about-section h3 { font-size: 15px; font-weight: 700; color: #0F6E56; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid #9fe1cb; }
   .about-section p { font-size: 13px; color: #444; line-height: 1.6; margin-bottom: 8px; }
-  .about-badge { background: #6C3483; color: white; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600; display: inline-block; margin: 4px 4px 4px 0; }
-  .about-hero { background: linear-gradient(135deg, #6C3483, #3a1d6e); color: white; border-radius: 16px; padding: 20px; margin-bottom: 16px; text-align: center; }
+  .about-badge { background: #0F6E56; color: white; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600; display: inline-block; margin: 4px 4px 4px 0; }
+  .about-hero { background: linear-gradient(135deg, #0F6E56, #063d2c); color: white; border-radius: 16px; padding: 20px; margin-bottom: 16px; text-align: center; }
   .about-hero h2 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
   .about-hero p { font-size: 12px; opacity: 0.85; }
   .copyright { font-size: 11px; color: #aaa; text-align: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee; }
 
   /* Tournament */
-  .tournament-item { background: #F5EEF8; border: 1.5px solid #D7BDE2; border-radius: 12px; padding: 14px; margin-bottom: 10px; cursor: pointer; }
-  .tournament-item:active { background: #D7BDE2; }
-  .tournament-name { font-size: 15px; font-weight: 700; color: #6C3483; margin-bottom: 4px; }
+  .tournament-item { background: #e6fff5; border: 1.5px solid #9fe1cb; border-radius: 12px; padding: 14px; margin-bottom: 10px; cursor: pointer; }
+  .tournament-item:active { background: #9fe1cb; }
+  .tournament-name { font-size: 15px; font-weight: 700; color: #0F6E56; margin-bottom: 4px; }
   .tournament-date { font-size: 12px; color: #888; }
-  .tournament-type { font-size: 11px; font-weight: 600; color: white; background: #6C3483; border-radius: 4px; padding: 2px 8px; display: inline-block; margin-top: 4px; }
+  .tournament-type { font-size: 11px; font-weight: 600; color: white; background: #0F6E56; border-radius: 4px; padding: 2px 8px; display: inline-block; margin-top: 4px; }
 
   /* Loading */
   .loading { text-align: center; padding: 40px 20px; color: #888; font-size: 13px; }
@@ -186,78 +186,78 @@
   .empty-state .icon { font-size: 44px; margin-bottom: 10px; }
   .player-modal { position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: white; border-radius: 0 0 20px 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 1000; max-height: 75vh; display: flex; flex-direction: column; }
   .player-modal-header { padding: 16px 16px 8px; border-bottom: 1px solid #eee; }
-  .player-modal-title { font-size: 14px; font-weight: 700; color: #6C3483; margin-bottom: 8px; }
-  .player-modal-search { width: 100%; padding: 10px 12px; border: 1.5px solid #D7BDE2; border-radius: 10px; font-size: 16px; outline: none; }
-  .player-modal-search:focus { border-color: #6C3483; }
+  .player-modal-title { font-size: 14px; font-weight: 700; color: #0F6E56; margin-bottom: 8px; }
+  .player-modal-search { width: 100%; padding: 10px 12px; border: 1.5px solid #9fe1cb; border-radius: 10px; font-size: 16px; outline: none; }
+  .player-modal-search:focus { border-color: #0F6E56; }
   .player-modal-list { overflow-y: auto; flex: 1; }
   .player-modal-item { padding: 12px 16px; border-bottom: 1px solid #f5f5f5; font-size: 15px; cursor: pointer; }
-  .player-modal-item:active { background: #F5EEF8; }
+  .player-modal-item:active { background: #e6fff5; }
   .player-modal-cancel { padding: 14px; text-align: center; font-size: 15px; color: #888; cursor: pointer; border-top: 1px solid #eee; }
   .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 999; }
   .player-display { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 14px; background: white; cursor: pointer; text-align: left; color: #222; display: flex; justify-content: space-between; align-items: center; }
-  .player-display.selected { border-color: #6C3483; background: #F5EEF8; color: #6C3483; font-weight: 600; }
+  .player-display.selected { border-color: #0F6E56; background: #e6fff5; color: #0F6E56; font-weight: 600; }
   .player-display .arrow { color: #888; font-size: 12px; }
 
   /* ===== Admin Control Room ===== */
-  .ac-context { background: linear-gradient(135deg,#3a1d6e,#6C3483); color:#fff; border-radius:12px; padding:14px 16px; margin-bottom:14px; box-shadow:0 2px 10px rgba(81,46,95,0.25); }
+  .ac-context { background: linear-gradient(135deg,#063d2c,#0F6E56); color:#fff; border-radius:12px; padding:14px 16px; margin-bottom:14px; box-shadow:0 2px 10px rgba(81,46,95,0.25); }
   .ac-context .ac-club { font-size:18px; font-weight:800; letter-spacing:0.2px; display:flex; align-items:center; gap:8px; }
   .ac-context .ac-meta { font-size:11px; opacity:0.85; margin-top:3px; text-transform:uppercase; letter-spacing:0.8px; }
-  .ac-tabs { display:flex; gap:6px; margin-bottom:16px; background:#efe9f3; border-radius:11px; padding:4px; }
+  .ac-tabs { display:flex; gap:6px; margin-bottom:16px; background:#e2f6ee; border-radius:11px; padding:4px; }
   .ac-tab { flex:1; text-align:center; padding:10px 6px; border:none; background:none; border-radius:8px; font-size:13px; font-weight:700; color:#7a6688; cursor:pointer; transition:all .15s; font-family:inherit; }
-  .ac-tab.active { background:#fff; color:#6C3483; box-shadow:0 1px 4px rgba(0,0,0,0.1); }
+  .ac-tab.active { background:#fff; color:#0F6E56; box-shadow:0 1px 4px rgba(0,0,0,0.1); }
   .ac-room { display:none; }
   .ac-room.active { display:block; animation: acFade .2s ease; }
   @keyframes acFade { from{opacity:0;transform:translateY(4px);} to{opacity:1;transform:none;} }
-  .ac-card { background:#fff; border:1px solid #e5dced; border-radius:12px; padding:16px; margin-bottom:14px; }
-  .ac-card h4 { font-size:12px; text-transform:uppercase; letter-spacing:1px; color:#9b80b3; margin-bottom:12px; font-weight:800; }
-  .ac-field { width:100%; padding:11px; border:1.5px solid #d9cfe3; border-radius:9px; font-size:15px; box-sizing:border-box; margin-bottom:9px; font-family:inherit; }
-  .ac-field:focus { outline:none; border-color:#6C3483; }
+  .ac-card { background:#fff; border:1px solid #d4ede4; border-radius:12px; padding:16px; margin-bottom:14px; }
+  .ac-card h4 { font-size:12px; text-transform:uppercase; letter-spacing:1px; color:#5aa98d; margin-bottom:12px; font-weight:800; }
+  .ac-field { width:100%; padding:11px; border:1.5px solid #c9ece0; border-radius:9px; font-size:15px; box-sizing:border-box; margin-bottom:9px; font-family:inherit; }
+  .ac-field:focus { outline:none; border-color:#0F6E56; }
   .ac-row { display:flex; gap:8px; }
   .ac-btn { padding:11px 14px; border:none; border-radius:9px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
-  .ac-btn-primary { background:linear-gradient(180deg,#6C3483,#3a1d6e); color:#fff; }
-  .ac-btn-ghost { background:#f3eef8; color:#6C3483; border:1.5px solid #d9cfe3; }
+  .ac-btn-primary { background:linear-gradient(180deg,#0F6E56,#063d2c); color:#fff; }
+  .ac-btn-ghost { background:#e6fbf3; color:#0F6E56; border:1.5px solid #c9ece0; }
   .ac-btn-danger { background:none; color:#c0392b; border:1.5px solid #e6b0aa; }
   .ac-msg { font-size:13px; margin-top:10px; min-height:18px; }
 
   /* ===== Tournament module view ===== */
-  #tournamentSheetContent { --da:#6C3483; --db:#2E86C1; --cross:#117A65; --warn:#B9770E; }
+  #tournamentSheetContent { --da:#0F6E56; --db:#12b488; --cross:#117A65; --warn:#B9770E; }
   #tournamentSheetContent .card { background:#fff; border:1px solid #e6e3ec; border-radius:14px; padding:16px; margin:0 12px 12px; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
   #tournamentSheetContent .sub { font-size:12px; color:#6b6b76; margin:0 0 14px; line-height:1.5; }
   #tournamentSheetContent table { width:100%; border-collapse:collapse; font-size:13px; }
-  #tournamentSheetContent th, #tournamentSheetContent td { padding:7px 8px; border-bottom:1px solid #f0eef4; text-align:left; }
-  #tournamentSheetContent th { position: sticky; top: 0; background:#3a1d6e; color:#fff; z-index:2; }
+  #tournamentSheetContent th, #tournamentSheetContent td { padding:7px 8px; border-bottom:1px solid #e8f7f1; text-align:left; }
+  #tournamentSheetContent th { position: sticky; top: 0; background:#063d2c; color:#fff; z-index:2; }
   #tournamentSheetContent td.num, #tournamentSheetContent th.num { text-align:center; }
   #tournamentSheetContent .pill { display:inline-block; padding:2px 9px; border-radius:11px; font-size:11px; font-weight:700; color:#fff; }
   #tournamentSheetContent .pill.DA { background:var(--da); }
   #tournamentSheetContent .pill.DB { background:var(--db); }
   #tournamentSheetContent .pill.Cross { background:var(--cross); }
   #tournamentSheetContent .sub-flag { font-size:10px; color:var(--warn); font-weight:700; display:block; }
-  .tm-nav { display:flex; gap:6px; padding:12px; background:#efe9f3; margin:0 12px 12px; border-radius:11px; }
+  .tm-nav { display:flex; gap:6px; padding:12px; background:#e2f6ee; margin:0 12px 12px; border-radius:11px; }
   .tm-nav button { flex:1; padding:9px 6px; border:none; background:none; border-radius:8px; font-size:12px; font-weight:700; color:#7a6688; cursor:pointer; font-family:inherit; }
-  .tm-nav button.active { background:#fff; color:#6C3483; box-shadow:0 1px 4px rgba(0,0,0,0.1); }
+  .tm-nav button.active { background:#fff; color:#0F6E56; box-shadow:0 1px 4px rgba(0,0,0,0.1); }
 
-  .ac-btn-gold { background:linear-gradient(180deg,#F1C40F,#E3AC00); color:#4A235A; }
+  .ac-btn-gold { background:linear-gradient(180deg,#F1C40F,#E3AC00); color:#083b2c; }
   .ac-btn-green { background:#c4e000; color:#2a3000; font-weight:800; }
-  #etBody .seed, #tournamentSheetContent .seed { display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;background:#6C3483;color:#fff;border-radius:8px;font-weight:700;font-size:12px;padding:0 5px; }
-  #etBody .seed.s1, #tournamentSheetContent .seed.s1 { background:#6C3483;color:#fff; }
+  #etBody .seed, #tournamentSheetContent .seed { display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;background:#0F6E56;color:#fff;border-radius:8px;font-weight:700;font-size:12px;padding:0 5px; }
+  #etBody .seed.s1, #tournamentSheetContent .seed.s1 { background:#0F6E56;color:#fff; }
   #etBody .card h2, #tournamentSheetContent .card h2 { font-size:16px;margin:0 0 3px; }
   #etBody table, #tournamentSheetContent table { width:100%;border-collapse:collapse;font-size:13px; }
   #etBody th, #etBody td { padding:8px 6px;text-align:left;border-bottom:1px solid #e6e3ec; }
   #etBody th { font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b6b76;font-weight:700; }
   #etBody td.num, #etBody th.num { text-align:center; }
-  #etBody .card { --purple:#6C3483; }
+  #etBody .card { --purple:#0F6E56; }
 
   /* division selector + round pills inside tournament view */
   .tm-divbar { display:flex; gap:6px; flex-wrap:wrap; padding:10px 12px; margin:0 12px 4px; }
-  .tm-divbar button { border:1.5px solid #d9cfe3; background:#fff; color:#6C3483; border-radius:20px; padding:8px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
-  .tm-divbar button.active { background:#6C3483; color:#fff; border-color:#6C3483; }
-  .tm-divtag { display:inline-block; background:#efe9f3; color:#6C3483; border-radius:10px; padding:2px 10px; font-size:12px; font-weight:700; vertical-align:middle; }
+  .tm-divbar button { border:1.5px solid #c9ece0; background:#fff; color:#0F6E56; border-radius:20px; padding:8px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .tm-divbar button.active { background:#0F6E56; color:#fff; border-color:#0F6E56; }
+  .tm-divtag { display:inline-block; background:#e2f6ee; color:#0F6E56; border-radius:10px; padding:2px 10px; font-size:12px; font-weight:700; vertical-align:middle; }
   .bkt-card{overflow-x:auto;}
   .bkt-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
   .bkt-print-btn{display:inline-block;width:auto;padding:8px 14px;border-color:#F1C40F;font-weight:700;}
   .bkt-meta{color:#8a7a9c;font-size:12px;margin:2px 0 10px;}
   .bkt-block{margin-top:14px;}
-  .bkt-title{font-size:15px;color:#6C3483;margin:10px 0 6px;border-bottom:2px solid #efe9f3;padding-bottom:4px;}
+  .bkt-title{font-size:15px;color:#0F6E56;margin:10px 0 6px;border-bottom:2px solid #e2f6ee;padding-bottom:4px;}
   .bkt-champ{margin:6px 0 10px;padding:7px 12px;background:#f9f3dd;border:1px solid #F1C40F;border-radius:9px;font-weight:700;color:#7d6608;display:inline-block;}
   .bkt-tree{display:flex;gap:22px;align-items:stretch;min-width:min-content;padding-bottom:6px;}
   .bkt-colwrap{display:flex;flex-direction:column;min-width:158px;}
@@ -269,16 +269,16 @@
   .bkt-team{display:flex;align-items:center;gap:6px;padding:6px 9px;font-size:12.5px;border-bottom:1px solid #f0ecf4;}
   .bkt-team:last-child{border-bottom:none;}
   .bkt-win{background:#eafaf0;font-weight:700;color:#1e7a34;}
-  .bkt-sd{display:inline-block;min-width:19px;height:19px;line-height:19px;text-align:center;background:#6C3483;color:#fff;border-radius:5px;font-size:10px;font-weight:700;flex:none;}
+  .bkt-sd{display:inline-block;min-width:19px;height:19px;line-height:19px;text-align:center;background:#0F6E56;color:#fff;border-radius:5px;font-size:10px;font-weight:700;flex:none;}
   .bkt-sc{margin-left:auto;font-weight:700;color:#444;}
   .bkt-byerow{color:#aaa;font-style:italic;}
 
   #tournamentSheetContent .rsel { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
-  #tournamentSheetContent .rsel button { border:1.5px solid #d9cfe3; background:#fff; border-radius:20px; padding:7px 15px; font-weight:700; font-size:13px; cursor:pointer; color:#6C3483; font-family:inherit; }
-  #tournamentSheetContent .rsel button.active { background:#6C3483; color:#fff; border-color:#6C3483; }
+  #tournamentSheetContent .rsel button { border:1.5px solid #c9ece0; background:#fff; border-radius:20px; padding:7px 15px; font-weight:700; font-size:13px; cursor:pointer; color:#0F6E56; font-family:inherit; }
+  #tournamentSheetContent .rsel button.active { background:#0F6E56; color:#fff; border-color:#0F6E56; }
   #tournamentSheetContent .rsel button.fixed::after { content:" ·fixed"; font-size:10px; opacity:.6; }
   #tournamentSheetContent .winr { color:#1E8449; }
-  #tournamentSheetContent .rank { font-weight:800; color:#6C3483; }
+  #tournamentSheetContent .rank { font-weight:800; color:#0F6E56; }
   #tournamentSheetContent .rank.top { color:#b8920a; }
   #tournamentSheetContent .res-done { color:#1E8449; font-weight:700; }
   #tournamentSheetContent .ta { text-align:right; } #tournamentSheetContent .tb { text-align:left; }
@@ -287,22 +287,22 @@
   #clBody .card h2 { font-size:16px;margin:0 0 3px; }
   #clBody .sub { font-size:12px;color:#6b6b76;margin:0 0 14px;line-height:1.5; }
   #clBody table { width:100%;border-collapse:collapse;font-size:13px; }
-  #clBody th, #clBody td { padding:9px 8px;text-align:left;border-bottom:1px solid #f0eef4; }
+  #clBody th, #clBody td { padding:9px 8px;text-align:left;border-bottom:1px solid #e8f7f1; }
   #clBody th { font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b6b76;font-weight:700; }
   #clBody td.num, #clBody th.num { text-align:center; }
-  #clBody .seed { display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;background:#6C3483;color:#fff;border-radius:8px;font-weight:700;font-size:12px;padding:0 5px; }
-  #clBody .seed.s1 { background:#6C3483;color:#fff; }
+  #clBody .seed { display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;background:#0F6E56;color:#fff;border-radius:8px;font-weight:700;font-size:12px;padding:0 5px; }
+  #clBody .seed.s1 { background:#0F6E56;color:#fff; }
 
   .cl-divbar { display:flex; gap:6px; margin:0 12px 12px; }
   .cl-divbar button { flex:1; text-align:center; padding:9px 4px; font-size:12px; }
 
-  .at-divrow { display:flex; align-items:center; justify-content:space-between; padding:7px 0; border-bottom:1px solid #f0eaf5; }
+  .at-divrow { display:flex; align-items:center; justify-content:space-between; padding:7px 0; border-bottom:1px solid #e2f6ee; }
   .at-divrow label { font-size:14px; display:flex; align-items:center; gap:7px; }
-  .ac-capf { width:80px; padding:7px 9px; border:1.5px solid #d9cfe3; border-radius:8px; font-size:14px; }
+  .ac-capf { width:80px; padding:7px 9px; border:1.5px solid #c9ece0; border-radius:8px; font-size:14px; }
   .ac-capf:disabled { background:#f4f1f7; color:#bbb; }
 
-  .name-pick-btn { width:100%; padding:11px; border:1.5px solid #d9cfe3; border-radius:9px; font-size:15px; box-sizing:border-box; margin-bottom:10px; background:#fff; text-align:left; color:#888; cursor:pointer; font-family:inherit; }
-  .name-pick-btn.selected { color:#2C2C34; font-weight:600; border-color:#7D3C98; }
+  .name-pick-btn { width:100%; padding:11px; border:1.5px solid #c9ece0; border-radius:9px; font-size:15px; box-sizing:border-box; margin-bottom:10px; background:#fff; text-align:left; color:#888; cursor:pointer; font-family:inherit; }
+  .name-pick-btn.selected { color:#2C2C34; font-weight:600; border-color:#12855F; }
 
   #tournamentSheetContent td.ta, #tournamentSheetContent td.tb { font-size:13px; line-height:1.4; color:#3a2f44; padding:11px 8px; }
   #tournamentSheetContent td.ta.winr, #tournamentSheetContent td.tb.winr { color:#1e7a34; font-weight:700; }
@@ -310,8 +310,8 @@
   #tournamentSheetContent th.ta, #tournamentSheetContent th.tb { width:30%; }
   #tournamentSheetContent tr { border-bottom:1px solid #efeaf4; }
   /* alternating row stripe (matches the main ladder/rating tables) */
-  #tournamentSheetContent tbody tr:nth-child(even) td { background:#F5EEF8; }
-  #tournamentSheetContent tbody tr:hover td { background:#f3eef8; }
+  #tournamentSheetContent tbody tr:nth-child(even) td { background:#e6fff5; }
+  #tournamentSheetContent tbody tr:hover td { background:#e6fbf3; }
   #tournamentSheetContent td.num .res-done { font-size:12px; font-weight:700; color:#1e7a34; white-space:nowrap; }
   #tournamentSheetContent .pill { font-size:10px; padding:2px 7px; }
   /* ===================================================================
@@ -355,7 +355,7 @@
     /* FROZEN column headers: stay put while rows scroll beneath */
     .ladder-table th, #tournamentSheetContent th, .screen-content table th {
       position: sticky; top: 0; z-index: 20;
-      background: #3a1d6e; color:#fff;
+      background: #063d2c; color:#fff;
       box-shadow: 0 2px 0 rgba(0,0,0,0.15);
     }
     /* the ladder/ratings table scroll box: cap height so headers freeze and rows scroll */
@@ -395,7 +395,7 @@
           <span class="ball-pair"><svg class="pball" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="bg1" cx="38%" cy="33%" r="75%"><stop offset="0%" stop-color="#eaff66"/><stop offset="55%" stop-color="#c4e000"/><stop offset="100%" stop-color="#8fb500"/></radialGradient></defs><circle cx="50" cy="50" r="46" fill="url(#bg1)" stroke="#7da300" stroke-width="1"/><path d="M18 18 Q50 50 18 82" fill="none" stroke="#fbfff0" stroke-width="4" stroke-linecap="round"/><path d="M82 18 Q50 50 82 82" fill="none" stroke="#fbfff0" stroke-width="4" stroke-linecap="round"/><ellipse cx="40" cy="32" rx="14" ry="9" fill="rgba(255,255,255,0.35)"/></svg><svg class="pball" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="bg2" cx="38%" cy="33%" r="75%"><stop offset="0%" stop-color="#eaff66"/><stop offset="55%" stop-color="#c4e000"/><stop offset="100%" stop-color="#8fb500"/></radialGradient></defs><circle cx="50" cy="50" r="46" fill="url(#bg2)" stroke="#7da300" stroke-width="1"/><path d="M18 18 Q50 50 18 82" fill="none" stroke="#fbfff0" stroke-width="4" stroke-linecap="round"/><path d="M82 18 Q50 50 82 82" fill="none" stroke="#fbfff0" stroke-width="4" stroke-linecap="round"/><ellipse cx="40" cy="32" rx="14" ry="9" fill="rgba(255,255,255,0.35)"/></svg></span>
           <span class="ball-pair"><svg class="pball" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="bg3" cx="38%" cy="33%" r="75%"><stop offset="0%" stop-color="#eaff66"/><stop offset="55%" stop-color="#c4e000"/><stop offset="100%" stop-color="#8fb500"/></radialGradient></defs><circle cx="50" cy="50" r="46" fill="url(#bg3)" stroke="#7da300" stroke-width="1"/><path d="M18 18 Q50 50 18 82" fill="none" stroke="#fbfff0" stroke-width="4" stroke-linecap="round"/><path d="M82 18 Q50 50 82 82" fill="none" stroke="#fbfff0" stroke-width="4" stroke-linecap="round"/><ellipse cx="40" cy="32" rx="14" ry="9" fill="rgba(255,255,255,0.35)"/></svg><svg class="pball" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="bg4" cx="38%" cy="33%" r="75%"><stop offset="0%" stop-color="#eaff66"/><stop offset="55%" stop-color="#c4e000"/><stop offset="100%" stop-color="#8fb500"/></radialGradient></defs><circle cx="50" cy="50" r="46" fill="url(#bg4)" stroke="#7da300" stroke-width="1"/><path d="M18 18 Q50 50 18 82" fill="none" stroke="#fbfff0" stroke-width="4" stroke-linecap="round"/><path d="M82 18 Q50 50 82 82" fill="none" stroke="#fbfff0" stroke-width="4" stroke-linecap="round"/><ellipse cx="40" cy="32" rx="14" ry="9" fill="rgba(255,255,255,0.35)"/></svg></span>
         </div>
-        <h2 id="heroTitle">OPR-Rating</h2>
+        <h2 id="heroTitle">OTR-Rating</h2>
         <p>Open Tennis Rating System</p>
       </div>
     </div>
@@ -405,7 +405,7 @@
         <button class="menu-btn" onclick="showScreen('laddersScreen')">Current Ratings and Ladders</button>
         <button class="menu-btn" onclick="showProfileSearch()">Member Profile</button>
         <button class="menu-btn" onclick="showScreen('tournamentScreen')">Current Tournaments</button>
-        <button class="menu-btn" onclick="showScreen('aboutScreen')">About OPR</button>
+        <button class="menu-btn" onclick="showScreen('aboutScreen')">About OTR</button>
       </div>
       <div class="home-lower">
         <div class="home-club-col">
@@ -433,8 +433,8 @@
       <h1>Ratings and Ladders</h1>
     </div>
     <div class="screen-content">
-      <div style="background:#6C3483;color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:15px;font-weight:700;text-align:center;letter-spacing:0.3px;">Overall Ratings &amp; Ladder Standings</div>
-      <div style="background:#f3eef8;border:1px solid #d7bde2;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#5b3a6e;line-height:1.5;text-align:center;">Overall standings for ALL matches recorded in both Social and Tournament records</div>
+      <div style="background:#0F6E56;color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:15px;font-weight:700;text-align:center;letter-spacing:0.3px;">Overall Ratings &amp; Ladder Standings</div>
+      <div style="background:#e6fbf3;border:1px solid #9fe1cb;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#0d4a38;line-height:1.5;text-align:center;">Overall standings for ALL matches recorded in both Social and Tournament records</div>
       <div class="ladders-group-title">Singles Ratings</div>
       <div class="ladders-grid">
         <button class="menu-btn" onclick="loadLadder('mens','Mens Rating')">Men's Rating</button>
@@ -457,14 +457,14 @@
       </div>
       <div class="ladders-group-title">Form</div>
       <div class="ladders-grid one-col">
-        <button class="menu-btn form-toggle" id="formToggleBtn" style="border-color:#7D3C98;box-shadow:0 0 12px rgba(125,60,152,0.4);font-weight:700;" onclick="toggleFormMenu()">Form &nbsp;<span id="formChevron" style="font-size:12px;">▼</span></button>
+        <button class="menu-btn form-toggle" id="formToggleBtn" style="border-color:#12855F;box-shadow:0 0 12px rgba(125,60,152,0.4);font-weight:700;" onclick="toggleFormMenu()">Form &nbsp;<span id="formChevron" style="font-size:12px;">▼</span></button>
       </div>
       <div id="formMenu" style="display:none;margin-top:8px;">
-        <div style="padding:12px 14px;background:#f3eef8;border:1px solid #d7bde2;border-radius:10px;margin:0 0 10px;font-size:12px;color:#5b3a6e;line-height:1.5;">
+        <div style="padding:12px 14px;background:#e6fbf3;border:1px solid #9fe1cb;border-radius:10px;margin:0 0 10px;font-size:12px;color:#0d4a38;line-height:1.5;">
           <strong>What is Form?</strong> Your overall performance — not just how often you win, but who you played, how convincingly, and how by much. Requires a minimum of 12 sets to appear.
         </div>
-        <button class="menu-btn" id="formGuideBtn" style="border-color:#7D3C98;font-size:13px;margin-bottom:10px;" onclick="toggleFormGuide()">📖 Understanding the Form Wall &nbsp;<span id="formGuideChevron" style="font-size:12px;">▼</span></button>
-        <div id="formGuideBox" style="display:none;padding:14px;background:#fff;border:1px solid #d7bde2;border-radius:10px;margin:0 0 12px;font-size:12px;color:#3a2348;line-height:1.6;">
+        <button class="menu-btn" id="formGuideBtn" style="border-color:#12855F;font-size:13px;margin-bottom:10px;" onclick="toggleFormGuide()">📖 Understanding the Form Wall &nbsp;<span id="formGuideChevron" style="font-size:12px;">▼</span></button>
+        <div id="formGuideBox" style="display:none;padding:14px;background:#fff;border:1px solid #9fe1cb;border-radius:10px;margin:0 0 12px;font-size:12px;color:#3a2348;line-height:1.6;">
           <p style="margin:0 0 8px;"><em>A quick guide to what each column means.</em></p>
           <p style="margin:0 0 6px;"><strong>The columns explained</strong></p>
           <ul style="margin:0 0 10px;padding-left:18px;">
@@ -528,7 +528,7 @@
       <button class="back-btn" onclick="showScreen('profileSearchScreen')">&#8592;</button>
       <h1 id="profileTitle">Profile</h1>
     </div>
-    <div class="screen-content"><div style="background:#f3eef8;border:1px solid #d7bde2;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#5b3a6e;line-height:1.5;text-align:center;">Includes All your Matches Recorded on the system</div><div id="profileContent"></div></div>
+    <div class="screen-content"><div style="background:#e6fbf3;border:1px solid #9fe1cb;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#0d4a38;line-height:1.5;text-align:center;">Includes All your Matches Recorded on the system</div><div id="profileContent"></div></div>
   </div>
 
   <!-- TOURNAMENTS -->
@@ -544,12 +544,12 @@
       <div class="ladders-grid" id="tStatsButtons"></div>
       <div class="ladders-group-title">Tournament Form</div>
       <div class="ladders-grid one-col">
-        <button class="menu-btn form-toggle" id="tFormToggleBtn" style="border-color:#7D3C98;box-shadow:0 0 12px rgba(125,60,152,0.4);font-weight:700;" onclick="toggleTFormMenu()">Tournament Form &nbsp;<span id="tFormChevron" style="font-size:12px;">▼</span></button>
+        <button class="menu-btn form-toggle" id="tFormToggleBtn" style="border-color:#12855F;box-shadow:0 0 12px rgba(125,60,152,0.4);font-weight:700;" onclick="toggleTFormMenu()">Tournament Form &nbsp;<span id="tFormChevron" style="font-size:12px;">▼</span></button>
       </div>
       <div id="tFormMenu" style="display:none;margin-top:8px;">
-        <div style="padding:12px 14px;background:#f3eef8;border:1px solid #d7bde2;border-radius:10px;margin:0 0 12px;font-size:12px;color:#5b3a6e;line-height:1.55;"><strong>Tournament Form</strong> shows how each pairing is performing <em>within this tournament</em> — team form computed from tournament matches only.</div>
-        <button class="menu-btn" id="tFormGuideBtn" style="border-color:#7D3C98;font-size:13px;margin-bottom:10px;" onclick="toggleTFormGuide()">📖 Understanding the Form Wall &nbsp;<span id="tFormGuideChevron" style="font-size:12px;">▼</span></button>
-        <div id="tFormGuideBox" style="display:none;padding:14px;background:#fff;border:1px solid #d7bde2;border-radius:10px;margin:0 0 12px;font-size:12px;color:#3a2348;line-height:1.6;">
+        <div style="padding:12px 14px;background:#e6fbf3;border:1px solid #9fe1cb;border-radius:10px;margin:0 0 12px;font-size:12px;color:#0d4a38;line-height:1.55;"><strong>Tournament Form</strong> shows how each pairing is performing <em>within this tournament</em> — team form computed from tournament matches only.</div>
+        <button class="menu-btn" id="tFormGuideBtn" style="border-color:#12855F;font-size:13px;margin-bottom:10px;" onclick="toggleTFormGuide()">📖 Understanding the Form Wall &nbsp;<span id="tFormGuideChevron" style="font-size:12px;">▼</span></button>
+        <div id="tFormGuideBox" style="display:none;padding:14px;background:#fff;border:1px solid #9fe1cb;border-radius:10px;margin:0 0 12px;font-size:12px;color:#3a2348;line-height:1.6;">
           <p style="margin:0 0 8px;"><em>A quick guide to what each column means.</em></p>
           <p style="margin:0 0 6px;"><strong>The columns explained</strong></p>
           <ul style="margin:0 0 10px;padding-left:18px;">
@@ -593,7 +593,7 @@
   <div class="screen hidden" id="aboutScreen">
     <div class="header">
       <button class="back-btn" onclick="goHome()">&#8592;</button>
-      <h1>About OPR</h1>
+      <h1>About OTR</h1>
     </div>
     <div class="screen-content">
       <div class="about-hero">
@@ -602,9 +602,9 @@
       </div>
 
       <div class="about-section">
-        <h3>What Is OPR?</h3>
-        <p>Open Tennis Rating (OTR) is an independent, transparent rating system designed for club tennis — singles and doubles alike. Built on the proven OPR engine, OTR rates every player and every pairing on their own merits, for the realities of club tennis where partners change, formats vary, and match volume is limited.</p>
-        <p>OPR is open by design. Every formula, every weighting, and every adjustment threshold is explainable to any player, administrator, or partner. There are no black boxes.</p>
+        <h3>What Is OTR?</h3>
+        <p>Open Tennis Rating (OTR) is an independent, transparent rating system designed for club tennis — singles and doubles alike. Built on the proven OTR engine, OTR rates every player and every pairing on their own merits, for the realities of club tennis where partners change, formats vary, and match volume is limited.</p>
+        <p>OTR is open by design. Every formula, every weighting, and every adjustment threshold is explainable to any player, administrator, or partner. There are no black boxes.</p>
       </div>
 
       <div class="about-section">
@@ -631,19 +631,19 @@
 
       <div class="about-section">
         <h3>Design & Intellectual Property</h3>
-        <p>OPR was conceived, designed, and built by <strong>Andre Farrell</strong>. The rating methodology, formula architecture, weighting system, Net Performance Index, and Star Performer Index are original works developed exclusively by Andre Farrell.</p>
+        <p>OTR was conceived, designed, and built by <strong>Andre Farrell</strong>. The rating methodology, formula architecture, weighting system, Net Performance Index, and Star Performer Index are original works developed exclusively by Andre Farrell.</p>
         <p>This system may not be copied, reproduced, or commercialised without the express written permission of the designer.</p>
         <p><strong>© 2026 Andre Farrell. All rights reserved.</strong></p>
       </div>
 
       <div class="about-section">
         <h3>Version</h3>
-        <p>OPR Version 2.0 — June 2026</p>
+        <p>OTR Version 2.0 — June 2026</p>
         <p>Built with passion for the game of tennis.</p>
       </div>
 
       <div class="copyright">© 2026 Andre Farrell · Open Tennis Rating · All Rights Reserved</div>
-      <div style="text-align:center;margin:18px 0 8px;"><button onclick="openAdmin()" style="background:none;border:none;color:#9b80b3;font-size:12px;text-decoration:underline;cursor:pointer;">⚙ Admin access</button></div>
+      <div style="text-align:center;margin:18px 0 8px;"><button onclick="openAdmin()" style="background:none;border:none;color:#5aa98d;font-size:12px;text-decoration:underline;cursor:pointer;">⚙ Admin access</button></div>
     </div>
   </div>
 
@@ -664,7 +664,7 @@
     <div class="header"><button class="back-btn" onclick="adminExit()" title="Exit Admin" style="font-size:13px;font-weight:700;width:auto;padding:0 10px;">Exit</button><h1>Admin</h1></div>
     <div class="screen-content">
       <div id="adminGate">
-        <div style="padding:14px;background:#f3eef8;border:1px solid #d7bde2;border-radius:10px;margin-bottom:14px;font-size:13px;color:#5b3a6e;">Enter the Master PIN to manage clubs and members.</div>
+        <div style="padding:14px;background:#e6fbf3;border:1px solid #9fe1cb;border-radius:10px;margin-bottom:14px;font-size:13px;color:#0d4a38;">Enter the Master PIN to manage clubs and members.</div>
         <input type="password" id="adminPin" inputmode="numeric" placeholder="Master PIN" style="width:100%;padding:12px;border:1.5px solid #ccc;border-radius:8px;font-size:16px;box-sizing:border-box;">
         <div id="adminGateErr" style="color:#c0392b;font-size:13px;margin-top:8px;display:none;"></div>
         <button class="btn btn-primary" style="margin-top:12px;" onclick="adminUnlock()">Unlock</button>
@@ -752,15 +752,15 @@
               <option value="internal">Internal — OTR runs it (pairings &amp; rounds)</option>
             </select>
             <div id="atFormatBlock">
-              <label style="font-size:12px;color:#9b80b3;font-weight:700;">Format</label>
+              <label style="font-size:12px;color:#5aa98d;font-weight:700;">Format</label>
               <select id="atFormat" class="ac-field">
                 <option value="swiss">Banded Swiss — everyone keeps playing, ranked by results</option>
                 <option value="knockout">Knockout + Plate — single elimination, losers drop to a Plate</option>
               </select>
             </div>
             <div id="atDivBlock">
-              <label style="font-size:12px;color:#9b80b3;font-weight:700;">Divisions &amp; team caps</label>
-              <p id="atDivHint" style="font-size:11px;color:#9b80b3;margin:2px 0 8px;">Tick each division this tournament runs. Only ticked divisions appear in stats and entry. Set an optional cap for each (leave blank for no cap).</p>
+              <label style="font-size:12px;color:#5aa98d;font-weight:700;">Divisions &amp; team caps</label>
+              <p id="atDivHint" style="font-size:11px;color:#5aa98d;margin:2px 0 8px;">Tick each division this tournament runs. Only ticked divisions appear in stats and entry. Set an optional cap for each (leave blank for no cap).</p>
               <div id="atDivRows">
                 <div style="font-size:11px;color:#7ba392;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:4px 0 4px;">Singles</div>
                 <div class="at-divrow"><label><input type="checkbox" id="atDivMenSingles" onchange="atSyncCap('MenSingles')"> Men's Singles</label><input id="atCapMenSingles" type="number" min="2" step="1" placeholder="cap" class="ac-capf" disabled></div>
@@ -781,7 +781,7 @@
         <div class="ac-room" id="acRoomMatches">
           <div class="ac-card">
             <h4>Edit a match</h4>
-            <p style="font-size:11px;color:#9b80b3;margin:0 0 8px;">Fix a wrong score or event type, or delete a match. Ratings recompute automatically after a change.</p>
+            <p style="font-size:11px;color:#5aa98d;margin:0 0 8px;">Fix a wrong score or event type, or delete a match. Ratings recompute automatically after a change.</p>
             <div id="adminMatches" style="font-size:13px;">Loading…</div>
           </div>
         </div>
@@ -802,7 +802,7 @@
               <button class="ac-btn ac-btn-ghost" style="flex:1;" onclick="adminAddClub()">+ Add club</button>
               <button class="ac-btn ac-btn-danger" style="flex:1;" onclick="adminDeleteClub()">Delete this club</button>
             </div>
-            <div style="font-size:11px;color:#9b80b3;margin-top:8px;">Adding and deleting clubs is master-admin only.</div>
+            <div style="font-size:11px;color:#5aa98d;margin-top:8px;">Adding and deleting clubs is master-admin only.</div>
           </div>
         </div>
       </div>
@@ -939,9 +939,9 @@ function renderClubDetails(){
   const c=_adminClubs.find(x=>String(x.id)===String(cid));
   if(!c){ box.innerHTML='<span style="color:#888;">Select a club.</span>'; return; }
   box.innerHTML =
-    '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0eaf5;"><span style="color:#9b80b3;">Club name</span><strong>'+c.name+'</strong></div>'+
-    '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0eaf5;"><span style="color:#9b80b3;">Club ID</span><strong>'+c.id+'</strong></div>'+
-    '<div style="display:flex;justify-content:space-between;padding:6px 0;"><span style="color:#9b80b3;">Admin code</span><strong>'+(c.admin_pin||'—')+'</strong></div>';
+    '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e2f6ee;"><span style="color:#5aa98d;">Club name</span><strong>'+c.name+'</strong></div>'+
+    '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e2f6ee;"><span style="color:#5aa98d;">Club ID</span><strong>'+c.id+'</strong></div>'+
+    '<div style="display:flex;justify-content:space-between;padding:6px 0;"><span style="color:#5aa98d;">Admin code</span><strong>'+(c.admin_pin||'—')+'</strong></div>';
 }
 async function adminChangeCode(){
   const cid=document.getElementById('adminClubSelect').value;
@@ -1000,7 +1000,7 @@ async function adminLoadMembers(){
     const lowFlag = sets<12 ? ' style="color:#c0392b;font-weight:700;" title="Under 12 sets — not yet proven; consider adjusting initial rating"' : '';
     html+='<tr><td>'+m.name+'</td><td>'+m.gender+'</td><td>'+Math.round(m.initial_rating)+'</td>'
       +'<td'+lowFlag+'>'+sets+(sets<12?' ⚠':'')+'</td><td>'+(m.pin||'—')+'</td>'
-      +'<td style="white-space:nowrap;"><button onclick="adminEditMember('+m.id+',\''+m.name.replace(/'/g,"\\'")+'\','+m.initial_rating+',\''+(m.pin||'')+'\')" style="background:none;border:none;color:#6C3483;cursor:pointer;">edit</button> '
+      +'<td style="white-space:nowrap;"><button onclick="adminEditMember('+m.id+',\''+m.name.replace(/'/g,"\\'")+'\','+m.initial_rating+',\''+(m.pin||'')+'\')" style="background:none;border:none;color:#0F6E56;cursor:pointer;">edit</button> '
       +'<button onclick="adminDeleteMember('+m.id+',\''+m.name.replace(/'/g,"\\'")+'\')" style="background:none;border:none;color:#c0392b;cursor:pointer;">del</button></td></tr>';
   });
   html+='</tbody></table>';
@@ -1027,7 +1027,7 @@ async function adminLoadTournaments(){
         ? '<button onclick="adminToggleTournament('+t.id+',false)" style="background:none;border:none;color:#b9770e;cursor:pointer;">turn off</button>'
         : '<button onclick="adminToggleTournament('+t.id+',true)" style="background:none;border:none;color:#1e8449;cursor:pointer;">turn on</button>';
       if(t.type==='internal'){
-        actions += ' <button onclick="adminEditCaps('+t.id+')" style="background:none;border:none;color:#6C3483;cursor:pointer;">edit caps</button>';
+        actions += ' <button onclick="adminEditCaps('+t.id+')" style="background:none;border:none;color:#0F6E56;cursor:pointer;">edit caps</button>';
       }
       actions += ' <button onclick="adminCloseTournament('+t.id+',\''+t.name.replace(/\x27/g,"\\\x27")+'\')" style="background:none;border:none;color:#c0392b;cursor:pointer;">close&amp;archive</button>';
     }
@@ -1042,9 +1042,9 @@ function adminEditCaps(id){
   const t = window._adminTours[id]; if(!t) return;
   const divs = (t.divisions||'').split(',').map(s=>s.trim()).filter(Boolean);
   let caps={}; try{ caps = t.caps ? JSON.parse(t.caps) : {}; }catch(e){ caps={}; }
-  const fld='width:80px;padding:7px 9px;border:1.5px solid #d9cfe3;border-radius:8px;font-size:14px;';
-  let h='<div class="ac-card" style="border:1.5px solid #7D3C98;margin-top:10px;"><h4>Edit caps — '+t.name+'</h4>'
-    + '<p style="font-size:11px;color:#9b80b3;margin:0 0 8px;">Set or extend the team cap per division. Leave blank for no cap. A cap can\u2019t be set below teams already entered.</p>';
+  const fld='width:80px;padding:7px 9px;border:1.5px solid #c9ece0;border-radius:8px;font-size:14px;';
+  let h='<div class="ac-card" style="border:1.5px solid #12855F;margin-top:10px;"><h4>Edit caps — '+t.name+'</h4>'
+    + '<p style="font-size:11px;color:#5aa98d;margin:0 0 8px;">Set or extend the team cap per division. Leave blank for no cap. A cap can\u2019t be set below teams already entered.</p>';
   divs.forEach(d=>{
     const v = (caps[d]!=null) ? caps[d] : '';
     h+='<div class="at-divrow"><label>'+d+'</label><input id="capEdit_'+d.replace(/[^A-Za-z]/g,'')+'" type="number" min="2" step="2" value="'+v+'" placeholder="no cap" style="'+fld+'"></div>';
@@ -1086,7 +1086,7 @@ async function adminLoadMatches(){
     window._adminMatches[m.id]=m;
     const score=(m.t1_sets)+'–'+(m.t2_sets);
     h+='<div style="border:1px solid #eadff2;border-radius:9px;padding:9px 11px;margin-bottom:7px;">'
-      + '<div style="font-size:11px;color:#9b80b3;"><input type="checkbox" class="am-pick" data-id="'+m.id+'" style="margin-right:7px;vertical-align:-2px;">'+m.match_date+' · '+m.match_type+' · '+(m.event||'Social')+(m.submitted_by?' · entered by '+m.submitted_by:'')+'</div>'
+      + '<div style="font-size:11px;color:#5aa98d;"><input type="checkbox" class="am-pick" data-id="'+m.id+'" style="margin-right:7px;vertical-align:-2px;">'+m.match_date+' · '+m.match_type+' · '+(m.event||'Social')+(m.submitted_by?' · entered by '+m.submitted_by:'')+'</div>'
       + '<div style="font-size:13px;margin:3px 0;">'+sideName(m.t1p1,m.t1p2,' &amp; ')+' <b>'+score+'</b> '+sideName(m.t2p1,m.t2p2,' &amp; ')+'</div>'
       + '<button class="ac-btn ac-btn-ghost" style="font-size:12px;padding:5px 10px;" onclick="adminEditMatch('+m.id+')">Edit</button> '
       + '<button class="ac-btn ac-btn-danger" style="font-size:12px;padding:5px 10px;" onclick="adminDeleteMatch('+m.id+')">Delete</button>'
@@ -1170,15 +1170,15 @@ async function exportClubBackup(cid){
 function adminEditMatch(id){
   const m=window._adminMatches[id]; if(!m) return;
   const box=document.getElementById('adminMatches');
-  const fld='width:100%;padding:8px;border:1.5px solid #d9cfe3;border-radius:7px;font-size:13px;margin-bottom:7px;box-sizing:border-box;';
-  box.innerHTML='<div class="ac-card" style="border:1.5px solid #7D3C98;"><h4>Edit match</h4>'
-    + '<label style="font-size:11px;color:#9b80b3;">Date (yyyy-mm-dd)</label><input id="emDate" value="'+m.match_date+'" style="'+fld+'">'
-    + '<label style="font-size:11px;color:#9b80b3;">Event</label><input id="emEvent" value="'+(m.event||'Social').replace(/"/g,'&quot;')+'" style="'+fld+'">'
+  const fld='width:100%;padding:8px;border:1.5px solid #c9ece0;border-radius:7px;font-size:13px;margin-bottom:7px;box-sizing:border-box;';
+  box.innerHTML='<div class="ac-card" style="border:1.5px solid #12855F;"><h4>Edit match</h4>'
+    + '<label style="font-size:11px;color:#5aa98d;">Date (yyyy-mm-dd)</label><input id="emDate" value="'+m.match_date+'" style="'+fld+'">'
+    + '<label style="font-size:11px;color:#5aa98d;">Event</label><input id="emEvent" value="'+(m.event||'Social').replace(/"/g,'&quot;')+'" style="'+fld+'">'
     + '<div style="font-size:12px;margin:4px 0;">'+sideName(m.t1p1,m.t1p2,' &amp; ')+'</div>'
     + '<div class="ac-row"><input id="emT1s" type="number" value="'+m.t1_sets+'" placeholder="sets" style="'+fld+'"><input id="emT1g" type="number" value="'+m.t1_games+'" placeholder="games" style="'+fld+'"></div>'
     + '<div style="font-size:12px;margin:4px 0;">'+sideName(m.t2p1,m.t2p2,' &amp; ')+'</div>'
     + '<div class="ac-row"><input id="emT2s" type="number" value="'+m.t2_sets+'" placeholder="sets" style="'+fld+'"><input id="emT2g" type="number" value="'+m.t2_games+'" placeholder="games" style="'+fld+'"></div>'
-    + '<label style="font-size:11px;color:#9b80b3;">Set scores (e.g. 6-4,6-3)</label><input id="emSet" value="'+(m.set_scores||'').replace(/"/g,'&quot;')+'" style="'+fld+'">'
+    + '<label style="font-size:11px;color:#5aa98d;">Set scores (e.g. 6-4,6-3)</label><input id="emSet" value="'+(m.set_scores||'').replace(/"/g,'&quot;')+'" style="'+fld+'">'
     + '<button class="ac-btn ac-btn-primary" style="width:100%;" onclick="adminSaveMatch('+id+')">Save changes</button>'
     + '<button class="ac-btn ac-btn-ghost" style="width:100%;margin-top:6px;" onclick="adminLoadMatches()">Cancel</button>'
     + '<div id="emMsg" class="ac-msg"></div></div>';
@@ -1396,7 +1396,7 @@ async function loadFormWall(type, title) {
   showScreen('ladderScreen');
   document.getElementById('ladderTitle').textContent = title;
   try {
-    const note = '<div style="padding:10px 14px;background:#f3eef8;border:1px solid #d7bde2;border-radius:10px;margin:14px 12px 12px;font-size:12px;color:#5b3a6e;line-height:1.5;">'
+    const note = '<div style="padding:10px 14px;background:#e6fbf3;border:1px solid #9fe1cb;border-radius:10px;margin:14px 12px 12px;font-size:12px;color:#0d4a38;line-height:1.5;">'
       + (type==='individual'
           ? 'Individual Form — overall player performance. Minimum 12 sets.'
           : 'Doubles Form — how this pairing performs <em>as a team</em>. Minimum 12 team sets.')
@@ -1461,7 +1461,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.14-06";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
+const OPR_VERSION = "OTR-LAPTOP v2026.07.14-08";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
 
 // ---- Excel/CSV export (laptop) ----------------------------------------
 // Generic: reads any rendered <table> and downloads it as a clean CSV that
@@ -1519,11 +1519,11 @@ function printTable(containerId, title){
     +'h1{font-size:20px;margin:0 0 2px;color:#5B2BD6;}'
     +'.meta{font-size:12px;color:#777;margin-bottom:16px;}'
     +'table{width:100%;border-collapse:collapse;font-size:13px;}'
-    +'th{background:#3a1d6e;color:#fff;padding:8px 10px;text-align:left;}'
+    +'th{background:#063d2c;color:#fff;padding:8px 10px;text-align:left;}'
     +'td{padding:7px 10px;border-bottom:1px solid #eee;}'
     +'tr:nth-child(even) td{background:#f5f2fb;}'
     +'</style></head><body>'
-    +'<h1>OPR · '+CLUB_NAME+' — '+title+'</h1>'
+    +'<h1>OTR · '+CLUB_NAME+' — '+title+'</h1>'
     +'<div class="meta">Generated '+today+' · '+OPR_VERSION+'</div>'
     +tbl.outerHTML+'</body></html>');
   w.document.close(); w.focus(); setTimeout(()=>w.print(),300);
@@ -1554,7 +1554,7 @@ async function togglePairMatches(i){
     // For category sheets (not Universal), show only that match type
     const rows = (cat==='Universal') ? data : data.filter(m=>m.match_type===cat);
     if(rows.length===0){ inner.innerHTML='<span style="color:#888;">No matches found for this pair'+(cat==='Universal'?'':' in '+cat)+'.</span>'; return; }
-    let h='<div style="font-weight:700;color:#5b3a6e;margin-bottom:6px;">'+a+' & '+b+' — match history</div>';
+    let h='<div style="font-weight:700;color:#0d4a38;margin-bottom:6px;">'+a+' & '+b+' — match history</div>';
     rows.forEach(m=>{
       const pairOnT1=( (m.t1p1===a&&m.t1p2===b)||(m.t1p1===b&&m.t1p2===a) );
       const opp1 = pairOnT1 ? m.t2p1 : m.t1p1;
@@ -1631,8 +1631,8 @@ async function loadLadder(type, title) {
       data.forEach((p,i)=>{
         const rating = usesCombined ? Math.round(p.combined) : Math.round(p.weighted);
         const swp = p.set_win_pct==null?'—':Number(p.set_win_pct).toFixed(1);
-        html += `<tr class="pair-row" style="cursor:pointer;" onclick="togglePairMatches(${i})" id="pairrow_${i}"><td>${rankBadge(p.rank)}</td><td>${p.p1} & ${p.p2} <span style="color:#7D3C98;font-size:10px;">▼</span></td><td>${rating}</td><td>${Number(p.level).toFixed(1)}</td><td>${p.sets}</td><td>${p.sets_won==null?'—':Math.round(p.sets_won)}</td><td>${swp}</td></tr>`;
-        html += `<tr id="pairdetail_${i}" style="display:none;"><td colspan="7" style="background:#F5EEF8;padding:0;"><div id="pairdetailinner_${i}" style="padding:10px 14px;font-size:12px;"></div></td></tr>`;
+        html += `<tr class="pair-row" style="cursor:pointer;" onclick="togglePairMatches(${i})" id="pairrow_${i}"><td>${rankBadge(p.rank)}</td><td>${p.p1} & ${p.p2} <span style="color:#12855F;font-size:10px;">▼</span></td><td>${rating}</td><td>${Number(p.level).toFixed(1)}</td><td>${p.sets}</td><td>${p.sets_won==null?'—':Math.round(p.sets_won)}</td><td>${swp}</td></tr>`;
+        html += `<tr id="pairdetail_${i}" style="display:none;"><td colspan="7" style="background:#e6fff5;padding:0;"><div id="pairdetailinner_${i}" style="padding:10px 14px;font-size:12px;"></div></td></tr>`;
       });
       html += '</tbody></table>';
     }
@@ -1681,8 +1681,8 @@ async function loadTournamentPicker(){
   const viewed = list.find(t=>t.name===TOURNAMENT_EVENT);
   const isInternal = viewed && viewed.type==='internal';
   let html='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
-    +'<span style="font-size:12px;color:#5b3a6e;">Viewing:</span>'
-    +'<select id="tournamentSelect" onchange="onTournamentPick()" style="flex:1;min-width:160px;padding:8px;border:1.5px solid #7D3C98;border-radius:8px;font-size:14px;font-weight:700;color:#5b3a6e;">';
+    +'<span style="font-size:12px;color:#0d4a38;">Viewing:</span>'
+    +'<select id="tournamentSelect" onchange="onTournamentPick()" style="flex:1;min-width:160px;padding:8px;border:1.5px solid #12855F;border-radius:8px;font-size:14px;font-weight:700;color:#0d4a38;">';
   active.forEach(t=>{ html+=`<option value="${t.name}" ${t.name===TOURNAMENT_EVENT?'selected':''}>${t.name}</option>`; });
   if(archived.length){
     html+='<optgroup label="Past (archived)">';
@@ -1690,7 +1690,7 @@ async function loadTournamentPicker(){
     html+='</optgroup>';
   }
   html+='</select></div>';
-  html+='<div style="text-align:center;font-size:18px;font-weight:800;color:#6C3483;margin:12px 0 4px;">'+TOURNAMENT_EVENT+'</div>';
+  html+='<div style="text-align:center;font-size:18px;font-weight:800;color:#0F6E56;margin:12px 0 4px;">'+TOURNAMENT_EVENT+'</div>';
   picker.innerHTML=html;
   // Toggle between the external standings buttons (tournamentBody) and an
   // internal "view draw" entry point (tournamentInternal) based on type.
@@ -1729,7 +1729,7 @@ async function loadTournamentPicker(){
       + '</div>'
       + '<div class="ladders-grid one-col" style="margin-top:4px;">'
       + (v==='draw'
-          ? '<button class="menu-btn" style="border-color:#7D3C98;font-weight:700;" onclick="openInternalTournament(TOURNAMENT_EVENT)">Open draw &amp; standings</button>'
+          ? '<button class="menu-btn" style="border-color:#12855F;font-weight:700;" onclick="openInternalTournament(TOURNAMENT_EVENT)">Open draw &amp; standings</button>'
           : (entryOpen ? '<button class="menu-btn" onclick="showEnterTournament(TOURNAMENT_EVENT)">➕ Enter a team</button>' : '<p class="sub" style="text-align:center;margin:6px 0;">All divisions are drawn — entry is closed.</p>'))
       + '</div>';
     // Stats view → show the standings body; Draw view → hide it (draw opens its own screen)
@@ -1957,7 +1957,7 @@ async function loadProfileIndividual(name, gender) {
               <div class="date">${date} · ${type} ▼</div>
             </div>
           </div>
-          <div id="pmatchdetail_${midx}" style="display:none;background:#F5EEF8;padding:8px 12px;border-radius:8px;margin:-4px 0 4px;font-size:12px;text-align:center;"></div>`;
+          <div id="pmatchdetail_${midx}" style="display:none;background:#e6fff5;padding:8px 12px;border-radius:8px;margin:-4px 0 4px;font-size:12px;text-align:center;"></div>`;
       });
     } else {
       matchHTML='<div class="empty-state" style="padding:20px 0;"><p>No matches yet</p></div>';
@@ -1986,7 +1986,7 @@ async function loadProfilePartner(){
   const name = window._profileName;
   // partner picker (modal name picker, exclude self)
   let html = profileTabsHTML('partner')
-    + '<div class="card"><div style="font-size:16px;font-weight:700;color:#6C3483;margin:0 0 6px;">How ' + name.split(' ')[0] + ' does with a partner</div>'
+    + '<div class="card"><div style="font-size:16px;font-weight:700;color:#0F6E56;margin:0 0 6px;">How ' + name.split(' ')[0] + ' does with a partner</div>'
     + '<p class="sub">Pick a partner to see your combined rating and the matches you\u2019ve played together.</p>'
     + '<input type="hidden" id="ppPartner">'
     + '<button type="button" class="name-pick-btn" id="ppPartnerBtn" onclick="profilePickPartner()">— select a partner —</button></div>'
@@ -2067,7 +2067,7 @@ async function profileShowPartner(partner){
               <div class="date">${date} · ${type} ▼</div>
             </div>
           </div>
-          <div id="ppmatchdetail_${midx}" style="display:none;background:#F5EEF8;padding:8px 12px;border-radius:8px;margin:-4px 0 4px;font-size:12px;text-align:center;"></div>`;
+          <div id="ppmatchdetail_${midx}" style="display:none;background:#e6fff5;padding:8px 12px;border-radius:8px;margin:-4px 0 4px;font-size:12px;text-align:center;"></div>`;
       });
     } else {
       matchHTML='<div class="empty-state" style="padding:20px 0;"><p>'+name.split(' ')[0]+' and '+partner.split(' ')[0]+' haven\u2019t played any matches together yet.</p></div>';
@@ -2274,17 +2274,17 @@ function renderRecentList(){
     const tag = isLadder
       ? '<span style="background:#c4e000;color:#2a3000;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;">L</span>'
       : isTour
-      ? '<span style="background:#6C3483;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;">T</span>'
+      ? '<span style="background:#0F6E56;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;">T</span>'
       : '<span style="background:#ccc;color:#333;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;">S</span>';
     return `
     <div class="recent-item" onclick="toggleRecent(${idx})" id="recent_${idx}">
       <div class="match-header">
         <span class="match-date">${m.match_date||''}</span>
         <span class="match-type">${m.match_type||''}</span>${tag}
-        <span style="color:#6C3483;font-size:11px;">▼</span>
+        <span style="color:#0F6E56;font-size:11px;">▼</span>
       </div>
       <div class="match-teams"><strong>${m.t1p2?((m.t1p1||'')+' & '+m.t1p2):(m.t1p1||'')}</strong> ${m.t1_sets||0}-${m.t2_sets||0} <strong>${m.t2p2?((m.t2p1||'')+' & '+m.t2p2):(m.t2p1||'')}</strong></div>
-      <div class="match-detail" id="detail_${idx}" style="display:none;margin-top:6px;padding-top:6px;border-top:1px solid #D7BDE2;"></div>
+      <div class="match-detail" id="detail_${idx}" style="display:none;margin-top:6px;padding-top:6px;border-top:1px solid #9fe1cb;"></div>
     </div>`;}).join('');
 }
 
@@ -2301,7 +2301,7 @@ async function toggleRecent(idx){
     if(ss!==''){
       const scores=ss.split(',').map(x=>x.trim()).filter(x=>x);
       if(scores.length>0){
-        setScoresHTML=scores.map(sc=>`<span style="background:#6C3483;color:white;border-radius:4px;padding:3px 10px;margin:0 3px;font-size:13px;font-weight:700;">${sc.replace('-','/')}</span>`).join('');
+        setScoresHTML=scores.map(sc=>`<span style="background:#0F6E56;color:white;border-radius:4px;padding:3px 10px;margin:0 3px;font-size:13px;font-weight:700;">${sc.replace('-','/')}</span>`).join('');
       }
     }
     detail.innerHTML=`
@@ -2412,7 +2412,7 @@ function renderStep2(){
         <div class="team-label"><span>1</span>Team 1</div>
         <div class="field">
           <label>Ladder team</label>
-          <select id="ladderT1" style="width:100%;padding:12px;border:1.5px solid #d9cfe3;border-radius:9px;font-size:15px;">
+          <select id="ladderT1" style="width:100%;padding:12px;border:1.5px solid #c9ece0;border-radius:9px;font-size:15px;">
             <option value="">Select team...</option>${opts}
           </select>
         </div>
@@ -2421,7 +2421,7 @@ function renderStep2(){
         <div class="team-label"><span>2</span>Team 2</div>
         <div class="field">
           <label>Ladder team</label>
-          <select id="ladderT2" style="width:100%;padding:12px;border:1.5px solid #d9cfe3;border-radius:9px;font-size:15px;">
+          <select id="ladderT2" style="width:100%;padding:12px;border:1.5px solid #c9ece0;border-radius:9px;font-size:15px;">
             <option value="">Select team...</option>${opts}
           </select>
         </div>
@@ -2443,7 +2443,7 @@ function renderStep2(){
       <div class="team-card">
         <div class="team-label"><span>1</span>Player 1</div>
         <div class="field"><label>Ladder player</label>
-          <select id="ladderS1" style="width:100%;padding:12px;border:1.5px solid #d9cfe3;border-radius:9px;font-size:15px;">
+          <select id="ladderS1" style="width:100%;padding:12px;border:1.5px solid #c9ece0;border-radius:9px;font-size:15px;">
             <option value="">Select player...</option>${opts}
           </select>
         </div>
@@ -2451,7 +2451,7 @@ function renderStep2(){
       <div class="team-card">
         <div class="team-label"><span>2</span>Player 2</div>
         <div class="field"><label>Ladder player</label>
-          <select id="ladderS2" style="width:100%;padding:12px;border:1.5px solid #d9cfe3;border-radius:9px;font-size:15px;">
+          <select id="ladderS2" style="width:100%;padding:12px;border:1.5px solid #c9ece0;border-radius:9px;font-size:15px;">
             <option value="">Select player...</option>${opts}
           </select>
         </div>
@@ -2629,8 +2629,8 @@ function renderStep4(){
       <div>${!t1w?'<div class="winner-label">Winner</div>':''}<div class="result-names">${_t2names}</div></div>
       <div style="text-align:right;"><div class="result-sets">${entryData.t2sets}</div><div class="result-games">${entryData.t2games} games</div></div>
     </div>
-    <div style="background:#F5EEF8;border:1.5px solid #D7BDE2;border-radius:12px;padding:14px;margin-top:12px;">
-      <div style="font-size:13px;font-weight:700;color:#6C3483;margin-bottom:10px;">🔐 Verify Submission</div>
+    <div style="background:#e6fff5;border:1.5px solid #9fe1cb;border-radius:12px;padding:14px;margin-top:12px;">
+      <div style="font-size:13px;font-weight:700;color:#0F6E56;margin-bottom:10px;">🔐 Verify Submission</div>
       <div class="field" style="margin-bottom:10px;">
         <label>Who are you?</label>
         <select id="submitterName" style="width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:10px;font-size:14px;">
@@ -2642,7 +2642,7 @@ function renderStep4(){
         <label>Your PIN</label>
         <input type="password" id="submitterPin" maxlength="4" placeholder="4-digit PIN"
           style="width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:10px;font-size:18px;font-weight:700;letter-spacing:6px;text-align:center;">
-        <div style="font-size:11px;color:#9b80b3;margin-top:6px;">Players use their own PIN. A club admin can use the club admin code to enter on anyone's behalf.</div>
+        <div style="font-size:11px;color:#5aa98d;margin-top:6px;">Players use their own PIN. A club admin can use the club admin code to enter on anyone's behalf.</div>
       </div>
     </div>
     <div id="err4" class="error-msg"></div>
@@ -3087,8 +3087,8 @@ async function refreshClubName(){
     if(rows && rows[0] && rows[0].name){
       window.CLUB_NAME_LIVE=rows[0].name;
       var ht=document.getElementById('heroTitle');
-      if(ht) ht.textContent='OPR · '+rows[0].name;
-      document.title='OPR · '+rows[0].name;
+      if(ht) ht.textContent='OTR · '+rows[0].name;
+      document.title='OTR · '+rows[0].name;
     }
   }catch(e){/* keep the URL-map name if fetch fails */}
 }
@@ -3490,7 +3490,7 @@ async function loadTournamentSheet(tournament, division) {
         + '<td class="num"><span class="pill ' + f.band + '">' + (f.band||'') + '</span></td>'
         + '<td class="tb' + (bWin ? ' winr' : '') + '">' + tName(f.seed_b) + '</td>'
         + '<td class="num"><span class="seed' + (f.seed_b === 1 ? ' s1' : '') + '">' + f.seed_b + '</span></td>'
-        + '<td class="num">' + (played ? '<span class="res-done">' + score + '</span>' : '<span style="color:#7D3C98;font-weight:700;">enter ▸</span>') + '</td></tr>';
+        + '<td class="num">' + (played ? '<span class="res-done">' + score + '</span>' : '<span style="color:#12855F;font-weight:700;">enter ▸</span>') + '</td></tr>';
     });
     // KO-aware action button: knockout draws advance winners (+ plate); swiss generates next round.
     const _isKO = (rounds[curRound] && rounds[curRound][0] && (rounds[curRound][0].round_type==='ko' || rounds[curRound][0].round_type==='plate'))
@@ -3500,7 +3500,7 @@ async function loadTournamentSheet(tournament, division) {
       h += '<div style="text-align:center;margin-top:10px;"><button class="menu-btn" style="display:inline-block;width:auto;padding:10px 18px;border-color:#F1C40F;font-weight:700;" onclick="tmAdvanceKnockout(window._tmCtx.tournament, window._tmCtx.division)">▶ Advance knockout / plate</button>'
         + '<div class="sub" style="margin-top:6px;">Enter all current-round results, then advance. First-round losers form the Plate automatically.</div></div></div>';
     } else {
-      h += '<div style="text-align:center;margin-top:10px;"><button class="menu-btn" style="display:inline-block;width:auto;padding:10px 18px;border-color:#7D3C98;font-weight:700;" onclick="tmGenerateNextRound()">➕ Generate next round (Swiss)</button>'
+      h += '<div style="text-align:center;margin-top:10px;"><button class="menu-btn" style="display:inline-block;width:auto;padding:10px 18px;border-color:#12855F;font-weight:700;" onclick="tmGenerateNextRound()">➕ Generate next round (Swiss)</button>'
         + '<div class="sub" style="margin-top:6px;">Enter all current-round results first. Available once the fixed rounds are complete.</div></div></div>';
     }
     return h;
@@ -3587,9 +3587,9 @@ async function loadTournamentSheet(tournament, division) {
     const score = played ? (f.sets_a + '–' + f.sets_b + ' (' + f.games_a + '–' + f.games_b + ')') : '—';
     return '<tr style="cursor:pointer;" onclick="tmEnterFixtureResult(' + f.id + ')" title="Tap to enter/edit the score">'
       + '<td class="ta' + (aWin ? ' winr' : '') + '">' + tName(f.seed_a) + '</td>'
-      + '<td class="num" style="color:#9b80b3;">vs</td>'
+      + '<td class="num" style="color:#5aa98d;">vs</td>'
       + '<td class="tb' + (bWin ? ' winr' : '') + '">' + tName(f.seed_b) + '</td>'
-      + '<td class="num">' + (played ? '<span class="res-done">' + score + '</span>' : '<span style="color:#7D3C98;font-weight:700;">enter ▸</span>') + '</td></tr>';
+      + '<td class="num">' + (played ? '<span class="res-done">' + score + '</span>' : '<span style="color:#12855F;font-weight:700;">enter ▸</span>') + '</td></tr>';
   }
   function bracketGroupHTML(title, semiRound, finalRound, group){
     const semis = finalsFix.filter(f=> f.round===semiRound);
@@ -3666,7 +3666,7 @@ async function loadTournamentSheet(tournament, division) {
       body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:18px;color:#222;}
       h2{margin:0 0 2px;} .bkt-meta{color:#666;font-size:13px;margin-bottom:14px;}
       .bkt-print-btn{display:none!important;} .bkt-head{display:flex;justify-content:space-between;align-items:center;}
-      .bkt-title{margin:16px 0 6px;font-size:15px;color:#6C3483;border-bottom:2px solid #eee;padding-bottom:3px;}
+      .bkt-title{margin:16px 0 6px;font-size:15px;color:#0F6E56;border-bottom:2px solid #eee;padding-bottom:3px;}
       .bkt-champ{margin:6px 0;padding:6px 10px;background:#f9f3dd;border:1px solid #F1C40F;border-radius:8px;font-weight:700;display:inline-block;}
       .bkt-tree{display:flex;gap:26px;align-items:flex-start;overflow:visible;}
       .bkt-colwrap{display:flex;flex-direction:column;justify-content:space-around;min-width:150px;}
@@ -3675,7 +3675,7 @@ async function loadTournamentSheet(tournament, division) {
       .bkt-match{border:1px solid #cbb8dd;border-radius:8px;overflow:hidden;margin:4px 0;}
       .bkt-team{display:flex;align-items:center;gap:6px;padding:5px 8px;font-size:12px;border-bottom:1px solid #eee;}
       .bkt-team:last-child{border-bottom:none;} .bkt-win{background:#eafaf0;font-weight:700;color:#1e7a34;}
-      .bkt-sd{display:inline-block;min-width:18px;height:18px;line-height:18px;text-align:center;background:#6C3483;color:#fff;border-radius:4px;font-size:10px;font-weight:700;}
+      .bkt-sd{display:inline-block;min-width:18px;height:18px;line-height:18px;text-align:center;background:#0F6E56;color:#fff;border-radius:4px;font-size:10px;font-weight:700;}
       .bkt-sc{margin-left:auto;font-weight:700;} .bkt-byerow{color:#999;font-style:italic;}
       @media print{ @page{ size:landscape; margin:10mm; } }
     `;
@@ -3897,7 +3897,7 @@ async function renderEnterScreen(){
   const allFixtures = await tmLoadFixtures(tournament); // all divisions
   const lockedDivs = new Set(allFixtures.map(f=>f.division));
   window._etLocked = lockedDivs;
-  const sel = 'width:100%;padding:11px;border:1.5px solid #d9cfe3;border-radius:9px;font-size:15px;box-sizing:border-box;margin-bottom:10px;';
+  const sel = 'width:100%;padding:11px;border:1.5px solid #c9ece0;border-radius:9px;font-size:15px;box-sizing:border-box;margin-bottom:10px;';
 
   // current chosen category (default to first allowed not-locked, else first allowed)
   if(!window._etCat || !allowedDivs.includes(window._etCat)) window._etCat = allowedDivs.find(d=>!lockedDivs.has(d)) || allowedDivs[0];
@@ -3921,7 +3921,7 @@ async function renderEnterScreen(){
     + '<h2 style="margin:0;">' + cat + ': ' + inCat + (cap!=null?(' / ' + cap):'') + ' entered</h2>'
     + '<span style="font-size:12px;font-weight:700;color:' + (entryClosed?'#c0392b':'#1E8449') + ';">' + (catLocked?'DRAW DONE':(catAtCap?'CAP REACHED':'entry open')) + '</span></div>';
   if(cap!=null){ const pct=Math.min(100,Math.round(inCat/cap*100));
-    counter += '<div style="height:8px;background:#eee;border-radius:5px;margin-top:8px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+(entryClosed?'#c0392b':'var(--purple,#6C3483)')+';"></div></div>'; }
+    counter += '<div style="height:8px;background:#eee;border-radius:5px;margin-top:8px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+(entryClosed?'#c0392b':'var(--purple,#0F6E56)')+';"></div></div>'; }
   counter += '</div>';
 
   // entry card (no dropdown — division chosen via the buttons above)
@@ -3965,7 +3965,7 @@ async function renderEnterScreen(){
       const seeded = [...byDiv[d]].sort((x,y)=>y.seed_rating-x.seed_rating);
       const dl = lockedDivs.has(d);
       const isSel = (d===cat);
-      listCard += '<div style="margin:6px 0 4px;'+(isSel?'':'opacity:.62;')+'"><span class="tm-divtag"'+(isSel?' style="background:#6C3483;color:#fff;"':'')+'>' + d + '</span> <span style="font-size:11px;color:#888;">' + seeded.length + ' team' + (seeded.length!==1?'s':'') + (dl?' · draw done':'') + (isSel?' · selected':'') + '</span></div>';
+      listCard += '<div style="margin:6px 0 4px;'+(isSel?'':'opacity:.62;')+'"><span class="tm-divtag"'+(isSel?' style="background:#0F6E56;color:#fff;"':'')+'>' + d + '</span> <span style="font-size:11px;color:#888;">' + seeded.length + ' team' + (seeded.length!==1?'s':'') + (dl?' · draw done':'') + (isSel?' · selected':'') + '</span></div>';
       listCard += '<table style="margin-bottom:12px;'+(isSel?'':'opacity:.72;')+'"><thead><tr><th class="num">Seed</th><th>Team</th><th class="num">Rating</th><th></th></tr></thead><tbody>';
       seeded.forEach((e,i)=> {
         const rm = dl ? '' : '<button onclick="etRemoveTeam('+e.id+')" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:16px;" title="Remove">×</button>';
@@ -3982,7 +3982,7 @@ async function renderEnterScreen(){
   if (gennable.length) {
     genCard = '<div class="card"><h2>Generate draws</h2>'
       + '<p class="sub">Each division runs separately. Generating is admin-only and closes that division\'s entry.</p>'
-      + '<div style="display:flex;gap:8px;margin-bottom:12px;"><input id="etPin" type="password" placeholder="Admin PIN" style="flex:1;padding:10px;border:1.5px solid #7D3C98;border-radius:8px;font-size:15px;"></div>';
+      + '<div style="display:flex;gap:8px;margin-bottom:12px;"><input id="etPin" type="password" placeholder="Admin PIN" style="flex:1;padding:10px;border:1.5px solid #12855F;border-radius:8px;font-size:15px;"></div>';
     gennable.forEach(d=>{
       const cnt = byDiv[d].length;
       const plan = TM.suggestRounds(Math.max(4,cnt));
@@ -3990,15 +3990,15 @@ async function renderEnterScreen(){
       if(!window._etRounds) window._etRounds={};
       if(window._etRounds[d]==null) window._etRounds[d]=plan.recommended;
       window._etRounds[d]=Math.max(plan.minAllowed,Math.min(plan.maxAllowed,window._etRounds[d]));
-      genCard += '<div style="padding:12px;background:#faf8fc;border:1px solid #e6e3ec;border-radius:10px;margin-bottom:10px;">'
+      genCard += '<div style="padding:12px;background:#f4fdf9;border:1px solid #e6e3ec;border-radius:10px;margin-bottom:10px;">'
         + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;"><b>' + d + '</b> <span style="font-size:11px;color:#888;">' + cnt + ' teams</span></div>';
       if(cnt < 4){ genCard += '<div class="sub" style="margin:0;">Needs at least 4 teams to draw.</div>'; }
       else if(cnt % 2 !== 0){ genCard += '<div class="sub" style="margin:0;color:#B9770E;">Odd number (' + cnt + ') — needs an even field. Add or remove one.</div>'; }
       else {
         genCard += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">'
           + '<input type="range" min="' + plan.minAllowed + '" max="' + plan.maxAllowed + '" value="' + window._etRounds[d] + '" ' + (plan.minAllowed===plan.maxAllowed?'disabled':'') + ' style="flex:1;" oninput="etSetDivRounds(\'' + d.replace(/'/g,"\\'") + '\',this.value,\'' + key + '\')">'
-          + '<span id="etRL_' + key + '" style="font-weight:800;color:var(--purple,#6C3483);min-width:70px;text-align:right;font-size:12px;" id="etRL_' + key + '">' + window._etRounds[d] + ' rounds</span></div>'
-          + '<div style="margin-bottom:8px;font-size:12px;color:#6b6b76;">Format: <b style="color:var(--purple,#6C3483);">'+((window._etTourFormat==='knockout')?'Knockout + Plate':'Banded Swiss')+'</b> <span style="color:#aaa;">(set when the tournament was created)</span></div>'
+          + '<span id="etRL_' + key + '" style="font-weight:800;color:var(--purple,#0F6E56);min-width:70px;text-align:right;font-size:12px;" id="etRL_' + key + '">' + window._etRounds[d] + ' rounds</span></div>'
+          + '<div style="margin-bottom:8px;font-size:12px;color:#6b6b76;">Format: <b style="color:var(--purple,#0F6E56);">'+((window._etTourFormat==='knockout')?'Knockout + Plate':'Banded Swiss')+'</b> <span style="color:#aaa;">(set when the tournament was created)</span></div>'
           + '<button class="ac-btn ac-btn-primary" style="width:100%;" onclick="etGenerateDiv(\'' + d.replace(/'/g,"\\'") + '\')">Generate ' + d + ' draw</button>';
       }
       genCard += '</div>';
@@ -4342,7 +4342,7 @@ async function renderClubLadder(){
   } catch(e){}
   window._clActivated = activated;
   const singles = clIsSingles(cat);
-  const sel = 'width:100%;padding:11px;border:1.5px solid #d9cfe3;border-radius:9px;font-size:15px;box-sizing:border-box;margin-bottom:10px;';
+  const sel = 'width:100%;padding:11px;border:1.5px solid #c9ece0;border-radius:9px;font-size:15px;box-sizing:border-box;margin-bottom:10px;';
 
   // TOP-LEVEL format toggle: Singles Ladder / Doubles Ladder
   let fmtBar = '<div class="tm-divbar cl-divbar" style="margin-bottom:8px;">'
@@ -4367,7 +4367,7 @@ async function renderClubLadder(){
   let bodyHTML = '';
   if(CL_TAB==='ladder'){
     // Item 1: explainer text block
-    const explainer = '<div class="card" style="background:#faf8fc;border:1px solid #e6ddf0;">'
+    const explainer = '<div class="card" style="background:#f4fdf9;border:1px solid #e6ddf0;">'
       + '<h2 style="font-size:14px;">How the Club Ladder works</h2>'
       + '<p class="sub" style="margin:0;line-height:1.6;">The ladder works on a <b>challenge basis only</b>. Ratings are used <b>once</b> — to set the opening order when the ladder is activated. After that, ratings no longer apply and teams move only by results. '
       + 'A challenger may challenge <b>any team above them</b>. If the challenger <b>wins</b>, they move into the challenged team\u2019s spot and everyone in between moves down one. If the challenger <b>loses</b>, all teams stay where they are. '
@@ -4426,7 +4426,7 @@ async function renderClubLadder(){
     if(!activated){
       bodyHTML += '<div class="card"><h2>Activate the ladder</h2>'
         + '<p class="sub">One-time: sets the '+cat+' ladder order by combined rating (strongest at the top). After activation, the ladder moves only on challenge results.</p>'
-        + '<div style="display:flex;gap:8px;"><input id="clPin" type="password" placeholder="Admin PIN" style="flex:1;padding:10px;border:1.5px solid #7D3C98;border-radius:8px;font-size:15px;">'
+        + '<div style="display:flex;gap:8px;"><input id="clPin" type="password" placeholder="Admin PIN" style="flex:1;padding:10px;border:1.5px solid #12855F;border-radius:8px;font-size:15px;">'
         + '<button class="ac-btn ac-btn-primary" onclick="clActivate(false)">Activate ladder</button></div>'
         + '<div id="clSeedMsg" class="sub" style="margin-top:8px;"></div>';
       // Clear-all option before activation (wipe all entered teams in one go)
