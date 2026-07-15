@@ -1200,7 +1200,7 @@ const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 // This is the ONE value that makes this app belong to a specific club.
 const CLUB_ID = 1;
 const CLUB_NAME = "Demo";  // shown in the logo and browser tab
-const OPR_VERSION = "OTR v2026.07.14-09";  // FIX: tournament buttons built via JS handlers (apostrophe broke inline onclick -> empty tables)
+const OPR_VERSION = "OTR v2026.07.14-10";  // FIX: tournament buttons built via JS handlers (apostrophe broke inline onclick -> empty tables)
 async function sbGet(pathq){
   const r = await fetch(SB_URL + "/rest/v1/" + pathq, { headers:{ apikey:SB_ANON, Authorization:"Bearer "+SB_ANON } });
   if(!r.ok) throw new Error("HTTP "+r.status);
@@ -3681,8 +3681,12 @@ function etUpdateSeedPreview(){
 function etPick(which){
   const players = window._etPlayers || [];
   const cat = document.getElementById('etCat').value;
-  const otherVal = (which===1) ? (document.getElementById('etP2').value) : (document.getElementById('etP1').value);
-  const thisVal = (which===1) ? (document.getElementById('etP1').value) : (document.getElementById('etP2').value);
+  // SINGLES-SAFE: etP2 does not exist on a singles entry card, so read defensively.
+  // (Reading .value off a missing element threw a TypeError and killed the picker.)
+  const _e1 = document.getElementById('etP1'); const _e2 = document.getElementById('etP2');
+  const _v1 = _e1 ? _e1.value : ''; const _v2 = _e2 ? _e2.value : '';
+  const otherVal = (which===1) ? _v2 : _v1;
+  const thisVal  = (which===1) ? _v1 : _v2;
   const usedRaw = (window._etUsedInDiv && window._etUsedInDiv[cat]) ? window._etUsedInDiv[cat] : [];
   const used = new Set(usedRaw.filter(x=>x)); // drop nulls (singles partner slots)
   // exclude the partner already chosen, and names already entered in this division
