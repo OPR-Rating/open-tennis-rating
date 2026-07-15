@@ -245,10 +245,16 @@
   .bkt-block{margin-top:14px;}
   .bkt-title{font-size:15px;color:#0F6E56;margin:10px 0 6px;border-bottom:2px solid rgba(15,110,86,.10);padding-bottom:4px;}
   .bkt-champ{margin:6px 0 10px;padding:7px 12px;background:#f9f3dd;border:1px solid #F1C40F;border-radius:9px;font-weight:700;color:#7d6608;display:inline-block;}
-  .bkt-tree{display:flex;gap:22px;align-items:stretch;min-width:min-content;padding-bottom:6px;}
-  .bkt-colwrap{display:flex;flex-direction:column;min-width:158px;}
-  .bkt-rlabel{font-size:11px;font-weight:700;color:#9a8ab0;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;text-align:center;}
-  .bkt-col{display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:12px;}
+  .bkt-tree{display:flex;gap:26px;align-items:stretch;min-width:min-content;padding-bottom:6px;}
+  .bkt-colwrap{display:flex;flex-direction:column;min-width:168px;}
+  .bkt-rlabel{font-size:11px;font-weight:700;color:#9a8ab0;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;text-align:center;}
+  /* space-around makes each later round sit BETWEEN its two feeder matches,
+     which is what gives a real bracket its shape. */
+  .bkt-col{display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:10px;}
+  /* connector lines: a short spur from each match toward the next round */
+  .bkt-colwrap:not(:last-child) .bkt-match{position:relative;}
+  .bkt-colwrap:not(:last-child) .bkt-match::after{content:'';position:absolute;top:50%;right:-14px;width:13px;height:1.5px;background:#cbb8dd;}
+  .bkt-half{border-top:1px dashed #dcd2e6;margin:10px 0 6px;padding-top:6px;}
   .bkt-match{border:1px solid #d9cbe8;border-radius:9px;overflow:hidden;cursor:pointer;transition:box-shadow .15s;background:#fff;}
   .bkt-match:hover{box-shadow:0 2px 8px rgba(108,52,131,.18);}
   .bkt-bye{cursor:default;opacity:.75;}
@@ -623,7 +629,7 @@
               <option value="external">External — OTR tracks stats only</option>
               <option value="internal">Internal — OTR runs it (pairings &amp; rounds)</option>
             </select>
-            <div id="atFormatBlock">
+            <div id="atFormatBlock" style="display:none;">
               <label style="font-size:12px;color:#5aa98d;font-weight:700;">Format</label>
               <select id="atFormat" class="ac-field">
                 <option value="swiss">Banded Swiss — everyone keeps playing, ranked by results</option>
@@ -767,7 +773,7 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
   if(id==='entryScreen') renderStep1();
-  if(id==='tournamentScreen') loadTournamentPicker();
+  if(id==='tournamentScreen'){ window._tourInternalView = 'stats'; loadTournamentPicker(); }
   if(id==='clubLadderScreen') loadClubLadder();
 }
 
@@ -804,6 +810,7 @@ function acRoom(which){
   document.getElementById('acTabClub').classList.toggle('active', which==='club');
   if(which==='club') renderClubDetails();
   if(which==='matches') adminLoadMatches();
+  if(which==='tours' && typeof atToggleType==='function') atToggleType();
 }
 function acUpdateContext(){
   const sel=document.getElementById('adminClubSelect');
@@ -1207,7 +1214,7 @@ const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 // This is the ONE value that makes this app belong to a specific club.
 const CLUB_ID = 1;
 const CLUB_NAME = "Demo";  // shown in the logo and browser tab
-const OPR_VERSION = "OTR v2026.07.14-14";  // FIX: tournament buttons built via JS handlers (apostrophe broke inline onclick -> empty tables)
+const OPR_VERSION = "OTR v2026.07.14-15";  // FIX: tournament buttons built via JS handlers (apostrophe broke inline onclick -> empty tables)
 async function sbGet(pathq){
   const r = await fetch(SB_URL + "/rest/v1/" + pathq, { headers:{ apikey:SB_ANON, Authorization:"Bearer "+SB_ANON } });
   if(!r.ok) throw new Error("HTTP "+r.status);
@@ -3070,7 +3077,28 @@ const KO = (function(){
     if(teamsInRound<=8) return 'QF';
     return 'R'+teamsInRound;
   }
-  return { nextPow2, seedSlots, mainRound1, roundLabel };
+  // Canonical BRACKET SLOT ORDER for round 1: the order rows must appear top->bottom
+  // so the draw reads like a real tournament sheet (1v16, 8v9, 4v13, 5v12, 2v15, ...).
+  // Sorting fixtures by seed_a is WRONG — it destroys the bracket shape.
+  function bracketOrder(N){
+    const size=nextPow2(N), slots=seedSlots(size), out=[];
+    for(let i=0;i<slots.length;i+=2) out.push([slots[i], slots[i+1]]);
+    return out;
+  }
+  // Rank a fixture by where its pairing sits in the canonical slot order.
+  function slotRank(N, a, b){
+    const ord=bracketOrder(N);
+    for(let i=0;i<ord.length;i++){
+      const [x,y]=ord[i];
+      if((x===a&&y===b)||(x===b&&y===a)) return i;
+    }
+    // later rounds / byes: fall back to the top seed's position in the slot list
+    const flat=bracketOrder(N).flat();
+    const ia=flat.indexOf(a), ib=flat.indexOf(b);
+    const m=[ia,ib].filter(v=>v>=0);
+    return m.length ? Math.min(...m) : 9999;
+  }
+  return { nextPow2, seedSlots, mainRound1, roundLabel, bracketOrder, slotRank };
 })();
 
 
@@ -3198,7 +3226,13 @@ async function loadTournamentSheet(tournament, division) {
     });
     h += '</div><table><thead><tr><th class="num">Sd</th><th class="ta">Team A</th><th class="num">Band</th>'
       + '<th class="tb">Team B</th><th class="num">Sd</th><th class="num">Score</th></tr></thead><tbody>';
-    (rounds[curRound] || []).forEach((f, fi) => {
+    // Knockout rounds must display in bracket-slot order (1v16, 8v9, 4v13...).
+    // Swiss rounds keep their generated order.
+    let _rowsThisRound = (rounds[curRound] || []).slice();
+    if (_rowsThisRound.length && (_rowsThisRound[0].round_type==='ko' || _rowsThisRound[0].round_type==='plate')) {
+      _rowsThisRound.sort((x,y)=> KO.slotRank(N, x.seed_a, x.seed_b) - KO.slotRank(N, y.seed_a, y.seed_b));
+    }
+    _rowsThisRound.forEach((f, fi) => {
       const played = f.sets_a != null;
       const aWin = played && f.sets_a > f.sets_b, bWin = played && f.sets_b > f.sets_a;
       const score = played ? (f.sets_a + '–' + f.sets_b + ' (' + f.games_a + '–' + f.games_b + ')') : '—';
@@ -3256,8 +3290,9 @@ async function loadTournamentSheet(tournament, division) {
     let cols = '';
     rNos.forEach(r=>{
       const label = (byR[r][0] && byR[r][0].band && byR[r][0].band!=='bye') ? byR[r][0].band : ('R'+r);
-      // sort within a column by seed_a for stable visual order
-      const col = byR[r].slice().sort((x,y)=>x.seed_a-y.seed_a);
+      // Order rows by CANONICAL BRACKET SLOT, not by seed number — this is what
+      // makes the sheet read 1v16, 8v9, 4v13, 5v12, 2v15... like a real draw.
+      const col = byR[r].slice().sort((x,y)=> KO.slotRank(N, x.seed_a, x.seed_b) - KO.slotRank(N, y.seed_a, y.seed_b));
       cols += '<div class="bkt-colwrap"><div class="bkt-rlabel">'+label+'</div>'+bracketColumnHTML(col)+'</div>';
     });
     // champion banner if the last round has a single completed final
