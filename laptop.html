@@ -833,6 +833,13 @@
       <input type="text" class="player-modal-search" id="playerModalSearch" placeholder="Type to search..." oninput="filterModalPlayers()" autocomplete="off">
     </div>
     <div class="player-modal-list" id="playerModalList"></div>
+    <div id="playerModalMultiBar" style="display:none;padding:10px 14px;border-top:1px solid #eee;background:#fafafa;">
+      <button id="pmAddBtn" onclick="pmConfirmMulti()" style="width:100%;padding:11px;border:none;border-radius:9px;background:#c4e000;color:#2a3000;font-weight:800;font-size:14px;cursor:pointer;">Add selected</button>
+      <div style="display:flex;gap:8px;margin-top:7px;">
+        <button onclick="pmSelectAllVisible(true)" style="flex:1;padding:7px;border:1px solid #ddd;border-radius:7px;background:#fff;font-size:12px;cursor:pointer;">Select all</button>
+        <button onclick="pmSelectAllVisible(false)" style="flex:1;padding:7px;border:1px solid #ddd;border-radius:7px;background:#fff;font-size:12px;cursor:pointer;">Clear</button>
+      </div>
+    </div>
     <div class="player-modal-cancel" onclick="closePlayerModal()">Cancel</div>
   </div>
 </div>
@@ -1461,7 +1468,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.14-11";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
+const OPR_VERSION = "OTR-LAPTOP v2026.07.14-13";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
 
 // ---- Excel/CSV export (laptop) ----------------------------------------
 // Generic: reads any rendered <table> and downloads it as a clean CSV that
@@ -1757,7 +1764,7 @@ async function renderTournamentButtons(){
   }catch(e){}
   // Fallback: if the tournament has no stored divisions (older/external rows),
   // show the classic four doubles divisions so nothing regresses.
-  if(divs.length===0) divs=["Men's","Ladies","Mixed","All Sorts"];
+  if(divs.length===0) divs=["Men's Singles","Ladies Singles","Men's","Ladies","Mixed","All Sorts"];
   const label=(d)=>{
     if(d==="Men's") return "Men's Doubles";
     if(d==="Ladies") return "Ladies Doubles";
@@ -1785,7 +1792,10 @@ async function renderTournamentButtons(){
 function setTourView(v){ window._tourInternalView = v; loadTournamentPicker(); }
 // Open the internal tournament module view (it navigates to the sheet screen itself)
 function openInternalTournament(name){
-  if(typeof loadTournamentSheet==='function'){ loadTournamentSheet(name); }
+  // Prefer the division the user was last in (entry screen / last generated draw),
+  // so the sheet doesn't jump to an unrelated division.
+  const pref = window._etCat || TM_DIVISION || null;
+  if(typeof loadTournamentSheet==='function'){ loadTournamentSheet(name, pref); }
 }
 function onTournamentPick(){
   const sel=document.getElementById('tournamentSelect');
@@ -3035,9 +3045,68 @@ function filterModalPlayers() {
 }
 
 function renderModalList(players) {
+  // MULTI mode (singles bulk entry): checkboxes + a confirm bar.
+  // SINGLE mode (everything else): unchanged one-tap behaviour.
+  if (_pmMulti) {
+    document.getElementById('playerModalList').innerHTML = players.map(p => {
+      const esc = p.replace(/"/g, '&quot;');
+      const on = _pmChosen.has(p) ? ' checked' : '';
+      return '<label class="player-modal-item" style="display:flex;align-items:center;gap:10px;cursor:pointer;">'
+        + '<input type="checkbox" class="pm-chk" data-name="' + esc + '"' + on + ' onchange="pmToggle(this)" style="width:17px;height:17px;flex:none;">'
+        + '<span>' + p + '</span></label>';
+    }).join('');
+    pmUpdateBtn();
+    return;
+  }
   document.getElementById('playerModalList').innerHTML = players.map(p =>
     '<div class="player-modal-item" onclick="selectModalPlayer(\'' + p.replace(/'/g, "\\'") + '\')">' + p + '</div>'
   ).join('');
+}
+
+// ---- multi-select support (used only by the singles bulk-entry path) ----
+let _pmMulti = false;            // true while the modal is in multi-select mode
+let _pmChosen = new Set();       // names ticked so far (survives search filtering)
+let _pmMultiDone = null;         // callback(namesArray) on confirm
+function pmToggle(cb){
+  const n = cb.getAttribute('data-name');
+  if (cb.checked) _pmChosen.add(n); else _pmChosen.delete(n);
+  pmUpdateBtn();
+}
+function pmUpdateBtn(){
+  const b = document.getElementById('pmAddBtn');
+  if (b) b.textContent = _pmChosen.size ? ('Add ' + _pmChosen.size + ' player' + (_pmChosen.size===1?'':'s')) : 'Add selected';
+}
+function pmSelectAllVisible(on){
+  document.querySelectorAll('#playerModalList .pm-chk').forEach(cb=>{
+    cb.checked = on;
+    const n = cb.getAttribute('data-name');
+    if (on) _pmChosen.add(n); else _pmChosen.delete(n);
+  });
+  pmUpdateBtn();
+}
+function pmConfirmMulti(){
+  if (!_pmChosen.size) { alert('Tick at least one player first.'); return; }
+  const names = [..._pmChosen];
+  const done = _pmMultiDone;
+  closePlayerModal();
+  if (done) done(names);
+}
+// Open the shared modal in MULTI mode with a name list + a done(names) callback.
+function openNameMultiPicker(label, names, onDone){
+  _currentModalTarget = null;
+  _modalCallback = null;
+  _pmMulti = true;
+  _pmChosen = new Set();
+  _pmMultiDone = onDone;
+  _currentModalPlayers = names.slice();
+  document.getElementById('playerModalTitle').textContent = label;
+  document.getElementById('playerModalSearch').value = '';
+  const bar = document.getElementById('playerModalMultiBar');
+  if (bar) bar.style.display = 'block';
+  renderModalList(_currentModalPlayers);
+  document.getElementById('playerModalOverlay').style.display = 'block';
+  document.getElementById('playerModal').style.display = 'flex';
+  document.getElementById('playerModalSearch').focus();
 }
 
 function selectModalPlayer(name) {
@@ -3077,6 +3146,12 @@ function closePlayerModal() {
   document.getElementById('playerModal').style.display = 'none';
   _currentModalTarget = null;
   _modalCallback = null;
+  // ALWAYS reset multi-select mode, so the next (normal) picker behaves as before.
+  _pmMulti = false;
+  _pmChosen = new Set();
+  _pmMultiDone = null;
+  const bar = document.getElementById('playerModalMultiBar');
+  if (bar) bar.style.display = 'none';
 }
 
 window.onload=function(){ var ht=document.getElementById('heroTitle'); if(ht) ht.textContent='OTR · '+CLUB_NAME; var vt=document.getElementById('oprVerTag'); if(vt) vt.textContent=OPR_VERSION; refreshClubName(); loadRecent(); loadPlayers(); loadClubStats(); };
@@ -3387,9 +3462,15 @@ async function tmLoadFixtures(tournament, division) {
 // Which divisions actually have teams entered in this tournament?
 async function tmDivisions(tournament){
   const rows = await sbGet(`tournament_entries?select=category&club_id=eq.${CLUB_ID}&tournament=eq.${encodeURIComponent(tournament)}`) || [];
-  const order = ["Men's","Ladies","Mixed","All Sorts"];
+  // CANONICAL ORDER MUST INCLUDE SINGLES. Previously this list was doubles-only,
+  // so a singles division was filtered OUT here — the sheet then fell back to the
+  // first doubles division, showing the wrong draw with unresolved "Seed N" names.
+  const order = ["Men's Singles","Ladies Singles","Men's","Ladies","Mixed","All Sorts"];
   const present = [...new Set(rows.map(r=>r.category))];
-  return order.filter(d=>present.includes(d));
+  const known = order.filter(d=>present.includes(d));
+  // include any category present that isn't in the canonical list (future-proof)
+  present.forEach(c=>{ if(known.indexOf(c)<0) known.push(c); });
+  return known;
 }
 
 /* ============================================================================
@@ -3458,15 +3539,21 @@ async function loadTournamentSheet(tournament, division) {
   if (!roundNos.includes(curRound)) curRound = roundNos[0] || 1;
 
   function teamsHTML() {
-    if(!N) return '<div class="card"><p class="sub">No teams in the ' + TM_DIVISION + ' division yet.</p></div>';
-    let h = '<div class="card"><h2>Teams &amp; Bands <span class="tm-divtag">' + TM_DIVISION + '</span></h2>'
-      + '<p class="sub">Seeded by frozen entry rating (strongest = Seed 1). Bands keep matches competitive.</p>'
-      + '<table><thead><tr><th class="num">Seed</th><th>Team</th><th class="num">Band</th></tr></thead><tbody>';
+    if(!N) return '<div class="card"><p class="sub">Nothing entered in the ' + TM_DIVISION + ' division yet.</p></div>';
+    // Bands are a BANDED SWISS concept — meaningless on a knockout bracket, so hide
+    // that column for KO draws and show the seed list instead.
+    const _ko = isKnockoutDiv();
+    const _sg = tmIsSingles(TM_DIVISION);
+    const who = _sg ? 'Player' : 'Team';
+    let h = '<div class="card"><h2>' + (_ko ? ('Seeds &amp; ' + who + 's') : 'Teams &amp; Bands') + ' <span class="tm-divtag">' + TM_DIVISION + '</span></h2>'
+      + '<p class="sub">Seeded by frozen entry rating (strongest = Seed 1). '
+      + (_ko ? 'Top seeds are kept apart until late in the draw.' : 'Bands keep matches competitive.') + '</p>'
+      + '<table><thead><tr><th class="num">Seed</th><th>' + who + '</th>' + (_ko ? '' : '<th class="num">Band</th>') + '</tr></thead><tbody>';
     for (let s = 1; s <= N; s++) {
-      const [lo, hi] = BANDS[s];
       h += '<tr><td class="num"><span class="seed' + (s === 1 ? ' s1' : '') + '">' + s + '</span></td>'
-        + '<td><b>' + tName(s) + '</b></td>'
-        + '<td class="num">' + lo + '–' + hi + '</td></tr>';
+        + '<td><b>' + tName(s) + '</b></td>';
+      if (!_ko) { const [lo, hi] = BANDS[s]; h += '<td class="num">' + lo + '–' + hi + '</td>'; }
+      h += '</tr>';
     }
     h += '</tbody></table></div>';
     return h;
@@ -3950,6 +4037,9 @@ async function renderEnterScreen(){
            + '<button type="button" class="name-pick-btn" id="etP2btn" onclick="etPick(2)">— select —</button>'))
       + '<div id="etSeedPrev" class="sub" style="margin:8px 0;"></div>'
       + '<button class="ac-btn ac-btn-green" style="width:100%;" onclick="submitTournamentEntry()">'+(tmIsSingles(cat)?'Add player':'Add team')+'</button>'
+      + (tmIsSingles(cat)
+          ? '<button class="ac-btn ac-btn-ghost" style="width:100%;margin-top:8px;" onclick="etBulkPickSingles()">➕ Add several players at once</button>'
+          : '')
       + '<div id="etMsg" style="margin-top:10px;font-size:13px;"></div>';
   }
   entryCard += '</div>';
@@ -4013,6 +4103,61 @@ async function renderEnterScreen(){
 }
 
 function etPickDiv(d){ window._etCat = d; renderEnterScreen(); }
+
+// ---- SINGLES BULK ENTRY: tick several players, add them all in one go. ----
+// Uses the SAME eligibility rules as the single picker (gender by division name,
+// excludes anyone already entered in this division), and the SAME save path
+// (enter_team), one call per player so each gets its own frozen seed rating.
+function etBulkPickSingles(){
+  const cat = document.getElementById('etCat').value;
+  if(!tmIsSingles(cat)) return;
+  const players = window._etPlayers || [];
+  const usedRaw = (window._etUsedInDiv && window._etUsedInDiv[cat]) ? window._etUsedInDiv[cat] : [];
+  const used = new Set(usedRaw.filter(x=>x));
+  let avail = players.filter(p => !used.has(p.name));
+  const men = avail.filter(p=>p.gender==='M').map(p=>p.name);
+  const ladies = avail.filter(p=>p.gender==='F').map(p=>p.name);
+  let all = avail.map(p=>p.name);
+  const wantLadies = /ladies|women/i.test(cat);
+  const wantMen = /men/i.test(cat) && !wantLadies;
+  let list = wantMen ? men : wantLadies ? ladies : all;
+  if(!list.length) list = all;              // never present an empty picker
+  if(!list.length){ alert('Everyone is already entered in '+cat+'.'); return; }
+  openNameMultiPicker('Add players — '+cat, list, function(names){ etBulkAddSingles(names); });
+}
+
+async function etBulkAddSingles(names){
+  const tournament = document.getElementById('etTour').value;
+  const category   = document.getElementById('etCat').value;
+  const msg = document.getElementById('etMsg');
+  if(!names || !names.length) return;
+  let ok=0, fail=0; const failed=[];
+  for(let i=0;i<names.length;i++){
+    const nm = names[i];
+    if(msg) msg.innerHTML = 'Adding '+(i+1)+' of '+names.length+' — '+nm+'…';
+    try{
+      const r = await TM.readCurrentRating(nm);
+      if(r == null){ fail++; failed.push(nm+' (no rating)'); continue; }
+      const resp = await fetch(SB_URL + '/functions/v1/tournament', {
+        method:'POST',
+        headers:{ apikey:SB_ANON, Authorization:'Bearer '+SB_ANON, 'Content-Type':'application/json' },
+        body: JSON.stringify({ action:'enter_team', club_id: CLUB_ID,
+          entry: { tournament, category, p1:nm, p2:null, seed_rating:r } })
+      });
+      const j = await resp.json().catch(()=>({}));
+      if(resp.ok && j && j.ok!==false) ok++;
+      else { fail++; failed.push(nm + ((j&&j.error)?(' — '+j.error):(' ('+resp.status+')'))); }
+    }catch(e){ fail++; failed.push(nm+' — '+e); }
+  }
+  await renderEnterScreen();   // refresh the list/counter
+  const m2 = document.getElementById('etMsg');
+  if(m2){
+    let out = '<span style="color:#1e8449;">Added '+ok+' player'+(ok===1?'':'s')+'.</span>';
+    if(fail) out += ' <span style="color:#c0392b;">'+fail+' failed: '+failed.join('; ')+'</span>';
+    m2.innerHTML = out;
+  }
+}
+
 
 // Remove an entered team (admin action). Asks for PIN, verified server-side.
 async function etRemoveTeam(entryId){
