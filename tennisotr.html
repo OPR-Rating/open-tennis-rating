@@ -1207,7 +1207,7 @@ const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 // This is the ONE value that makes this app belong to a specific club.
 const CLUB_ID = 1;
 const CLUB_NAME = "Demo";  // shown in the logo and browser tab
-const OPR_VERSION = "OTR v2026.07.14-13";  // FIX: tournament buttons built via JS handlers (apostrophe broke inline onclick -> empty tables)
+const OPR_VERSION = "OTR v2026.07.14-14";  // FIX: tournament buttons built via JS handlers (apostrophe broke inline onclick -> empty tables)
 async function sbGet(pathq){
   const r = await fetch(SB_URL + "/rest/v1/" + pathq, { headers:{ apikey:SB_ANON, Authorization:"Bearer "+SB_ANON } });
   if(!r.ok) throw new Error("HTTP "+r.status);
@@ -1409,7 +1409,13 @@ async function loadTournamentPicker(){
       + '<div class="ladders-grid one-col" style="margin-top:4px;">'
       + (v==='draw'
           ? '<button class="menu-btn" style="border-color:#12855F;font-weight:700;" onclick="openInternalTournament(TOURNAMENT_EVENT)">Open draw &amp; standings</button>'
-          : (entryOpen ? '<button class="menu-btn" onclick="showEnterTournament(TOURNAMENT_EVENT)">➕ Enter a team</button>' : '<p class="sub" style="text-align:center;margin:6px 0;">All divisions are drawn — entry is closed.</p>'))
+          : '')
+      // Entry must stay reachable on EITHER view while any division is still open —
+      // previously it only appeared on the Stats view, so an un-drawn division
+      // (e.g. Ladies) had no way in from the Draw & Rounds view.
+      + (entryOpen
+          ? '<button class="menu-btn" style="margin-top:'+(v==='draw'?'8px':'0')+';" onclick="showEnterTournament(TOURNAMENT_EVENT)">➕ Enter a team / generate a draw</button>'
+          : (v==='draw' ? '' : '<p class="sub" style="text-align:center;margin:6px 0;">All divisions are drawn — entry is closed.</p>'))
       + '</div>';
     // Stats view → show the standings body; Draw view → hide it (draw opens its own screen)
     body.style.display = (v==='stats') ? '' : 'none';
@@ -3028,6 +3034,14 @@ const TM = (function () {
 function tmTeamName(p1, p2){ return (p2==null || p2==='') ? (p1||'') : (p1 + ' / ' + p2); }
 // True when a division/category is singles (name carries "Singles").
 function tmIsSingles(cat){ return typeof cat==='string' && /singles/i.test(cat); }
+// Display-only division label. The STORED label stays exactly as-is ("Ladies","Men's")
+// so existing data/queries are unaffected; this only makes the UI read properly.
+function tmDivLabel(d){
+  if(d==="Men's") return "Men's Doubles";
+  if(d==='Ladies') return 'Ladies Doubles';
+  if(d==='Mixed') return 'Mixed Doubles';
+  return d; // "Men's Singles","Ladies Singles","All Sorts" already read fine
+}
 
 // ============================================================================
 // KNOCKOUT + PLATE draw engine (singles & doubles). Seeds 1..N already ordered.
@@ -3122,7 +3136,7 @@ async function loadTournamentSheet(tournament, division) {
 
   // division selector pills (only divisions that have entries)
   let divBar = '<div class="tm-divbar">';
-  divs.forEach(d => { divBar += '<button class="' + (d===TM_DIVISION?'active':'') + '" onclick="tmPickDivision(\'' + tournament.replace(/'/g,"\\'") + '\',\'' + d.replace(/'/g,"\\'") + '\')">' + d + '</button>'; });
+  divs.forEach(d => { divBar += '<button class="' + (d===TM_DIVISION?'active':'') + '" onclick="tmPickDivision(\'' + tournament.replace(/'/g,"\\'") + '\',\'' + d.replace(/'/g,"\\'") + '\')">' + tmDivLabel(d) + '</button>'; });
   divBar += '</div>';
 
   const N = entries.length;
@@ -3162,7 +3176,7 @@ async function loadTournamentSheet(tournament, division) {
     const _ko = isKnockoutDiv();
     const _sg = tmIsSingles(TM_DIVISION);
     const who = _sg ? 'Player' : 'Team';
-    let h = '<div class="card"><h2>' + (_ko ? ('Seeds &amp; ' + who + 's') : 'Teams &amp; Bands') + ' <span class="tm-divtag">' + TM_DIVISION + '</span></h2>'
+    let h = '<div class="card"><h2>' + (_ko ? ('Seeds &amp; ' + who + 's') : 'Teams &amp; Bands') + ' <span class="tm-divtag">' + tmDivLabel(TM_DIVISION) + '</span></h2>'
       + '<p class="sub">Seeded by frozen entry rating (strongest = Seed 1). '
       + (_ko ? 'Top seeds are kept apart until late in the draw.' : 'Bands keep matches competitive.') + '</p>'
       + '<table><thead><tr><th class="num">Seed</th><th>' + who + '</th>' + (_ko ? '' : '<th class="num">Band</th>') + '</tr></thead><tbody>';
@@ -3616,7 +3630,7 @@ async function renderEnterScreen(){
   let divButtons = '<div class="cl-divbar" style="margin:0 0 14px;">';
   allowedDivs.forEach(d=>{
     const dl = lockedDivs.has(d);
-    divButtons += '<button class="'+(d===cat?'active':'')+'" onclick="etPickDiv(\''+d.replace(/'/g,"\\'")+'\')">'+d+(dl?' ✓':'')+'</button>';
+    divButtons += '<button class="'+(d===cat?'active':'')+'" onclick="etPickDiv(\''+d.replace(/'/g,"\\'")+'\')">'+tmDivLabel(d)+(dl?' ✓':'')+'</button>';
   });
   divButtons += '</div>';
 
@@ -3948,6 +3962,16 @@ async function tmGenerateKnockoutDraw(tournament, division){
   });
   if(!TM_ADMIN_PIN){ TM_ADMIN_PIN = prompt('Admin PIN to generate the knockout draw:')||''; }
   if(!TM_ADMIN_PIN) return;
+  // CRITICAL: persist the seeds first. seedEntries() only numbers them in memory;
+  // without saving, tournament_entries.seed stays null and every fixture renders
+  // "Seed 1 / Seed 2" instead of the player's name. (Swiss already did this.)
+  const seedResp = await fetch(SB_URL + '/functions/v1/tournament', {
+    method:'POST', headers:{ apikey:SB_ANON, Authorization:'Bearer '+SB_ANON, 'Content-Type':'application/json' },
+    body: JSON.stringify({ action:'save_seeds', club_id:CLUB_ID, admin_pin:TM_ADMIN_PIN,
+      seeds: entries.map(e=>({ id:e.id, seed:e.seed })) })
+  });
+  const seedJson = await seedResp.json().catch(()=>({}));
+  if(!seedResp.ok || !seedJson.ok){ alert('Could not save seeds: '+((seedJson&&seedJson.error)||seedResp.status)); return; }
   const resp = await fetch(SB_URL + '/functions/v1/tournament', {
     method:'POST', headers:{ apikey:SB_ANON, Authorization:'Bearer '+SB_ANON, 'Content-Type':'application/json' },
     body: JSON.stringify({ action:'write_fixtures', club_id:CLUB_ID, admin_pin:TM_ADMIN_PIN,
