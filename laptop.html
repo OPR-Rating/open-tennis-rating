@@ -1475,7 +1475,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.14-16";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
+const OPR_VERSION = "OTR-LAPTOP v2026.07.14-17";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
 
 // ---- Excel/CSV export (laptop) ----------------------------------------
 // Generic: reads any rendered <table> and downloads it as a clean CSV that
@@ -3445,12 +3445,20 @@ const KO = (function(){
   function nextPow2(n){ let p=1; while(p<n)p*=2; return p; }
   function seedSlots(size){ let r=[1,2]; while(r.length<size){ const n=r.length*2, nx=[]; for(const s of r){ nx.push(s); nx.push(n+1-s);} r=nx; } return r; }
   // Round-1 main-draw pairs (seed vs seed) + byes for N<size.
+  // Round 1 built from the CONVENTIONAL DRAW SHEET order, preserving the vertical
+  // sequence exactly (1v16, 9v8, 5v12, 13v4, 3v14, 11v6, 7v10, 15v2). The pair order
+  // within each row is NOT sorted — the first element is the UPPER line on the sheet,
+  // the second is the LOWER line. That keeps seed 1 on the top line and seed 2 on the
+  // bottom line all the way down, so the bracket reads cleanly instead of jagging.
   function mainRound1(N){
     const size=nextPow2(N);
-    const slots=seedSlots(size).map(s=> s<=N ? s : null);
+    const rows=bracketOrder(size).map(([a,b])=>[ a<=N?a:null, b<=N?b:null ]);
     const pairs=[], byes=[];
-    for(let i=0;i<slots.length;i+=2){ const a=slots[i], b=slots[i+1];
-      if(a&&b) pairs.push([a,b]); else if(a&&!b) byes.push(a); else if(!a&&b) byes.push(b); }
+    rows.forEach(([a,b])=>{
+      if(a&&b) pairs.push([a,b]);       // keep sheet order: a = upper, b = lower
+      else if(a&&!b) byes.push(a);
+      else if(!a&&b) byes.push(b);
+    });
     return { size, pairs, byes };
   }
   // Human label for a main-draw round given how many teams remain in that round.
@@ -3478,9 +3486,16 @@ const KO = (function(){
     }
     return list;
   }
+  // Rows ALTERNATE which line the leader sits on. Odd rows put the leader on the UPPER
+  // line, even rows put it on the LOWER line — that is what makes the sheet read
+  // 1/16, 9/8, 5/12, 13/4, 3/14, 11/6, 7/10, 15/2 and keeps seed 1 on the very top
+  // line and seed 2 on the very bottom line (they mirror each other down the page).
   function bracketOrder(N){
     const size=nextPow2(N);
-    return bracketLeaders(size/2).map(L=>[L, size+1-L]);
+    return bracketLeaders(size/2).map((L,i)=>{
+      const C = size+1-L;
+      return (i%2===0) ? [L, C] : [C, L];
+    });
   }
   // Rank a fixture by where its pairing sits in the canonical slot order.
   function slotRank(N, a, b){
@@ -4419,6 +4434,7 @@ async function tmGenerateKnockoutDraw(tournament, division){
 //      and (after round 1) seed the Plate from the round-1 losers. Admin action. ----
 async function tmAdvanceKnockout(tournament, division){
   const fx = await tmLoadFixtures(tournament, division);
+  const ent = await tmLoadEntries(tournament, division);   // needed for the draw size (slot ordering)
   const ko = fx.filter(f=>f.round_type==='ko');
   const plate = fx.filter(f=>f.round_type==='plate');
   if(!ko.length){ alert('No knockout draw found for '+division+'.'); return; }
@@ -4426,7 +4442,12 @@ async function tmAdvanceKnockout(tournament, division){
   const byRound={}; ko.forEach(f=>{ (byRound[f.round]=byRound[f.round]||[]).push(f); });
   const roundNos=Object.keys(byRound).map(Number).sort((a,b)=>a-b);
   const lastR=roundNos[roundNos.length-1];
-  const lastFix=byRound[lastR];
+  // CRITICAL: take the round in DRAW-SHEET order, not the order the DB happened to
+  // return. Winners are then paired adjacently, which preserves the bracket's vertical
+  // shape every round (seed 1 stays top line, seed 2 stays bottom line — no jagging).
+  const _Nko = ent.length;
+  const lastFix=(byRound[lastR]||[]).slice().sort((x,y)=>
+    KO.slotRank(_Nko, x.seed_a, x.seed_b) - KO.slotRank(_Nko, y.seed_a, y.seed_b));
   // winner of a fixture: bye => seed_a; else higher sets
   const winnerOf=f=> f.seed_b===0 ? f.seed_a : (f.sets_a==null ? null : (f.sets_a>f.sets_b ? f.seed_a : f.seed_b));
   const loserOf =f=> f.seed_b===0 ? null : (f.sets_a==null ? null : (f.sets_a>f.sets_b ? f.seed_b : f.seed_a));
@@ -4436,7 +4457,11 @@ async function tmAdvanceKnockout(tournament, division){
   if(!TM_ADMIN_PIN){ TM_ADMIN_PIN = prompt('Admin PIN to advance the knockout:')||''; }
   if(!TM_ADMIN_PIN) return;
   const newFix=[];
-  // build the next main round if >1 winner
+  // build the next main round if >1 winner.
+  // The winners are taken in DRAW-SHEET order (lastFix is sorted by slot rank above),
+  // so pairing them adjacently preserves the bracket's vertical shape: the winner of
+  // the top match meets the winner of the next match down, and seed 1 stays on the top
+  // line / seed 2 on the bottom line right through to the final.
   if(winners.length>1){
     const label=KO.roundLabel(winners.length);
     for(let i=0;i<winners.length;i+=2){
