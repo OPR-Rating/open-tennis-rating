@@ -1475,7 +1475,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.14-15";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
+const OPR_VERSION = "OTR-LAPTOP v2026.07.14-16";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
 
 // ---- Excel/CSV export (laptop) ----------------------------------------
 // Generic: reads any rendered <table> and downloads it as a clean CSV that
@@ -3460,13 +3460,27 @@ const KO = (function(){
     if(teamsInRound<=8) return 'QF';
     return 'R'+teamsInRound;
   }
-  // Canonical BRACKET SLOT ORDER for round 1: the order rows must appear top->bottom
-  // so the draw reads like a real tournament sheet (1v16, 8v9, 4v13, 5v12, 2v15, ...).
-  // Sorting fixtures by seed_a is WRONG — it destroys the bracket shape.
+  // Canonical BRACKET ROW ORDER — the conventional draw sheet, seed 1 at the TOP and
+  // seed 2 at the BOTTOM, so they can only meet in the final and the semis are 1v4 / 2v3.
+  // For a 16 draw the rows read: 1v16, 8v9, 5v12, 4v13, 3v14, 6v11, 7v10, 2v15.
+  // The "row leader" sequence (1,8,5,4,3,6,7,2) is built by an alternating flip at each
+  // doubling; each leader L then plays (size+1-L).
+  function bracketLeaders(rows){
+    let list=[1];
+    while(list.length<rows){
+      const m=list.length*2, out=[];
+      for(let i=0;i<list.length;i++){
+        const s=list[i];
+        if(i%2===0){ out.push(s); out.push(m+1-s); }
+        else       { out.push(m+1-s); out.push(s); }
+      }
+      list=out;
+    }
+    return list;
+  }
   function bracketOrder(N){
-    const size=nextPow2(N), slots=seedSlots(size), out=[];
-    for(let i=0;i<slots.length;i+=2) out.push([slots[i], slots[i+1]]);
-    return out;
+    const size=nextPow2(N);
+    return bracketLeaders(size/2).map(L=>[L, size+1-L]);
   }
   // Rank a fixture by where its pairing sits in the canonical slot order.
   function slotRank(N, a, b){
