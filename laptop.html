@@ -1475,7 +1475,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.14-17";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
+const OPR_VERSION = "OTR-LAPTOP v2026.07.14-18";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
 
 // ---- Excel/CSV export (laptop) ----------------------------------------
 // Generic: reads any rendered <table> and downloads it as a clean CSV that
@@ -2399,9 +2399,14 @@ async function step1Next(){
       const trow = await sbGet(`tournaments?select=type&name=eq.${encodeURIComponent(event)}&club_id=eq.${CLUB_ID}&limit=1`);
       const isInternal = trow && trow.length && trow[0].type==='internal';
       if(isInternal){
-        const fx = await sbGet(`tournament_fixtures?select=id&tournament=eq.${encodeURIComponent(event)}&division=eq.${encodeURIComponent(type)}&club_id=eq.${CLUB_ID}&limit=1`) || [];
+        // The DIVISION stored on a fixture is "<Type> Singles" for singles and just
+        // "<Type>" for doubles. `type` here is only the Match Type ("Men's"), so a
+        // singles match must look up "Men's Singles" — otherwise this guard finds no
+        // fixtures and wrongly says the draw hasn't been generated.
+        const _div = (format==='singles') ? (type+' Singles') : type;
+        const fx = await sbGet(`tournament_fixtures?select=id&tournament=eq.${encodeURIComponent(event)}&division=eq.${encodeURIComponent(_div)}&club_id=eq.${CLUB_ID}&limit=1`) || [];
         if(fx.length===0){
-          alert('The '+type+' draw for "'+event+'" has not been generated yet.\n\nFor an internal tournament, enter teams and generate the '+type+' draw on the Tournaments page before recording results.');
+          alert('The '+_div+' draw for "'+event+'" has not been generated yet.\n\nFor an internal tournament, enter teams and generate the '+_div+' draw on the Tournaments page before recording results.');
           return; // stay on step 1
         }
       }
@@ -2714,6 +2719,10 @@ async function submitMatch(){
       return;
     }
   }
+  // Resolve the DIVISION this match belongs to. Fixtures/entries store singles as
+  // "<Type> Singles" and doubles as "<Type>". Using the bare Match Type for a singles
+  // match finds nothing, so duplicate checks and fixture-matching silently no-op.
+  const _mDiv = (entryData.format==='singles') ? (entryData.type+' Singles') : entryData.type;
   const btn=document.getElementById('submitBtn');
   // DUPLICATE FAILSAFE (all match types, incl. social): before saving, check whether the
   // SAME FOUR PLAYERS already appear in the most RECENTLY ENTERED matches. This guards the
@@ -2779,17 +2788,17 @@ async function submitMatch(){
       if(trow && trow.length && trow[0].type==='internal'){
         // If EVERY fixture in this division already has a result, the draw is complete —
         // warn (a new match won't appear on the board, no open fixture). Allow override.
-        const allFx = await sbGet(`tournament_fixtures?select=sets_a&tournament=eq.${encodeURIComponent(ev)}&division=eq.${encodeURIComponent(entryData.type)}&club_id=eq.${CLUB_ID}`) || [];
+        const allFx = await sbGet(`tournament_fixtures?select=sets_a&tournament=eq.${encodeURIComponent(ev)}&division=eq.${encodeURIComponent(_mDiv)}&club_id=eq.${CLUB_ID}`) || [];
         if(allFx.length>0 && allFx.every(f=>f.sets_a!=null)){
           if(!confirm('All rounds for "'+ev+'" ('+entryData.type+') are complete — there are no open fixtures.\n\nThis result will be recorded and will count toward ratings/stats, but it will NOT appear on the draw board. Proceed anyway?')){
             return;
           }
         }
-        const ents = await sbGet(`tournament_entries?select=seed,p1,p2&tournament=eq.${encodeURIComponent(ev)}&category=eq.${encodeURIComponent(entryData.type)}&club_id=eq.${CLUB_ID}`) || [];
+        const ents = await sbGet(`tournament_entries?select=seed,p1,p2&tournament=eq.${encodeURIComponent(ev)}&category=eq.${encodeURIComponent(_mDiv)}&club_id=eq.${CLUB_ID}`) || [];
         const seedOf=(a,b)=>{ const e=ents.find(e=>e.p1===a||e.p2===a||e.p1===b||e.p2===b); return e?e.seed:null; };
         const sa=seedOf(entryData.t1p1,entryData.t1p2), sb=seedOf(entryData.t2p1,entryData.t2p2);
         if(sa && sb && sa!==sb){
-          const fxs = await sbGet(`tournament_fixtures?select=round,sets_a&tournament=eq.${encodeURIComponent(ev)}&division=eq.${encodeURIComponent(entryData.type)}&club_id=eq.${CLUB_ID}&or=(and(seed_a.eq.${sa},seed_b.eq.${sb}),and(seed_a.eq.${sb},seed_b.eq.${sa}))`) || [];
+          const fxs = await sbGet(`tournament_fixtures?select=round,sets_a&tournament=eq.${encodeURIComponent(ev)}&division=eq.${encodeURIComponent(_mDiv)}&club_id=eq.${CLUB_ID}&or=(and(seed_a.eq.${sa},seed_b.eq.${sb}),and(seed_a.eq.${sb},seed_b.eq.${sa}))`) || [];
           const played = fxs.find(f=>f.sets_a!=null);
           if(played){
             if(!confirm('A result for this pairing in "'+ev+'" ('+entryData.type+') is already recorded in Round '+played.round+'.\n\nSubmitting again will create a DUPLICATE match. Proceed anyway?')){
@@ -2808,10 +2817,10 @@ async function submitMatch(){
     try{
       const trow = await sbGet(`tournaments?select=type&name=eq.${encodeURIComponent(ev)}&club_id=eq.${CLUB_ID}&limit=1`);
       if(trow && trow.length && trow[0].type==='internal'){
-        const ents = await sbGet(`tournament_entries?select=seed,p1,p2&tournament=eq.${encodeURIComponent(ev)}&category=eq.${encodeURIComponent(entryData.type)}&club_id=eq.${CLUB_ID}`) || [];
+        const ents = await sbGet(`tournament_entries?select=seed,p1,p2&tournament=eq.${encodeURIComponent(ev)}&category=eq.${encodeURIComponent(_mDiv)}&club_id=eq.${CLUB_ID}`) || [];
         const pairOf=(seed)=>ents.find(e=>e.seed===seed);
         const hits=(p,x,y)=>{ if(!p) return 0; let n=0; if(x===p.p1||x===p.p2)n++; if(y===p.p1||y===p.p2)n++; return n; };
-        const fixes = await sbGet(`tournament_fixtures?select=id,round,seed_a,seed_b,sets_a&tournament=eq.${encodeURIComponent(ev)}&division=eq.${encodeURIComponent(entryData.type)}&club_id=eq.${CLUB_ID}&order=round.asc`) || [];
+        const fixes = await sbGet(`tournament_fixtures?select=id,round,seed_a,seed_b,sets_a&tournament=eq.${encodeURIComponent(ev)}&division=eq.${encodeURIComponent(_mDiv)}&club_id=eq.${CLUB_ID}&order=round.asc`) || [];
         // score each UNPLAYED fixture by name-count (max over both orientations)
         let scored=[];
         fixes.forEach(f=>{
