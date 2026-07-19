@@ -278,6 +278,13 @@
   .bkt-sd{display:inline-block;min-width:19px;height:19px;line-height:19px;text-align:center;background:#0F6E56;color:#fff;border-radius:5px;font-size:10px;font-weight:700;flex:none;}
   .bkt-sc{margin-left:auto;font-weight:700;color:#444;}
   .bkt-byerow{color:#aaa;font-style:italic;}
+  .bkt-nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bkt-empty .bkt-nm{color:#c9c9c9;}
+  .bkt-sd-e{background:#e6e0ee!important;}
+  .bkt-match.bkt-ready{border-color:#12855F;box-shadow:0 0 0 2px rgba(18,133,95,.12);}
+  .bkt-match.bkt-ready:hover{box-shadow:0 2px 10px rgba(18,133,95,.28);}
+  /* an empty future box reads as a faint placeholder until its feeders resolve */
+  .bkt-match:has(.bkt-empty){background:#fcfbfe;border-style:dashed;}
 
   #tournamentSheetContent .rsel { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
   #tournamentSheetContent .rsel button { border:1.5px solid rgba(15,110,86,.22); background:#fff; border-radius:20px; padding:7px 15px; font-weight:700; font-size:13px; cursor:pointer; color:#0F6E56; font-family:inherit; }
@@ -1475,7 +1482,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.15-01";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
+const OPR_VERSION = "OTR-LAPTOP v2026.07.19-01";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
 
 // ---- Excel/CSV export (laptop) ----------------------------------------
 // Generic: reads any rendered <table> and downloads it as a clean CSV that
@@ -2219,6 +2226,26 @@ async function loadActiveTournaments(){
             else { divs=s.split(',').map(x=>x.trim()).filter(Boolean); }
           }
           if(Array.isArray(divs) && divs.length){ allowed=divs; }
+
+          // --- PRE-SELECT & LOCK when the tournament is FIXED to one format/type ---
+          // A division carrying "Singles" means singles; otherwise doubles. If EVERY
+          // division of this tournament is the same format, we can lock Format. If the
+          // Match Type is also unambiguous (all the same base type), we lock that too,
+          // leaving only the set count to choose.
+          const fmtSel=document.getElementById('matchFormat');
+          if(fmtSel && Array.isArray(divs) && divs.length){
+            const allSingles = divs.every(d=>/singles/i.test(d));
+            const allDoubles = divs.every(d=>!/singles/i.test(d));
+            if(allSingles || allDoubles){
+              fmtSel.value = allSingles ? 'singles' : 'doubles';
+              fmtSel.disabled = true;                 // locked: tournament dictates it
+              [...fmtSel.options].forEach(o=>{ o.disabled = (o.value!==fmtSel.value); });
+            } else {
+              fmtSel.disabled=false; [...fmtSel.options].forEach(o=>o.disabled=false);
+            }
+            // reduce "allowed" Match Types to BASE types (strip " Singles") for the dropdown
+            allowed = [...new Set(divs.map(d=>d.replace(/\s*Singles$/i,'').trim()))];
+          }
         }
       }catch(e){}
     } else if(ev==='Ladder Match'){
@@ -2271,8 +2298,9 @@ async function loadActiveTournaments(){
     typeSel.innerHTML='<option value="">Select type...</option>'+
       DIVS_RENDER.filter(a=>allowed.indexOf(a[0])>=0).map(a=>`<option value="${a[0]}">${a[1]}</option>`).join('');
     if(allowed.indexOf(prev)>=0) typeSel.value=prev;
-    // if only one division, preselect it for convenience
-    if(allowed.length===1) typeSel.value=allowed[0];
+    // if only one division, preselect AND lock it (nothing to choose)
+    if(allowed.length===1){ typeSel.value=allowed[0]; typeSel.disabled=true; }
+    else { typeSel.disabled=false; }
   };
 }
 
@@ -3603,6 +3631,9 @@ async function loadTournamentSheet(tournament, division) {
   // stash for the fixture-result entry (called from onclick outside this scope)
   window._tmCtx = { tournament, division: TM_DIVISION };
   window._tmFixturesById = {}; fixtures.forEach(f=>{ window._tmFixturesById[f.id]=f; });
+  window._tmAllFixtures = fixtures;
+  window._tmComputeMain = computeMainBracket;   // expose for tmEnsureBracketFixtures
+  window._tmComputePlate = computePlateBracket;
   window._tmSeedNames = {}; entries.forEach(e=>{ window._tmSeedNames[e.seed] = tmTeamName(e.p1, e.p2); });
 
   // division selector pills (only divisions that have entries)
@@ -3692,7 +3723,8 @@ async function loadTournamentSheet(tournament, division) {
                   || Object.values(rounds).some(rr=>rr[0] && (rr[0].round_type==='ko'||rr[0].round_type==='plate'));
     h += '</tbody></table><p class="sub" style="margin-top:8px;">Tap a fixture to enter or edit its score (admin).</p>';
     if(_isKO){
-      h += '<div style="text-align:center;margin-top:10px;"><button class="menu-btn" style="display:inline-block;width:auto;padding:10px 18px;border-color:#F1C40F;font-weight:700;" onclick="tmAdvanceKnockout(window._tmCtx.tournament, window._tmCtx.division)">▶ Advance knockout / plate</button>'
+      h += '<div style="text-align:center;margin-top:10px;"><p class="sub" style="margin:6px 0;">Enter each result here or on the 🗂 Bracket tab — winners advance and the Plate fills automatically. No need to generate rounds.</p>'
+        + '<button class="menu-btn" style="display:none;" onclick="tmAdvanceKnockout(window._tmCtx.tournament, window._tmCtx.division)">▶ Advance knockout / plate</button>'
         + '<div class="sub" style="margin-top:6px;">Enter all current-round results, then advance. First-round losers form the Plate automatically.</div></div></div>';
     } else {
       h += '<div style="text-align:center;margin-top:10px;"><button class="menu-btn" style="display:inline-block;width:auto;padding:10px 18px;border-color:#12855F;font-weight:700;" onclick="tmGenerateNextRound()">➕ Generate next round (Swiss)</button>'
@@ -3748,16 +3780,170 @@ async function loadTournamentSheet(tournament, division) {
     }
     return '<div class="bkt-block"><h3 class="bkt-title">'+title+'</h3>'+champ+'<div class="bkt-tree">'+cols+'</div></div>';
   }
+  // ============================================================================
+  // FULL AUTO-POPULATING BRACKET (main + plate) — computed entirely from results.
+  // No stored per-round fixtures beyond round 1; every later round is DERIVED by
+  // walking results forward. Winners advance into the next box; round-1 losers drop
+  // into the plate. This removes the need to "generate next round" for knockouts and
+  // the desync/regeneration gremlins that came with it.
+  // ============================================================================
+  function koWinnerSeed(f){
+    if(!f) return null;
+    if(f.seed_b===0) return f.seed_a;                 // bye
+    if(f.sets_a==null) return null;                    // not played yet
+    return (f.sets_a>f.sets_b) ? f.seed_a : f.seed_b;
+  }
+  function koLoserSeed(f){
+    if(!f || f.seed_b===0) return null;                // byes have no loser
+    if(f.sets_a==null) return null;
+    return (f.sets_a>f.sets_b) ? f.seed_b : f.seed_a;
+  }
+  // Build the full main-draw structure: array of rounds, each an array of {a,b,fx}.
+  // Round 1 comes from stored 'ko' fixtures (in bracket order); later rounds are
+  // slots that fill as winners are known.
+  function computeMainBracket(){
+    const koFix = fixtures.filter(f=>f.round_type==='ko');
+    if(!koFix.length) return null;
+    const size = KO.nextPow2(N);
+    // round-1 pairs in canonical bracket order
+    const order = KO.bracketOrder(size);        // [[a,b],...] slot order, byes as seed>N
+    // map stored R1 fixtures by the seed pair (so we keep their id + result)
+    const r1map = {};
+    koFix.filter(f=>f.round===1).forEach(f=>{ r1map[[f.seed_a,f.seed_b].join(',')]=f; r1map[[f.seed_b,f.seed_a].join(',')]=f; });
+    const rounds = [];
+    // ROUND 1 (from stored fixtures / byes)
+    const r1 = order.map(([a,b])=>{
+      const A = a<=N?a:null, B = b<=N?b:null;
+      if(A && B){ const fx=r1map[[A,B].join(',')]||null; return {a:A,b:B,fx}; }
+      // bye: the real seed advances automatically
+      const real = A||B; return {a:real,b:0,fx:{seed_a:real,seed_b:0,sets_a:1,sets_b:0}};
+    });
+    rounds.push(r1);
+    // LATER ROUNDS: winners of each adjacent pair meet; slots stay null until known
+    let prev = r1;
+    while(prev.length>1){
+      const next=[];
+      for(let i=0;i<prev.length;i+=2){
+        const wa = koWinnerSeed(prev[i].fx);
+        const wb = koWinnerSeed(prev[i+1].fx);
+        // find a stored fixture for this pairing if the result was already entered
+        let fx=null;
+        if(wa!=null && wb!=null){
+          fx = koFix.find(f=> f.round===rounds.length+1 &&
+             ((f.seed_a===wa&&f.seed_b===wb)||(f.seed_a===wb&&f.seed_b===wa))) || null;
+        }
+        next.push({a:wa,b:wb,fx});
+      }
+      rounds.push(next);
+      prev=next;
+    }
+    return rounds;
+  }
+  // Plate: seeded from the round-1 losers, same auto-advancing structure.
+  function computePlateBracket(){
+    const koFix = fixtures.filter(f=>f.round_type==='ko' && f.round===1);
+    const plateFix = fixtures.filter(f=>f.round_type==='plate');
+    // losers of round 1 (byes produce none)
+    const size=KO.nextPow2(N);
+    const order=KO.bracketOrder(size);
+    // walk R1 in bracket order; collect losers in that order so the plate mirrors the draw
+    const r1map={}; koFix.forEach(f=>{ r1map[[f.seed_a,f.seed_b].join(',')]=f; r1map[[f.seed_b,f.seed_a].join(',')]=f; });
+    const losers=[];
+    order.forEach(([a,b])=>{
+      const A=a<=N?a:null, B=b<=N?b:null;
+      if(A&&B){ const fx=r1map[[A,B].join(',')]; losers.push(koLoserSeed(fx)); } // may be null (unplayed)
+    });
+    // if no R1 result yet, no plate to show
+    if(losers.every(x=>x==null)) return null;
+    const rounds=[];
+    // plate round 1 = pairs of losers, in order
+    const p1=[];
+    for(let i=0;i<losers.length;i+=2){
+      const a=losers[i], b=(i+1<losers.length)?losers[i+1]:0;
+      let fx=null;
+      if(a!=null&&b!=null){ fx = plateFix.find(f=> f.round===51 &&
+        ((f.seed_a===a&&f.seed_b===b)||(f.seed_a===b&&f.seed_b===a))) || null; }
+      p1.push({a,b:(b==null?0:b),fx});
+    }
+    rounds.push(p1);
+    let prev=p1;
+    let rno=52;
+    while(prev.length>1){
+      const next=[];
+      for(let i=0;i<prev.length;i+=2){
+        const wa=koWinnerSeed(prev[i].fx);
+        const wb=prev[i+1]?koWinnerSeed(prev[i+1].fx):null;
+        let fx=null;
+        if(wa!=null&&wb!=null){ fx=plateFix.find(f=> f.round===rno &&
+          ((f.seed_a===wa&&f.seed_b===wb)||(f.seed_a===wb&&f.seed_b===wa)))||null; }
+        next.push({a:wa,b:wb,fx});
+      }
+      rounds.push(next); prev=next; rno++;
+    }
+    return rounds;
+  }
+
+  // Round label from how many matches are in that round.
+  function koRoundName(matchesInRound, isPlate){
+    const p = isPlate ? 'Plate ' : '';
+    if(matchesInRound===1) return p+'Final';
+    if(matchesInRound===2) return p+'Semis';
+    if(matchesInRound===4) return p+'Quarters';
+    return p+'R'+(matchesInRound*2);
+  }
+  // One match box. Shows names (or an empty slot), score if played, and is tappable
+  // to enter a score ONLY when both players are known and it hasn't been played.
+  function koBox(m, isPlate){
+    const known = (s)=> (s===0) ? 'BYE' : (s!=null ? tName(s) : '');
+    const aName = known(m.a), bName = known(m.b);
+    const played = m.fx && m.fx.sets_a!=null;
+    const w = m.fx ? koWinnerSeed(m.fx) : null;
+    const aWin = played && w===m.a, bWin = played && w===m.b;
+    const bye = m.b===0;
+    const ready = (m.a!=null && m.b!=null && m.b!==0 && !played && m.fx && m.fx.id);
+    const emptyA = (m.a==null), emptyB=(m.b==null && m.b!==0);
+    const scoreA = played? m.fx.sets_a : '';
+    const scoreB = played? m.fx.sets_b : '';
+    const click = ready ? (' onclick="tmEnterFixtureResult('+m.fx.id+')" title="Tap to enter score" style="cursor:pointer;"') : '';
+    return '<div class="bkt-match'+(bye?' bkt-bye':'')+(ready?' bkt-ready':'')+'"'+click+'>'
+      + '<div class="bkt-team'+(aWin?' bkt-win':'')+(emptyA?' bkt-empty':'')+'">'
+        + (m.a!=null?'<span class="bkt-sd">'+m.a+'</span>':'<span class="bkt-sd bkt-sd-e"></span>')
+        + '<span class="bkt-nm">'+(aName||'&nbsp;')+'</span><span class="bkt-sc">'+scoreA+'</span></div>'
+      + '<div class="bkt-team'+(bWin?' bkt-win':'')+((emptyB)?' bkt-empty':'')+'">'
+        + (m.b===0?'<span class="bkt-sd">–</span>':(m.b!=null?'<span class="bkt-sd">'+m.b+'</span>':'<span class="bkt-sd bkt-sd-e"></span>'))
+        + '<span class="bkt-nm">'+(bName||'&nbsp;')+'</span><span class="bkt-sc">'+scoreB+'</span></div>'
+      + '</div>';
+  }
+  function koTreeHTML(rounds, title, isPlate){
+    if(!rounds || !rounds.length) return '';
+    let cols='';
+    rounds.forEach((rd,ri)=>{
+      const label = koRoundName(rd.length, isPlate);
+      cols += '<div class="bkt-colwrap"><div class="bkt-rlabel">'+label+'</div><div class="bkt-col">'
+        + rd.map(m=>koBox(m,isPlate)).join('') + '</div></div>';
+    });
+    // champion banner
+    const finalRd = rounds[rounds.length-1];
+    let champ='';
+    if(finalRd.length===1 && finalRd[0].fx && finalRd[0].fx.sets_a!=null){
+      const w=koWinnerSeed(finalRd[0].fx);
+      champ='<div class="bkt-champ">🏆 '+(isPlate?'Plate Winner':'Champion')+': <b>'+tName(w)+'</b></div>';
+    }
+    return '<div class="bkt-block"><h3 class="bkt-title">'+title+'</h3>'+champ+'<div class="bkt-tree">'+cols+'</div></div>';
+  }
+
   function bracketHTML(){
     if(!isKnockoutDiv()) return '<div class="card"><p class="sub">This division is not a knockout draw.</p></div>';
-    const main = drawTreeHTML('ko', 'Main Draw');
-    const plate = drawTreeHTML('plate', 'Plate (first-round losers)');
+    const mainRounds = computeMainBracket();
+    const plateRounds = computePlateBracket();
+    const main = koTreeHTML(mainRounds, 'Main Draw', false);
+    const plate = koTreeHTML(plateRounds, 'Plate (first-round losers)', true);
     let h = '<div class="card bkt-card" id="bktPrintArea">'
-      + '<div class="bkt-head"><h2>Knockout Draw <span class="tm-divtag">'+TM_DIVISION+'</span></h2>'
+      + '<div class="bkt-head"><h2>Knockout Draw <span class="tm-divtag">'+tmDivLabel(TM_DIVISION)+'</span></h2>'
       + '<button class="menu-btn bkt-print-btn" onclick="tmPrintBracket()">🖨 Print draw</button></div>'
-      + '<div class="bkt-meta">'+TOURNAMENT_EVENT+' · '+TM_DIVISION+'</div>'
-      + main + (plate || '')
-      + (plate ? '' : '<p class="sub" style="margin-top:8px;">The Plate appears once round-1 results are in and the draw is advanced.</p>')
+      + '<div class="bkt-meta">'+TOURNAMENT_EVENT+' · '+tmDivLabel(TM_DIVISION)+'</div>'
+      + main
+      + (plate || '<div class="bkt-block"><h3 class="bkt-title">Plate (first-round losers)</h3><p class="sub">The Plate fills automatically as first-round results come in.</p></div>')
       + '</div>';
     return h;
   }
@@ -3847,7 +4033,7 @@ async function loadTournamentSheet(tournament, division) {
     const tabs = _ko
       ? [['teams', '👥 Teams & Bands'], ['rounds', '🎾 Rounds'], ['bracket', '🗂 Bracket'], ['standings', '📊 Standings']]
       : [['teams', '👥 Teams & Bands'], ['rounds', '🎾 Rounds'], ['standings', '📊 Standings']];
-    if(showFinals) tabs.push(['finals', '🏆 Finals']);
+    if(showFinals && !_ko) tabs.push(['finals', '🏆 Finals']);  // knockout finals live in the Bracket, not the Swiss Finals tab
     let nav = '<div class="tm-nav">';
     tabs.forEach(([id, lbl]) => nav += '<button class="' + (id === activeTab ? 'active' : '') + '" onclick="tmSetTab(\'' + id + '\')">' + lbl + '</button>');
     nav += '</div>';
@@ -3882,6 +4068,14 @@ async function loadTournamentSheet(tournament, division) {
     setTimeout(function(){ w.focus(); w.print(); }, 350);
   };
   window.tmSetTab = function (id) { activeTab = id; render(); };
+  // For knockouts: once results are in, make sure the next-round boxes exist as real
+  // fixtures so they can be tapped. Runs quietly; refreshes the sheet if it wrote any.
+  (async ()=>{
+    if(isKnockoutDiv() && TM_ADMIN_PIN){
+      const wrote = await tmEnsureBracketFixtures();
+      if(wrote){ loadTournamentSheet(window._tmCtx.tournament, window._tmCtx.division); }
+    }
+  })();
 
   window.tmSetRound = function (r) { curRound = r; render(); };
   window.tmPickDivision = function (t, d) { box._tab='teams'; box._round=null; loadTournamentSheet(t, d); };
@@ -4000,6 +4194,52 @@ async function loadTournamentSheet(tournament, division) {
 
 // Enter or edit the score for a specific tournament fixture (admin-gated).
 // Writes the result onto the fixture AND creates a matches row (via the tournament Edge Function).
+
+// Persist any next-round fixtures that the auto-advancing bracket now knows about but
+// which aren't yet stored — so each "ready" box has a real fixture row to tap and score.
+// Called when the knockout Bracket/Rounds render. Writes only NEW fixtures (append), never
+// overwrites a played one, so it's safe to run on every render.
+async function tmEnsureBracketFixtures(){
+  try{
+    const ctx = window._tmCtx || {};
+    if(!ctx.tournament || !ctx.division) return false;
+    const fixturesLocal = window._tmAllFixtures || [];
+    if(!fixturesLocal.some(f=>f.round_type==='ko')) return false;   // knockout only
+    // Recompute the brackets from current results (same logic the view uses).
+    const mains = (typeof window._tmComputeMain==='function') ? window._tmComputeMain() : null;
+    const plates= (typeof window._tmComputePlate==='function') ? window._tmComputePlate() : null;
+    const toWrite = [];
+    const existing = new Set(fixturesLocal.map(f=> f.round_type+':'+f.round+':'+[f.seed_a,f.seed_b].sort((x,y)=>x-y).join('-')));
+    function collect(rounds, type, baseRound){
+      if(!rounds) return;
+      rounds.forEach((rd, ri)=>{
+        if(ri===0) return;                        // round 1 already stored
+        const roundNo = (type==='plate') ? (51+ri-1) : (ri+1);
+        rd.forEach(m=>{
+          if(m.a!=null && m.b!=null && m.b!==0 && !m.fx){
+            const key = type+':'+roundNo+':'+[m.a,m.b].sort((x,y)=>x-y).join('-');
+            if(!existing.has(key)){
+              existing.add(key);
+              toWrite.push({ tournament:ctx.tournament, division:ctx.division, round:roundNo,
+                round_type:type, band:(type==='plate'?'P':'')+'R', seed_a:m.a, seed_b:m.b });
+            }
+          }
+        });
+      });
+    }
+    collect(mains,'ko'); collect(plates,'plate');
+    if(!toWrite.length) return false;
+    if(!TM_ADMIN_PIN) return false;               // only an unlocked admin writes new rounds
+    const resp = await fetch(SB_URL + '/functions/v1/tournament', {
+      method:'POST', headers:{ apikey:SB_ANON, Authorization:'Bearer '+SB_ANON, 'Content-Type':'application/json' },
+      body: JSON.stringify({ action:'write_fixtures', club_id:CLUB_ID, admin_pin:TM_ADMIN_PIN,
+        tournament:ctx.tournament, division:ctx.division, replace:false, fixtures:toWrite })
+    });
+    const j = await resp.json().catch(()=>({}));
+    return !!(j && j.ok);
+  }catch(e){ return false; }
+}
+
 async function tmEnterFixtureResult(fixtureId){
   const f = window._tmFixturesById ? window._tmFixturesById[fixtureId] : null;
   const ctx = window._tmCtx || {};
