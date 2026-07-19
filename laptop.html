@@ -1482,7 +1482,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.19-01";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
+const OPR_VERSION = "OTR-LAPTOP v2026.07.19-02";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
 
 // ---- Excel/CSV export (laptop) ----------------------------------------
 // Generic: reads any rendered <table> and downloads it as a clean CSV that
@@ -2170,6 +2170,8 @@ async function renderStep1(){
         <option value="1">1 set</option>
         <option value="2">2 sets</option>
         <option value="3">3 sets</option>
+        <option value="4">4 sets</option>
+        <option value="5">5 sets</option>
       </select>
     </div>
     <div id="err1" class="error-msg">Please fill in all fields.</div>
