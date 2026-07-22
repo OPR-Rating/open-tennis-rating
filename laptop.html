@@ -1482,7 +1482,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.22-01";  // Minimal individual ladder (Rank/Name/Rating/Level, tap row -> profile); profile match rows show opposing side's level
+const OPR_VERSION = "OTR-LAPTOP v2026.07.22-02";  // Minimal individual ladder + opposing side's level on profile AND pair match histories
 // One-liner above the individual ladder — sets expectations; the profile carries the story.
 const LADDER_NOTE = '<div style="padding:10px 14px;background:rgba(15,110,86,.08);border:1px solid rgba(15,110,86,.30);border-radius:10px;margin:14px 12px 12px;font-size:12px;color:#0d4a38;line-height:1.5;">Ratings reflect who you beat and how convincingly — tap any player for their story.</div>';
 // Row-tap -> profile, by index (names never enter an HTML attribute, so apostrophes are safe).
@@ -1579,6 +1579,18 @@ async function togglePairMatches(i){
     // For category sheets (not Universal), show only that match type
     const rows = (cat==='Universal') ? data : data.filter(m=>m.match_type===cat);
     if(rows.length===0){ inner.innerHTML='<span style="color:#888;">No matches found for this pair'+(cat==='Universal'?'':' in '+cat)+'.</span>'; return; }
+    // Club ratings map (cached once per page load) — used to show the OPPOSING side's level.
+    if(!window._rmapCache){
+      const allPR = await sbGet(`player_results?select=name,current_rating&club_id=eq.${CLUB_ID}`);
+      const rm={}; (allPR||[]).forEach(r=>{ if(r.name!=null && r.current_rating!=null) rm[r.name]=r.current_rating; });
+      window._rmapCache=rm;
+    }
+    const rmap=window._rmapCache;
+    const oppLv=(o1,o2)=>{
+      if(o2==null){ return (o1 in rmap)?(rmap[o1]/200).toFixed(1):null; }
+      if((o1 in rmap)&&(o2 in rmap)) return (((rmap[o1]+rmap[o2])/2)/200).toFixed(1);
+      return null;
+    };
     let h='<div style="font-weight:700;color:#0d4a38;margin-bottom:6px;">'+a+' & '+b+' — match history</div>';
     rows.forEach(m=>{
       const pairOnT1=( (m.t1p1===a&&m.t1p2===b)||(m.t1p1===b&&m.t1p2===a) );
@@ -1587,6 +1599,8 @@ async function togglePairMatches(i){
       const mysets = pairOnT1 ? (m.t1_sets||0) : (m.t2_sets||0);
       const oppsets = pairOnT1 ? (m.t2_sets||0) : (m.t1_sets||0);
       const won = mysets>oppsets;
+      const olv = oppLv(opp1, opp2);
+      const olvTag = olv!=null ? ' <span style="color:#12855F;font-weight:700;">(L '+olv+')</span>' : '';
       // per-set chips from set_scores (T1-T2 perspective -> flip if pair was T2)
       let chips='';
       const ss=(m.set_scores||'').trim();
@@ -1597,7 +1611,7 @@ async function togglePairMatches(i){
       }).join(''); }
       h+='<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-top:1px solid #e5d9ef;">'
         +'<span style="font-weight:700;min-width:14px;color:'+(won?'#1e8449':'#c0392b')+';">'+(won?'W':'L')+'</span>'
-        +'<div><div>vs '+opp1+' & '+opp2+' &nbsp;<strong>'+mysets+'-'+oppsets+'</strong> &nbsp;'+chips+'</div>'
+        +'<div><div>vs '+sideName(opp1,opp2)+olvTag+' &nbsp;<strong>'+mysets+'-'+oppsets+'</strong> &nbsp;'+chips+'</div>'
         +'<div style="color:#888;font-size:11px;">'+(m.match_date||'')+' · '+(m.match_type||'')+(m.event&&m.event.toLowerCase()!=='social'?' · '+m.event:'')+'</div></div>'
         +'</div>';
     });
