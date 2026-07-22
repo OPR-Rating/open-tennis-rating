@@ -1482,7 +1482,11 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.19-02";  // FIX: tournament buttons built via JS handlers (apostrophe in Men's broke inline onclick -> empty tables)
+const OPR_VERSION = "OTR-LAPTOP v2026.07.22-01";  // Minimal individual ladder (Rank/Name/Rating/Level, tap row -> profile); profile match rows show opposing side's level
+// One-liner above the individual ladder — sets expectations; the profile carries the story.
+const LADDER_NOTE = '<div style="padding:10px 14px;background:rgba(15,110,86,.08);border:1px solid rgba(15,110,86,.30);border-radius:10px;margin:14px 12px 12px;font-size:12px;color:#0d4a38;line-height:1.5;">Ratings reflect who you beat and how convincingly — tap any player for their story.</div>';
+// Row-tap -> profile, by index (names never enter an HTML attribute, so apostrophes are safe).
+function ladProfile(i){ const p=(window._singlesRows||[])[i]; if(p) loadProfile(p.name, window._singlesGender||'M'); }
 
 // ---- Excel/CSV export (laptop) ----------------------------------------
 // Generic: reads any rendered <table> and downloads it as a clean CSV that
@@ -1631,12 +1635,13 @@ async function loadLadder(type, title) {
     if(type==='mens' || type==='ladies'){
       // SINGLES ladder — unified headings: Rank, Name, Rating, Level, Sets Played, Sets Won, % Won
       const g = (type==='mens') ? 'M' : 'F';
-      const data = await sbGet(`player_results?select=name,current_rating,sets_played,sets_won,set_win_pct&gender=eq.${g}&order=current_rating.desc&club_id=eq.${CLUB_ID}`);
-      html = '<table class="ladder-table"><thead><tr><th>Rank</th><th>Name</th><th>Rating</th><th>Level</th><th>Sets</th><th>Won</th><th>% Won</th></tr></thead><tbody>';
+      const data = await sbGet(`player_results?select=name,current_rating&gender=eq.${g}&order=current_rating.desc&club_id=eq.${CLUB_ID}`);
+      window._singlesRows = data; window._singlesGender = g;
+      html = LADDER_NOTE;
+      html += '<table class="ladder-table"><thead><tr><th>Rank</th><th>Name</th><th>Rating</th><th>Level</th></tr></thead><tbody>';
       data.forEach((p,i)=>{
         const lvl = (p.current_rating/200).toFixed(1);
-        const swp = p.set_win_pct==null?'—':Number(p.set_win_pct).toFixed(1);
-        html += `<tr><td>${rankBadge(i+1)}</td><td>${p.name}</td><td>${Math.round(p.current_rating)}</td><td>${lvl}</td><td>${p.sets_played==null?'—':Math.round(p.sets_played)}</td><td>${p.sets_won==null?'—':Math.round(p.sets_won)}</td><td>${swp}</td></tr>`;
+        html += `<tr style="cursor:pointer;" onclick="ladProfile(${i})"><td>${rankBadge(i+1)}</td><td>${p.name}</td><td>${Math.round(p.current_rating)}</td><td>${lvl}</td></tr>`;
       });
       html += '</tbody></table>';
     } else {
@@ -1964,6 +1969,16 @@ async function loadProfileIndividual(name, gender) {
     });
     const setWinPct = setsPlayed>0 ? Math.round(setsWon/setsPlayed*100*10)/10 : '-';
 
+    // Ratings map for the whole club (one fetch) — used to show the OPPOSING side's
+    // level on each match row. Level = rating/200 (same definition as everywhere).
+    const allPR = await sbGet(`player_results?select=name,current_rating&club_id=eq.${CLUB_ID}`);
+    const rmap={}; (allPR||[]).forEach(r=>{ if(r.name!=null && r.current_rating!=null) rmap[r.name]=r.current_rating; });
+    const oppLevel=(o1,o2)=>{
+      if(o2==null){ return (o1 in rmap)?(rmap[o1]/200).toFixed(1):null; }              // singles: the one opponent
+      if((o1 in rmap)&&(o2 in rmap)) return (((rmap[o1]+rmap[o2])/2)/200).toFixed(1);  // doubles: avg of the two
+      return null;                                                                      // missing rating -> no level shown
+    };
+
     let matchHTML='';
     if(playerMatches.length>0){
       matchHTML = `<div class="section-header">Match History (${playerMatches.length})</div>`;
@@ -1976,11 +1991,14 @@ async function loadProfileIndividual(name, gender) {
         const mysets = onT1 ? (m.t1_sets||0) : (m.t2_sets||0);
         const oppsets = onT1 ? (m.t2_sets||0) : (m.t1_sets||0);
         const won = mysets>oppsets;
+        const oppNames = opp2!=null ? `${opp1} & ${opp2}` : `${opp1}`;
+        const ol = oppLevel(opp1, opp2);
+        const olTag = ol!=null ? ` <span style="color:#12855F;font-weight:700;">(L ${ol})</span>` : '';
         matchHTML+=`<div class="match-row" onclick="toggleProfileMatch(${midx})" style="cursor:pointer;" id="pmatch_${midx}">
             <span class="${won?'win-badge':'loss-badge'}">${won?'W':'L'}</span>
             <div class="match-info">
-              <div class="partners">With ${partner||'-'}</div>
-              <div class="opponents">vs ${opp1} & ${opp2}</div>
+              <div class="partners">${partner!=null?('With '+partner):'Singles'}</div>
+              <div class="opponents">vs ${oppNames}${olTag}</div>
             </div>
             <div class="match-meta">
               <div class="score">${mysets}-${oppsets}</div>
