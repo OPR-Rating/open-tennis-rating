@@ -1490,9 +1490,9 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.20-01";  // Two-box ratings ladder: win% grouped as record ("For info — not used for rank"), separate from rating drivers
-// Plain-English line shown above the ratings ladders — explains that win% is a record, not a rank driver.
-const RANK_DRIVERS_NOTE = '<div style="padding:10px 14px;background:rgba(15,110,86,.08);border:1px solid rgba(15,110,86,.30);border-radius:10px;margin:14px 12px 12px;font-size:12px;color:#0d4a38;line-height:1.5;">Your rating is driven by who you beat and how convincingly — <strong>not by win\u00a0%</strong>. The stats on the right are your record, for interest.</div>';
+const OPR_VERSION = "OTR-LAPTOP v2026.07.20-03";  // Full parity: Avg Opp + Game Diff/Set as drivers on BOTH singles and doubles ladders; Sets/Won/Win% in record box; identical structure
+// Plain-English line shown above the ratings ladders — explains what drives rank vs what's just record.
+const RANK_DRIVERS_NOTE = '<div style="padding:10px 14px;background:rgba(15,110,86,.08);border:1px solid rgba(15,110,86,.30);border-radius:10px;margin:14px 12px 12px;font-size:12px;color:#0d4a38;line-height:1.5;">Rank reflects <strong>who you beat</strong> (avg opponent) and <strong>how convincingly</strong> (game difference per set) — <strong>not</strong> how many sets you played or won. The stats on the right are your record, for interest.</div>';
 
 // ---- Excel/CSV export (laptop) ----------------------------------------
 // Generic: reads any rendered <table> and downloads it as a clean CSV that
@@ -1641,15 +1641,17 @@ async function loadLadder(type, title) {
     if(type==='mens' || type==='ladies'){
       // SINGLES ladder — unified headings: Rank, Name, Rating, Level, Sets Played, Sets Won, % Won
       const g = (type==='mens') ? 'M' : 'F';
-      const data = await sbGet(`player_results?select=name,current_rating,sets_played,sets_won,set_win_pct&gender=eq.${g}&order=current_rating.desc&club_id=eq.${CLUB_ID}`);
+      const data = await sbGet(`player_results?select=name,current_rating,sets_played,sets_won,set_win_pct,game_diff_per_set,avg_opponent_rating&gender=eq.${g}&order=current_rating.desc&club_id=eq.${CLUB_ID}`);
       html += RANK_DRIVERS_NOTE;
       html += '<table class="ladder-table"><thead>'
-        + '<tr class="grp-row"><th class="grp-drivers" colspan="6">What determines your rating &amp; rank</th><th class="grp-info" colspan="1">For info — not used for rank</th></tr>'
-        + '<tr><th>Rank</th><th>Name</th><th>Rating</th><th>Level</th><th>Sets</th><th class="col-divider">Won</th><th class="info-col">% Won</th></tr></thead><tbody>';
+        + '<tr class="grp-row"><th class="grp-drivers" colspan="6">What determines your rating &amp; rank</th><th class="grp-info" colspan="3">For info — your record, not used for rank</th></tr>'
+        + '<tr><th>Rank</th><th>Name</th><th>Rating</th><th>Level</th><th>Avg&nbsp;Opp</th><th class="col-divider">Game&nbsp;Diff/Set</th><th class="info-col">Sets</th><th class="info-col">Won</th><th class="info-col">%&nbsp;Won</th></tr></thead><tbody>';
       data.forEach((p,i)=>{
         const lvl = (p.current_rating/200).toFixed(1);
         const swp = p.set_win_pct==null?'—':Number(p.set_win_pct).toFixed(1);
-        html += `<tr><td>${rankBadge(i+1)}</td><td>${p.name}</td><td>${Math.round(p.current_rating)}</td><td>${lvl}</td><td>${p.sets_played==null?'—':Math.round(p.sets_played)}</td><td class="col-divider">${p.sets_won==null?'—':Math.round(p.sets_won)}</td><td class="info-col">${swp}</td></tr>`;
+        const gd = p.game_diff_per_set==null?'—':(p.game_diff_per_set>0?'+':'')+Number(p.game_diff_per_set).toFixed(2);
+        const ao = p.avg_opponent_rating==null?'—':Math.round(p.avg_opponent_rating);
+        html += `<tr><td>${rankBadge(i+1)}</td><td>${p.name}</td><td>${Math.round(p.current_rating)}</td><td>${lvl}</td><td>${ao}</td><td class="col-divider">${gd}</td><td class="info-col">${p.sets_played==null?'—':Math.round(p.sets_played)}</td><td class="info-col">${p.sets_won==null?'—':Math.round(p.sets_won)}</td><td class="info-col">${swp}</td></tr>`;
       });
       html += '</tbody></table>';
     } else {
@@ -1657,19 +1659,21 @@ async function loadLadder(type, title) {
       const catMap={'mensdoubles':"Men's",'ladiesdoubles':'Ladies','mixed':'Mixed','allsorts':'All Sorts','universal':'Universal'};
       const cat = catMap[type];
       const usesCombined = (cat==="Men's" || cat==='Ladies');
-      const data = await sbGet(`doubles_results?select=rank,p1,p2,combined,weighted,level,sets,sets_won,set_win_pct&category=eq.${encodeURIComponent(cat)}&order=rank.asc&club_id=eq.${CLUB_ID}`);
+      const data = await sbGet(`doubles_results?select=rank,p1,p2,combined,weighted,level,sets,sets_won,set_win_pct,game_diff_per_set,avg_opponent_rating&category=eq.${encodeURIComponent(cat)}&order=rank.asc&club_id=eq.${CLUB_ID}`);
       window._doublesRows = data;
       window._doublesCat = cat;
       const ratingHdr = usesCombined ? 'Rating (Comb)' : 'Rating (Wtd)';
       html += RANK_DRIVERS_NOTE;
       html += `<table class="ladder-table"><thead>`
-        + `<tr class="grp-row"><th class="grp-drivers" colspan="6">What determines your rating &amp; rank</th><th class="grp-info" colspan="1">For info — not used for rank</th></tr>`
-        + `<tr><th>Rank</th><th>Pair</th><th>${ratingHdr}</th><th>Level</th><th>Sets</th><th class="col-divider">Won</th><th class="info-col">% Won</th></tr></thead><tbody>`;
+        + `<tr class="grp-row"><th class="grp-drivers" colspan="6">What determines your rating &amp; rank</th><th class="grp-info" colspan="3">For info — your record, not used for rank</th></tr>`
+        + `<tr><th>Rank</th><th>Pair</th><th>${ratingHdr}</th><th>Level</th><th>Avg&nbsp;Opp</th><th class="col-divider">Game&nbsp;Diff/Set</th><th class="info-col">Sets</th><th class="info-col">Won</th><th class="info-col">%&nbsp;Won</th></tr></thead><tbody>`;
       data.forEach((p,i)=>{
         const rating = usesCombined ? Math.round(p.combined) : Math.round(p.weighted);
         const swp = p.set_win_pct==null?'—':Number(p.set_win_pct).toFixed(1);
-        html += `<tr class="pair-row" style="cursor:pointer;" onclick="togglePairMatches(${i})" id="pairrow_${i}"><td>${rankBadge(p.rank)}</td><td>${p.p1} & ${p.p2} <span style="color:#12855F;font-size:10px;">▼</span></td><td>${rating}</td><td>${Number(p.level).toFixed(1)}</td><td>${p.sets}</td><td class="col-divider">${p.sets_won==null?'—':Math.round(p.sets_won)}</td><td class="info-col">${swp}</td></tr>`;
-        html += `<tr id="pairdetail_${i}" style="display:none;"><td colspan="7" style="background:rgba(15,110,86,.12);padding:0;"><div id="pairdetailinner_${i}" style="padding:10px 14px;font-size:12px;"></div></td></tr>`;
+        const gd = p.game_diff_per_set==null?'—':(p.game_diff_per_set>0?'+':'')+Number(p.game_diff_per_set).toFixed(2);
+        const ao = p.avg_opponent_rating==null?'—':Math.round(p.avg_opponent_rating);
+        html += `<tr class="pair-row" style="cursor:pointer;" onclick="togglePairMatches(${i})" id="pairrow_${i}"><td>${rankBadge(p.rank)}</td><td>${p.p1} & ${p.p2} <span style="color:#12855F;font-size:10px;">▼</span></td><td>${rating}</td><td>${Number(p.level).toFixed(1)}</td><td>${ao}</td><td class="col-divider">${gd}</td><td class="info-col">${p.sets}</td><td class="info-col">${p.sets_won==null?'—':Math.round(p.sets_won)}</td><td class="info-col">${swp}</td></tr>`;
+        html += `<tr id="pairdetail_${i}" style="display:none;"><td colspan="9" style="background:rgba(15,110,86,.12);padding:0;"><div id="pairdetailinner_${i}" style="padding:10px 14px;font-size:12px;"></div></td></tr>`;
       });
       html += '</tbody></table>';
     }
