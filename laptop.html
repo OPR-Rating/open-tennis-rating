@@ -1482,7 +1482,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.22-02";  // Minimal individual ladder + opposing side's level on profile AND pair match histories
+const OPR_VERSION = "OTR-LAPTOP v2026.07.22-03";  // Match rows show opponent rating + level (1538 · L 7.7) on profile AND pair histories
 // One-liner above the individual ladder — sets expectations; the profile carries the story.
 const LADDER_NOTE = '<div style="padding:10px 14px;background:rgba(15,110,86,.08);border:1px solid rgba(15,110,86,.30);border-radius:10px;margin:14px 12px 12px;font-size:12px;color:#0d4a38;line-height:1.5;">Ratings reflect who you beat and how convincingly — tap any player for their story.</div>';
 // Row-tap -> profile, by index (names never enter an HTML attribute, so apostrophes are safe).
@@ -1586,10 +1586,12 @@ async function togglePairMatches(i){
       window._rmapCache=rm;
     }
     const rmap=window._rmapCache;
-    const oppLv=(o1,o2)=>{
-      if(o2==null){ return (o1 in rmap)?(rmap[o1]/200).toFixed(1):null; }
-      if((o1 in rmap)&&(o2 in rmap)) return (((rmap[o1]+rmap[o2])/2)/200).toFixed(1);
-      return null;
+    const oppTag=(o1,o2)=>{
+      let r=null;
+      if(o2==null){ r=(o1 in rmap)?rmap[o1]:null; }
+      else if((o1 in rmap)&&(o2 in rmap)){ r=(rmap[o1]+rmap[o2])/2; }
+      if(r==null) return '';
+      return ' <span style="color:#12855F;font-weight:700;">('+Math.round(r)+' · L '+(r/200).toFixed(1)+')</span>';
     };
     let h='<div style="font-weight:700;color:#0d4a38;margin-bottom:6px;">'+a+' & '+b+' — match history</div>';
     rows.forEach(m=>{
@@ -1599,8 +1601,7 @@ async function togglePairMatches(i){
       const mysets = pairOnT1 ? (m.t1_sets||0) : (m.t2_sets||0);
       const oppsets = pairOnT1 ? (m.t2_sets||0) : (m.t1_sets||0);
       const won = mysets>oppsets;
-      const olv = oppLv(opp1, opp2);
-      const olvTag = olv!=null ? ' <span style="color:#12855F;font-weight:700;">(L '+olv+')</span>' : '';
+      const olvTag = oppTag(opp1, opp2);
       // per-set chips from set_scores (T1-T2 perspective -> flip if pair was T2)
       let chips='';
       const ss=(m.set_scores||'').trim();
@@ -1987,10 +1988,12 @@ async function loadProfileIndividual(name, gender) {
     // level on each match row. Level = rating/200 (same definition as everywhere).
     const allPR = await sbGet(`player_results?select=name,current_rating&club_id=eq.${CLUB_ID}`);
     const rmap={}; (allPR||[]).forEach(r=>{ if(r.name!=null && r.current_rating!=null) rmap[r.name]=r.current_rating; });
-    const oppLevel=(o1,o2)=>{
-      if(o2==null){ return (o1 in rmap)?(rmap[o1]/200).toFixed(1):null; }              // singles: the one opponent
-      if((o1 in rmap)&&(o2 in rmap)) return (((rmap[o1]+rmap[o2])/2)/200).toFixed(1);  // doubles: avg of the two
-      return null;                                                                      // missing rating -> no level shown
+    const oppTag=(o1,o2)=>{
+      let r=null;
+      if(o2==null){ r=(o1 in rmap)?rmap[o1]:null; }                                   // singles: the one opponent
+      else if((o1 in rmap)&&(o2 in rmap)){ r=(rmap[o1]+rmap[o2])/2; }                 // doubles: avg of the two
+      if(r==null) return '';
+      return ` <span style="color:#12855F;font-weight:700;">(${Math.round(r)} · L ${(r/200).toFixed(1)})</span>`;
     };
 
     let matchHTML='';
@@ -2006,8 +2009,7 @@ async function loadProfileIndividual(name, gender) {
         const oppsets = onT1 ? (m.t2_sets||0) : (m.t1_sets||0);
         const won = mysets>oppsets;
         const oppNames = opp2!=null ? `${opp1} & ${opp2}` : `${opp1}`;
-        const ol = oppLevel(opp1, opp2);
-        const olTag = ol!=null ? ` <span style="color:#12855F;font-weight:700;">(L ${ol})</span>` : '';
+        const olTag = oppTag(opp1, opp2);
         matchHTML+=`<div class="match-row" onclick="toggleProfileMatch(${midx})" style="cursor:pointer;" id="pmatch_${midx}">
             <span class="${won?'win-badge':'loss-badge'}">${won?'W':'L'}</span>
             <div class="match-info">
