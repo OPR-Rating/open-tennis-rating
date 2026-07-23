@@ -100,9 +100,10 @@
   .profile-rating { font-size: 48px; font-weight: 800; margin: 6px 0; line-height: 1; }
   .profile-level { font-size: 18px; font-weight: 600; opacity: 0.95; margin-bottom: 4px; }
   .profile-rank { font-size: 13px; opacity: 0.8; }
-  .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
   .stat-card { background: rgba(15,110,86,.12); border-radius: 10px; padding: 10px 6px; text-align: center; }
-  .stat-value { font-size: 20px; font-weight: 700; color: #0F6E56; }
+  .stat-value { font-size: 20px; font-weight: 700; color: #0F6E56; white-space: nowrap; }
+  .stat-grid .stat-card:nth-child(4) .stat-value { font-size: 18px; }
   .stat-label { font-size: 10px; color: #888; margin-top: 2px; }
 
   /* Match History */
@@ -1482,9 +1483,39 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.22-03";  // Match rows show opponent rating + level (1538 · L 7.7) on profile AND pair histories
-// One-liner above the individual ladder — sets expectations; the profile carries the story.
-const LADDER_NOTE = '<div style="padding:10px 14px;background:rgba(15,110,86,.08);border:1px solid rgba(15,110,86,.30);border-radius:10px;margin:14px 12px 12px;font-size:12px;color:#0d4a38;line-height:1.5;">Ratings reflect who you beat and how convincingly — tap any player for their story.</div>';
+const OPR_VERSION = "OTR-LAPTOP v2026.07.22-09";  // Game Diff/Set on profiles (no + sign, matches Form wall formatting)
+// Explanation shown above the individual ladder. Open on load so it's read; collapsible
+// (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
+// members aren't nudged away from playing stronger opponents. Every clause maps to a real
+// engine term: sets played = `total`; opponent strength = N via M; expected vs actual =
+// `surprise`; margin of win or loss = `margin` (set + game margin, NOT a win/loss ratio).
+function ladderNoteHTML(){
+  const open = (window._ladderNoteOpen !== false);
+  return '<div id="ladderNoteBox" style="margin:14px 12px 14px;border-left:4px solid #12855F;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);">'
+    + '<div onclick="toggleLadderNote()" style="cursor:pointer;display:flex;align-items:center;gap:8px;'
+      + 'padding:11px 16px;background:rgba(15,110,86,.14);border:1px solid rgba(15,110,86,.35);border-left:none;'
+      + 'font-size:14px;font-weight:800;letter-spacing:.2px;color:#083b2c;">'
+      + '<span>How a Rating is Calculated</span>'
+      + '<span id="ladderNoteChevron" style="margin-left:auto;font-size:11px;">' + (open?'&#9650;':'&#9660;') + '</span>'
+    + '</div>'
+    + '<div id="ladderNoteBody" style="display:' + (open?'block':'none') + ';padding:12px 16px 13px;'
+      + 'background:rgba(15,110,86,.07);border:1px solid rgba(15,110,86,.35);border-top:none;border-left:none;'
+      + 'font-size:13px;font-weight:500;color:#0d4a38;line-height:1.6;">'
+      + 'A rating is <strong>not only</strong> based on who won — it is a combination of '
+      + '<strong>sets played</strong>, the <strong>opponent\'s strength</strong>, the '
+      + '<strong>expected vs actual result</strong>, and the <strong>margin of win or loss</strong>.'
+      + '<div style="margin-top:8px;font-weight:600;color:#12855F;">Tap any player for their story.</div>'
+    + '</div></div>';
+}
+function toggleLadderNote(){
+  const body=document.getElementById('ladderNoteBody');
+  const chev=document.getElementById('ladderNoteChevron');
+  if(!body) return;
+  const nowOpen = (body.style.display==='none');
+  body.style.display = nowOpen ? 'block' : 'none';
+  if(chev) chev.innerHTML = nowOpen ? '&#9650;' : '&#9660;';
+  window._ladderNoteOpen = nowOpen;   // remembered for this session
+}
 // Row-tap -> profile, by index (names never enter an HTML attribute, so apostrophes are safe).
 function ladProfile(i){ const p=(window._singlesRows||[])[i]; if(p) loadProfile(p.name, window._singlesGender||'M'); }
 
@@ -1652,7 +1683,7 @@ async function loadLadder(type, title) {
       const g = (type==='mens') ? 'M' : 'F';
       const data = await sbGet(`player_results?select=name,current_rating&gender=eq.${g}&order=current_rating.desc&club_id=eq.${CLUB_ID}`);
       window._singlesRows = data; window._singlesGender = g;
-      html = LADDER_NOTE;
+      html = ladderNoteHTML();
       html += '<table class="ladder-table"><thead><tr><th>Rank</th><th>Name</th><th>Rating</th><th>Level</th></tr></thead><tbody>';
       data.forEach((p,i)=>{
         const lvl = (p.current_rating/200).toFixed(1);
@@ -1974,15 +2005,19 @@ async function loadProfileIndividual(name, gender) {
     const playerMatches = await sbGet(q);
     window._profileMatches = playerMatches;
 
-    // Compute sets played / won / win% from the player's matches
-    let setsPlayed=0, setsWon=0;
+    // Compute sets played / won / win% / game diff per set from the player's matches
+    let setsPlayed=0, setsWon=0, gamesFor=0, gamesAgainst=0;
     playerMatches.forEach(m=>{
       const onT1 = (m.t1p1===name||m.t1p2===name);
       const ts=(m.t1_sets||0)+(m.t2_sets||0);
       setsPlayed+=ts;
       setsWon += onT1 ? (m.t1_sets||0) : (m.t2_sets||0);
+      gamesFor     += onT1 ? (m.t1_games||0) : (m.t2_games||0);
+      gamesAgainst += onT1 ? (m.t2_games||0) : (m.t1_games||0);
     });
     const setWinPct = setsPlayed>0 ? Math.round(setsWon/setsPlayed*100*10)/10 : '-';
+    const gdps = setsPlayed>0 ? Math.round((gamesFor-gamesAgainst)/setsPlayed*100)/100 : null;
+    const gdpsTxt = gdps==null ? '-' : gdps.toFixed(2);
 
     // Ratings map for the whole club (one fetch) — used to show the OPPOSING side's
     // level on each match row. Level = rating/200 (same definition as everywhere).
@@ -2038,6 +2073,7 @@ async function loadProfileIndividual(name, gender) {
         <div class="stat-card"><div class="stat-value">${setsPlayed}</div><div class="stat-label">Sets Played</div></div>
         <div class="stat-card"><div class="stat-value">${setsWon}</div><div class="stat-label">Sets Won</div></div>
         <div class="stat-card"><div class="stat-value">${setWinPct}%</div><div class="stat-label">Win %</div></div>
+        <div class="stat-card"><div class="stat-value">${gdpsTxt}</div><div class="stat-label">Game Diff/Set</div></div>
       </div>
       ${matchHTML}`;
   } catch(e){
@@ -2102,13 +2138,17 @@ async function profileShowPartner(partner){
     const together = await sbGet(q);
     window._profilePartnerMatches = together;
 
-    let setsPlayed=0, setsWon=0;
+    let setsPlayed=0, setsWon=0, gamesFor=0, gamesAgainst=0;
     together.forEach(m=>{
       const onT1=((m.t1p1===name||m.t1p2===name));
       setsPlayed += (m.t1_sets||0)+(m.t2_sets||0);
       setsWon += onT1 ? (m.t1_sets||0) : (m.t2_sets||0);
+      gamesFor     += onT1 ? (m.t1_games||0) : (m.t2_games||0);
+      gamesAgainst += onT1 ? (m.t2_games||0) : (m.t1_games||0);
     });
     const winPct = setsPlayed>0 ? Math.round(setsWon/setsPlayed*100*10)/10 : '-';
+    const gdpsP = setsPlayed>0 ? Math.round((gamesFor-gamesAgainst)/setsPlayed*100)/100 : null;
+    const gdpsPTxt = gdpsP==null ? '-' : gdpsP.toFixed(2);
 
     let matchHTML='';
     if(together.length>0){
@@ -2148,6 +2188,7 @@ async function profileShowPartner(partner){
         <div class="stat-card"><div class="stat-value">${setsPlayed}</div><div class="stat-label">Sets Played</div></div>
         <div class="stat-card"><div class="stat-value">${setsWon}</div><div class="stat-label">Sets Won</div></div>
         <div class="stat-card"><div class="stat-value">${winPct}${winPct==='-'?'':'%'}</div><div class="stat-label">Win %</div></div>
+        <div class="stat-card"><div class="stat-value">${gdpsPTxt}</div><div class="stat-label">Game Diff/Set</div></div>
       </div>
       ${matchHTML}`;
   } catch(e){
