@@ -118,9 +118,10 @@
   .match-meta { text-align: right; flex-shrink: 0; }
   /* Rating movement for the match, shown inline right after the opponent's rating so the
      row reads as one causal chain: who you played, how strong they were, what it was worth.
-     ONE neutral colour for gains and losses — the sign carries the direction. */
-  .rating-move { font-weight: 800; font-size: 12.5px; color: #0d4a38;
-    font-variant-numeric: tabular-nums; white-space: nowrap; margin-left: 6px; }
+     Styled to MATCH the opponent tag beside it (same weight and colour) so the two read as
+     one unit rather than competing. ONE colour for gains and losses — the sign carries it. */
+  .rating-move { font-weight: 700; color: #12855F;
+    font-variant-numeric: tabular-nums; white-space: nowrap; margin-left: 5px; }
   .match-meta .score { font-weight: 700; color: #0F6E56; }
   .match-meta .date { font-size: 10px; color: #aaa; }
 
@@ -1488,7 +1489,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.23-02";  // Rating movement shown inline beside the opponent rating, no label
+const OPR_VERSION = "OTR-LAPTOP v2026.07.23-03";  // Rating movement in brackets, styled to match the opponent rating tag
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -1643,7 +1644,7 @@ async function togglePairMatches(i){
       let mvTag='';
       if(m.rating_delta!=null){
         const dv = pairOnT1 ? Number(m.rating_delta) : -Number(m.rating_delta);
-        mvTag = '<span style="font-weight:800;font-size:12.5px;color:#0d4a38;font-variant-numeric:tabular-nums;white-space:nowrap;margin-left:6px;">'+((dv>0?'+':'')+dv.toFixed(1))+'</span>';
+        mvTag = '<span style="font-weight:700;color:#12855F;font-variant-numeric:tabular-nums;white-space:nowrap;margin-left:5px;">('+((dv>0?'+':'')+dv.toFixed(1))+')</span>';
       }
       // per-set chips from set_scores (T1-T2 perspective -> flip if pair was T2)
       let chips='';
@@ -2052,7 +2053,7 @@ async function loadProfileIndividual(name, gender) {
       if(delta==null) return '';
       const d = onT1 ? Number(delta) : -Number(delta);
       const txt = (d>0?'+':'') + d.toFixed(1);
-      return `<span class="rating-move">${txt}</span>`;
+      return `<span class="rating-move">(${txt})</span>`;
     };
 
     let matchHTML='';
@@ -2204,7 +2205,7 @@ async function profileShowPartner(partner){
         let mvTag2='';
         if(m.rating_delta!=null){
           const d2 = onT1 ? Number(m.rating_delta) : -Number(m.rating_delta);
-          mvTag2 = `<span class="rating-move">${(d2>0?'+':'')+d2.toFixed(1)}</span>`;
+          mvTag2 = `<span class="rating-move">(${(d2>0?'+':'')+d2.toFixed(1)})</span>`;
         }
         matchHTML+=`<div class="match-row" onclick="togglePartnerMatch(${midx})" style="cursor:pointer;" id="ppmatch_${midx}">
             <span class="${won?'win-badge':'loss-badge'}">${won?'W':'L'}</span>
