@@ -116,7 +116,10 @@
   .match-info .partners { font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .match-info .opponents { color: #666; white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
   .match-info .opponents .rating-move { white-space: nowrap; }
-  .match-meta { text-align: right; flex-shrink: 0; }
+  /* Fixed width so the widest category label ("Ladies Singles ▼") never steals
+     space from .match-info — this keeps the rating-tag and move columns aligned
+     vertically across every row regardless of category name length. */
+  .match-meta { text-align: right; flex-shrink: 0; min-width: 96px; }
   /* Rating movement for the match, shown inline right after the opponent's rating so the
      row reads as one causal chain: who you played, how strong they were, what it was worth.
      Styled to MATCH the opponent tag beside it (same weight and colour) so the two read as
@@ -420,7 +423,7 @@
   .amr-date{ color:#888; font-size:11px; }
   /* profile row (no chips): just two bracket columns; score/▼ stay in .match-meta */
   .opponents.amr-prof{ display:grid; align-items:baseline; column-gap:6px;
-    grid-template-columns:minmax(0,1fr) 76px 56px; }
+    grid-template-columns:minmax(0,1fr) 84px 60px; }
   .opponents.amr-prof .amr-pnm{ min-width:0; }
   .opponents.amr-prof .amr-rl{ justify-self:start; }
   .opponents.amr-prof .amr-mv{ justify-self:start; }
@@ -441,7 +444,7 @@
     .amr-date{ margin:2px 0 0 0; }
     .opponents.amr-prof{ display:block; }
     .opponents.amr-prof .amr-pnm{ display:block; width:100%; white-space:normal; overflow-wrap:normal; word-break:normal; }
-    .opponents.amr-prof .amr-rl{ display:inline-block; width:76px; margin-top:3px; }
+    .opponents.amr-prof .amr-rl{ display:inline-block; width:84px; margin-top:3px; }
     .opponents.amr-prof .amr-mv{ display:inline-block; margin-left:6px; }
   }
 </style>
@@ -1532,7 +1535,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.26-01";  // + Round Robin format (single-group, circle method, byes shown, table winner)
+const OPR_VERSION = "OTR-LAPTOP v2026.07.26-02";  // + Round Robin format; profile match-row alignment (fixed meta width so category length can't shift the rating/delta columns)
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
