@@ -1535,7 +1535,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.26-02";  // + Round Robin format; profile match-row alignment (fixed meta width so category length can't shift the rating/delta columns)
+const OPR_VERSION = "OTR-LAPTOP v2026.07.26-03";  // RR: suppress Swiss Finals tab on round robin; standings header clarified to "Sets Won"
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -4187,8 +4187,8 @@ async function loadTournamentSheet(tournament, division) {
   function standingsHTML() {
     if(!N) return '<div class="card"><p class="sub">No teams yet.</p></div>';
     let h = '<div class="card"><h2>Standings <span class="tm-divtag">' + TM_DIVISION + '</span></h2>'
-      + '<p class="sub">After Round ' + maxPlayed + ' · Sets → Games → Game diff</p>'
-      + '<table><thead><tr><th class="num">#</th><th>Team</th><th class="num">P</th><th class="num">Sets</th><th class="num">G.Won</th><th class="num">G.Diff</th></tr></thead><tbody>';
+      + '<p class="sub">After Round ' + maxPlayed + ' · Sets won → Games won → Game diff</p>'
+      + '<table><thead><tr><th class="num">#</th><th>Team</th><th class="num">P</th><th class="num">Sets Won</th><th class="num">G.Won</th><th class="num">G.Diff</th></tr></thead><tbody>';
     standings(maxPlayed).forEach((r, i) => {
       h += '<tr><td class="num"><span class="rank' + (i === 0 ? ' top' : '') + '">' + (i + 1) + '</span></td>'
         + '<td><b>' + tName(r.seed) + '</b></td>'
@@ -4264,7 +4264,12 @@ async function loadTournamentSheet(tournament, division) {
   function render() {
     const swissFix = fixtures.filter(f=> f.round < 90);
     const swissComplete = swissFix.length>0 && swissFix.every(f=> f.sets_a!=null);
-    const showFinals = swissComplete || finalsFix.length>0;
+    // Round robin uses table-winner standings, NOT the Swiss top-4 semis/final
+    // playoff. Detect RR and suppress the Finals tab for it — a completed RR trips
+    // swissComplete (all rounds done) but must never show the Swiss Finals machinery.
+    // (RR's own group->knockout playoff is a separate, later build.)
+    const _isRR = fixtures.some(f=> f.round_type==='rr');
+    const showFinals = (swissComplete || finalsFix.length>0) && !_isRR;
     const _ko = isKnockoutDiv();
     const tabs = _ko
       ? [['teams', '👥 Teams & Bands'], ['rounds', '🎾 Rounds'], ['bracket', '🗂 Bracket'], ['standings', '📊 Standings']]
