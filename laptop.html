@@ -818,6 +818,7 @@
               <select id="atFormat" class="ac-field">
                 <option value="swiss">Banded Swiss — everyone keeps playing, ranked by results</option>
                 <option value="knockout">Knockout + Plate — single elimination, losers drop to a Plate</option>
+                <option value="round_robin">Round Robin — everyone plays everyone, table winner</option>
               </select>
             </div>
             <div id="atDivBlock">
@@ -1531,7 +1532,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.23-08";  // Rating movement in brackets, styled to match the opponent rating tag
+const OPR_VERSION = "OTR-LAPTOP v2026.07.26-01";  // + Round Robin format (single-group, circle method, byes shown, table winner)
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -3545,6 +3546,41 @@ const TM = (function () {
     }
     return { rounds, history, ok: true };
   }
+  // Round robin (circle method): everyone plays everyone once.
+  // -------------------------------------------------------------------------
+  // Generates the COMPLETE single round robin up front as seed pairings,
+  // each tagged with a round number. For an odd field, a phantom BYE (seed 0)
+  // rotates through so exactly one entrant rests each round. All fixtures exist
+  // from generation, so play/entry can happen in ANY order — the round number
+  // is a label and a grouping, never a lock. Returns { rounds:[[ [a,b], ... ], ... ] }
+  // where a bye pairing is [seed, 0]. Standings ignore byes automatically
+  // (a bye never gets a score).
+  function roundRobinRounds(N) {
+    const odd = (N % 2 === 1);
+    const arr = [];
+    for (let s = 1; s <= N; s++) arr.push(s);
+    if (odd) arr.push(0); // BYE marker
+    const M = arr.length;            // even
+    const roundsCount = M - 1;       // classic circle-method round count
+    const half = M / 2;
+    const fixed = arr[0];            // fix first, rotate the rest
+    let rot = arr.slice(1);
+    const rounds = [];
+    for (let r = 0; r < roundsCount; r++) {
+      const ring = [fixed, ...rot];
+      const pairs = [];
+      for (let i = 0; i < half; i++) {
+        const a = ring[i], b = ring[M - 1 - i];
+        // BYE(0) always stored second so tName(0)='BYE' renders correctly
+        if (a === 0) pairs.push([b, 0]);
+        else if (b === 0) pairs.push([a, 0]);
+        else pairs.push(a < b ? [a, b] : [b, a]);
+      }
+      rounds.push(pairs);
+      rot = [rot[rot.length - 1], ...rot.slice(0, rot.length - 1)];
+    }
+    return { rounds, ok: true };
+  }
   // Swiss round from a ranked seed order.
   // -------------------------------------------------------------------------
   // FIX (2026-07): protect TRUE SWISS — strength must meet strength.
@@ -3655,7 +3691,7 @@ const TM = (function () {
   }
 
   return {
-    makeBands, divSplit, bandClass, fixedRounds, swissRound,
+    makeBands, divSplit, bandClass, fixedRounds, swissRound, roundRobinRounds,
     maxSafeRounds, suggestRounds, pairRating, usesCombined,
     readCurrentRating, seedEntries
   };
@@ -3889,6 +3925,18 @@ async function loadTournamentSheet(tournament, division) {
       _rowsThisRound.sort((x,y)=> KO.slotRank(N, x.seed_a, x.seed_b) - KO.slotRank(N, y.seed_a, y.seed_b));
     }
     _rowsThisRound.forEach((f, fi) => {
+      // Round robin bye: an entrant rests this round. Not a match — render as a
+      // non-tappable info row, never scoreable, never counts toward standings.
+      if (f.seed_b === 0) {
+        h += '<tr class="bkt-byerow">'
+          + '<td class="num"><span class="seed' + (f.seed_a === 1 ? ' s1' : '') + '">' + f.seed_a + '</span></td>'
+          + '<td class="ta">' + tName(f.seed_a) + '</td>'
+          + '<td class="num"></td>'
+          + '<td class="tb" style="font-style:italic;color:#999;">bye this round</td>'
+          + '<td class="num"></td>'
+          + '<td class="num"></td></tr>';
+        return;
+      }
       const played = f.sets_a != null;
       const aWin = played && f.sets_a > f.sets_b, bWin = played && f.sets_b > f.sets_a;
       const score = played ? (f.sets_a + '–' + f.sets_b + ' (' + f.games_a + '–' + f.games_b + ')') : '—';
@@ -3903,11 +3951,14 @@ async function loadTournamentSheet(tournament, division) {
     // KO-aware action button: knockout draws advance winners (+ plate); swiss generates next round.
     const _isKO = (rounds[curRound] && rounds[curRound][0] && (rounds[curRound][0].round_type==='ko' || rounds[curRound][0].round_type==='plate'))
                   || Object.values(rounds).some(rr=>rr[0] && (rr[0].round_type==='ko'||rr[0].round_type==='plate'));
+    const _isRR = Object.values(rounds).some(rr=>rr[0] && rr[0].round_type==='rr');
     h += '</tbody></table><p class="sub" style="margin-top:8px;">Tap a fixture to enter or edit its score (admin).</p>';
     if(_isKO){
       h += '<div style="text-align:center;margin-top:10px;"><p class="sub" style="margin:6px 0;">Enter each result here or on the 🗂 Bracket tab — winners advance and the Plate fills automatically. No need to generate rounds.</p>'
         + '<button class="menu-btn" style="display:none;" onclick="tmAdvanceKnockout(window._tmCtx.tournament, window._tmCtx.division)">▶ Advance knockout / plate</button>'
         + '<div class="sub" style="margin-top:6px;">Enter all current-round results, then advance. First-round losers form the Plate automatically.</div></div></div>';
+    } else if(_isRR){
+      h += '<div style="text-align:center;margin-top:10px;"><p class="sub" style="margin:6px 0;">The full round robin is already scheduled. Play the fixtures in any order — the standings table updates as results come in, and the leader is the winner once every fixture is played.</p></div></div>';
     } else {
       h += '<div style="text-align:center;margin-top:10px;"><button class="menu-btn" style="display:inline-block;width:auto;padding:10px 18px;border-color:#12855F;font-weight:700;" onclick="tmGenerateNextRound()">➕ Generate next round (Swiss)</button>'
         + '<div class="sub" style="margin-top:6px;">Enter all current-round results first. Available once the fixed rounds are complete.</div></div></div>';
@@ -4497,7 +4548,7 @@ async function renderEnterScreen(){
     if(trow && trow.length){
       if(trow[0].divisions) allowedDivs = trow[0].divisions.split(',').map(s=>s.trim());
       if(trow[0].caps){ try{ caps = JSON.parse(trow[0].caps); }catch(_){ caps={}; } }
-      window._etTourFormat = (trow[0].format==='knockout') ? 'knockout' : (trow[0].format==='swiss' ? 'swiss' : 'swiss');
+      window._etTourFormat = (trow[0].format==='knockout') ? 'knockout' : (trow[0].format==='round_robin' ? 'round_robin' : 'swiss');
     }
   }catch(e){}
   window._etAllowed = allowedDivs; window._etCaps = caps;
@@ -4621,7 +4672,7 @@ async function renderEnterScreen(){
         genCard += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">'
           + '<input type="range" min="' + plan.minAllowed + '" max="' + plan.maxAllowed + '" value="' + window._etRounds[d] + '" ' + (plan.minAllowed===plan.maxAllowed?'disabled':'') + ' style="flex:1;" oninput="etSetDivRounds(\'' + d.replace(/'/g,"\\'") + '\',this.value,\'' + key + '\')">'
           + '<span id="etRL_' + key + '" style="font-weight:800;color:var(--purple,#0F6E56);min-width:70px;text-align:right;font-size:12px;" id="etRL_' + key + '">' + window._etRounds[d] + ' rounds</span></div>'
-          + '<div style="margin-bottom:8px;font-size:12px;color:#6b6b76;">Format: <b style="color:var(--purple,#0F6E56);">'+((window._etTourFormat==='knockout')?'Knockout + Plate':'Banded Swiss')+'</b> <span style="color:#aaa;">(set when the tournament was created)</span></div>'
+          + '<div style="margin-bottom:8px;font-size:12px;color:#6b6b76;">Format: <b style="color:var(--purple,#0F6E56);">'+((window._etTourFormat==='knockout')?'Knockout + Plate':(window._etTourFormat==='round_robin'?'Round Robin':'Banded Swiss'))+'</b> <span style="color:#aaa;">(set when the tournament was created)</span></div>'
           + '<button class="ac-btn ac-btn-primary" style="width:100%;" onclick="etGenerateDiv(\'' + d.replace(/'/g,"\\'") + '\')">Generate ' + d + ' draw</button>';
       }
       genCard += '</div>';
@@ -4830,6 +4881,11 @@ async function etGenerateDiv(division){
     await tmGenerateKnockoutDraw(tournament, division);
     return;
   }
+  if(fmt==='round_robin'){
+    gmsg.textContent = 'Generating '+division+' round robin…';
+    await tmGenerateRoundRobinDraw(tournament, division);
+    return;
+  }
   // Swiss needs an even field
   if(N % 2 !== 0){ gmsg.innerHTML='<span style="color:#B9770E;">'+division+' has an odd number ('+N+'). Banded Swiss needs an even field — add/remove one, or use Knockout.</span>'; return; }
   const total = (window._etRounds && window._etRounds[division]) || null;
@@ -5003,6 +5059,52 @@ async function tmGenerateFixedDraw(tournament, chosenTotal, division) {
   const fxJson = await fxResp.json().catch(()=>({}));
   if(!fxResp.ok || !fxJson.ok){ alert('Could not write fixtures: ' + ((fxJson&&fxJson.error)||fxResp.status)); return; }
   alert(division + ' draw created: ' + fxJson.count + ' fixtures (' + nFixed + ' fixed rounds; up to ' + (total - nFixed) + ' Swiss to follow).');
+  loadTournamentSheet(tournament, division);
+}
+
+// ---- ROUND ROBIN draw generation (admin). Single group: everyone plays everyone.
+// Generates the COMPLETE schedule up front (circle method) and writes every
+// fixture at once with round_type 'rr'. Byes (odd field) are stored as
+// seed_b=0 with band 'bye' — they render as a non-tappable "bye this round"
+// row and never count toward standings. Reuses the same save_seeds +
+// write_fixtures path as the fixed/Swiss draw. No engine, no schema change.
+async function tmGenerateRoundRobinDraw(tournament, division){
+  if (!TM_ADMIN_PIN) { TM_ADMIN_PIN = prompt('Enter admin PIN to generate the round robin:') || ''; }
+  if (!TM_ADMIN_PIN) return;
+  const entries = TM.seedEntries(await tmLoadEntries(tournament, division));
+  const N = entries.length;
+  if (N < 4) { alert('Need at least 4 teams for a round robin.'); return; }
+
+  const rr = TM.roundRobinRounds(N);
+  if (!rr.ok) { alert('Could not build a round robin for ' + N + ' teams.'); return; }
+
+  // persist seeds (admin-gated, division-scoped) — same as the fixed draw
+  const seedResp = await fetch(SB_URL + '/functions/v1/tournament', {
+    method: 'POST',
+    headers: { apikey: SB_ANON, Authorization: 'Bearer ' + SB_ANON, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action:'save_seeds', club_id: CLUB_ID, admin_pin: TM_ADMIN_PIN,
+      seeds: entries.map(e=>({ id:e.id, seed:e.seed })) })
+  });
+  const seedJson = await seedResp.json().catch(()=>({}));
+  if(!seedResp.ok || !seedJson.ok){ alert('Could not save seeds: ' + ((seedJson&&seedJson.error)||seedResp.status) + '\n\n(Check the admin PIN and that the tournament Edge Function is deployed.)'); return; }
+
+  // flatten every round into fixture rows; byes carry band 'bye'
+  const rows = [];
+  rr.rounds.forEach((pairs, i) => pairs.forEach(([a, b]) => rows.push({
+    tournament, division, round: i + 1, round_type: 'rr',
+    seed_a: a, seed_b: b, band: (b === 0 ? 'bye' : '')
+  })));
+
+  const fxResp = await fetch(SB_URL + '/functions/v1/tournament', {
+    method: 'POST',
+    headers: { apikey: SB_ANON, Authorization: 'Bearer ' + SB_ANON, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action:'write_fixtures', club_id: CLUB_ID, admin_pin: TM_ADMIN_PIN,
+      tournament, division, replace:true, fixtures: rows })
+  });
+  const fxJson = await fxResp.json().catch(()=>({}));
+  if(!fxResp.ok || !fxJson.ok){ alert('Could not write fixtures: ' + ((fxJson&&fxJson.error)||fxResp.status)); return; }
+  const byes = rows.filter(r=>r.seed_b===0).length;
+  alert(division + ' round robin created: ' + fxJson.count + ' fixtures across ' + rr.rounds.length + ' rounds' + (byes ? (' (' + byes + ' byes)') : '') + '. Play them in any order — the table decides the winner.');
   loadTournamentSheet(tournament, division);
 }
 
