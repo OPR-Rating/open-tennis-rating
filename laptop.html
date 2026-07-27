@@ -1553,7 +1553,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.26-06";  // RR: allow odd fields on generate card (bye handles it); skip Swiss rounds slider for RR
+const OPR_VERSION = "OTR-LAPTOP v2026.07.27-01";  // RR Piece 2a: group stage — single group or split (block=tiers / snake=balanced), group-aware generation + group standings. NEEDS updated tournament edge fn (save_seeds writes grp).
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -3632,6 +3632,54 @@ const TM = (function () {
     }
     return { rounds, ok: true };
   }
+
+  // Group-stage allocation (Piece 2a).
+  // -------------------------------------------------------------------------
+  // validSplits(N): the group configurations that are PLAYABLE for a field of N.
+  // A split into G groups is offered only when it yields whole groups (N divisible
+  // by G) of a sensible size (4..8 per group) AND at least 2 groups (1 group is the
+  // plain round robin, offered separately). Returns [{ groups, perGroup }, ...]
+  // sorted by group count ascending. A group of 3 is deliberately excluded (too thin).
+  function validSplits(N) {
+    const out = [];
+    for (let g = 2; g <= Math.floor(N / 2); g++) {
+      if (N % g !== 0) continue;
+      const per = N / g;
+      if (per < 4 || per > 8) continue;   // groups of 4..8 only (3 is too thin)
+      out.push({ groups: g, perGroup: per });
+    }
+    return out;
+  }
+
+  // allocateGroups(N, groups, mode): assign seeds 1..N to `groups` groups.
+  //   mode 'block' — contiguous seeds per group (TIERS):
+  //        G=4,N=16 -> A:[1,2,3,4] B:[5,6,7,8] C:[9,10,11,12] D:[13,14,15,16]
+  //        Group A is the strongest tier; each group plays for its own winner.
+  //   mode 'snake' — serpentine seeds per group (BALANCED pools for a playoff):
+  //        G=4,N=16 -> A:[1,8,9,16] B:[2,7,10,15] C:[3,6,11,14] D:[4,5,12,13]
+  //        Each group gets one team from each strength band.
+  // Returns { labels:['A','B',...], groups:{ A:[seeds], B:[seeds], ... } }.
+  function allocateGroups(N, groups, mode) {
+    const labels = [];
+    for (let i = 0; i < groups; i++) labels.push(String.fromCharCode(65 + i)); // A,B,C,...
+    const g = {}; labels.forEach(L => g[L] = []);
+    if (mode === 'block') {
+      const per = N / groups;
+      for (let s = 1; s <= N; s++) {
+        const gi = Math.floor((s - 1) / per);
+        g[labels[gi]].push(s);
+      }
+    } else { // snake
+      let gi = 0, dir = 1;
+      for (let s = 1; s <= N; s++) {
+        g[labels[gi]].push(s);
+        if (dir === 1) { if (gi === groups - 1) { dir = -1; } else { gi++; } }
+        else           { if (gi === 0)          { dir = 1;  } else { gi--; } }
+      }
+    }
+    return { labels, groups: g };
+  }
+
   // Swiss round from a ranked seed order.
   // -------------------------------------------------------------------------
   // FIX (2026-07): protect TRUE SWISS — strength must meet strength.
@@ -3743,6 +3791,7 @@ const TM = (function () {
 
   return {
     makeBands, divSplit, bandClass, fixedRounds, swissRound, roundRobinRounds,
+    validSplits, allocateGroups,
     maxSafeRounds, suggestRounds, pairRating, usesCombined,
     readCurrentRating, seedEntries
   };
@@ -4232,18 +4281,45 @@ async function loadTournamentSheet(tournament, division) {
     return h;
   }
 
-  function standingsHTML() {
-    if(!N) return '<div class="card"><p class="sub">No teams yet.</p></div>';
-    let h = '<div class="card"><h2>Standings <span class="tm-divtag">' + TM_DIVISION + '</span></h2>'
-      + '<p class="sub">After Round ' + maxPlayed + ' · Sets won → Games won → Game diff</p>'
-      + '<table><thead><tr><th class="num">#</th><th>Team</th><th class="num">P</th><th class="num">Sets Won</th><th class="num">G.Won</th><th class="num">G.Diff</th></tr></thead><tbody>';
-    standings(maxPlayed).forEach((r, i) => {
+  // Group map from entries (Piece 2a). {} when the RR is a single group.
+  const _grpOf = {}; let _hasGroups = false;
+  entries.forEach(e => { if(e.grp){ _grpOf[e.seed] = e.grp; _hasGroups = true; } });
+  const _groupLabels = _hasGroups ? [...new Set(entries.map(e=>e.grp).filter(Boolean))].sort() : [];
+
+  // One standings table body (rows) for a given set of seeds, ranked within it.
+  function standingsTableFor(seedSet){
+    const full = standings(maxPlayed);                 // already computed over all played fixtures
+    const rows = full.filter(r => seedSet.has(r.seed)); // restrict to this group's seeds
+    let h = '<table><thead><tr><th class="num">#</th><th>Team</th><th class="num">P</th><th class="num">Sets Won</th><th class="num">G.Won</th><th class="num">G.Diff</th></tr></thead><tbody>';
+    rows.forEach((r, i) => {
       h += '<tr><td class="num"><span class="rank' + (i === 0 ? ' top' : '') + '">' + (i + 1) + '</span></td>'
         + '<td><b>' + tName(r.seed) + '</b></td>'
         + '<td class="num">' + r.p + '</td><td class="num"><b>' + r.sets + '</b></td>'
         + '<td class="num">' + r.gw + '</td><td class="num">' + (r.gd >= 0 ? '+' : '') + r.gd + '</td></tr>';
     });
-    h += '</tbody></table></div>';
+    h += '</tbody></table>';
+    return h;
+  }
+
+  function standingsHTML() {
+    if(!N) return '<div class="card"><p class="sub">No teams yet.</p></div>';
+    // Single group: one table (unchanged behaviour).
+    if(!_hasGroups){
+      return '<div class="card"><h2>Standings <span class="tm-divtag">' + TM_DIVISION + '</span></h2>'
+        + '<p class="sub">After Round ' + maxPlayed + ' · Sets won → Games won → Game diff</p>'
+        + standingsTableFor(new Set(entries.map(e=>e.seed))) + '</div>';
+    }
+    // Split: one table PER GROUP, each ranked internally. Tier names when tiered.
+    const tiers = etTierNames ? etTierNames(_groupLabels.length) : [];
+    let h = '<div class="card"><h2>Group Standings <span class="tm-divtag">' + TM_DIVISION + '</span></h2>'
+      + '<p class="sub">Each group ranked on its own · Sets won → Games won → Game diff</p>';
+    _groupLabels.forEach((L, i) => {
+      const seedSet = new Set(entries.filter(e=>e.grp===L).map(e=>e.seed));
+      h += '<div style="font-size:13px;font-weight:800;color:#0F6E56;margin:12px 0 4px;">Group ' + L
+        + (tiers[i] ? (' <span style="font-weight:600;color:#5aa98d;">· ' + tiers[i] + '</span>') : '') + '</div>';
+      h += standingsTableFor(seedSet);
+    });
+    h += '</div>';
     return h;
   }
 
@@ -4724,12 +4800,11 @@ async function renderEnterScreen(){
         + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;"><b>' + d + '</b> <span style="font-size:11px;color:#888;">' + cnt + ' teams</span></div>';
       if(cnt < 4){ genCard += '<div class="sub" style="margin:0;">Needs at least 4 teams to draw.</div>'; }
       else if(window._etTourFormat==='round_robin'){
-        // Round robin: any field of 4+ is valid (odd fields get a rotating bye).
-        // No Swiss "how many rounds" slider — RR generates its full fixed schedule.
-        genCard += '<div style="margin-bottom:8px;font-size:12px;color:#6b6b76;">Format: <b style="color:var(--purple,#0F6E56);">Round Robin</b>'
-          + (cnt % 2 !== 0 ? ' <span style="color:#B9770E;">· odd field — one team byes each round</span>' : '')
-          + ' <span style="color:#aaa;">(set when the tournament was created)</span></div>'
-          + '<button class="ac-btn ac-btn-primary" style="width:100%;" onclick="etGenerateDiv(\'' + d.replace(/'/g,"\\'") + '\')">Generate ' + d + ' round robin</button>';
+        // Round robin (Piece 2a): choose ONE big group, or split into groups.
+        // The split choice is made HERE, at generation, when the field size is final.
+        // A split then asks the OUTCOME (separate tier winners, or groups -> knockout),
+        // which picks the seeding math (block vs snake) and shows a live preview.
+        genCard += etGroupConfigHTML(d, cnt);
       }
       else if(cnt % 2 !== 0){ genCard += '<div class="sub" style="margin:0;color:#B9770E;">Odd number (' + cnt + ') — needs an even field. Add or remove one.</div>'; }
       else {
@@ -4749,6 +4824,122 @@ async function renderEnterScreen(){
 }
 
 function etPickDiv(d){ window._etCat = d; renderEnterScreen(); }
+
+// ===== ROUND ROBIN GROUP CONFIG (Piece 2a) =====
+// Per-division config held in window._etGroupCfg[division] = { groups, mode, playoff }.
+//   groups  : 1 = single round robin (default); or a valid split group-count
+//   mode    : 'block' (separate tier winners) | 'snake' (balanced -> knockout)
+//   playoff : follows the outcome — false for tiers, true for groups->knockout
+// The admin picks the OUTCOME in plain language; block/snake is derived, never shown.
+function etGroupCfg(d){
+  if(!window._etGroupCfg) window._etGroupCfg = {};
+  if(!window._etGroupCfg[d]) window._etGroupCfg[d] = { groups:1, mode:'block', playoff:false, outcomeChosen:true };
+  return window._etGroupCfg[d];
+}
+// Build the group-config card body for one division.
+function etGroupConfigHTML(d, cnt){
+  const splits = TM.validSplits(cnt);           // [{groups,perGroup}, ...]
+  const cfg = etGroupCfg(d);
+  const de = d.replace(/'/g,"\\'");
+  let h = '<div style="margin-bottom:8px;font-size:12px;color:#6b6b76;">Format: '
+    + '<b style="color:var(--purple,#0F6E56);">Round Robin</b>'
+    + ' <span style="color:#aaa;">(set when the tournament was created)</span></div>';
+
+  // If the field is too small to split (no valid splits), it's single-group only.
+  if(!splits.length){
+    h += '<div class="sub" style="margin:0 0 8px;">' + cnt + ' teams — one round robin'
+      + (cnt % 2 !== 0 ? ' <span style="color:#B9770E;">(odd field — one team byes each round)</span>' : '')
+      + '. Everyone plays everyone; the table decides the winner.</div>'
+      + '<button class="ac-btn ac-btn-primary" style="width:100%;" onclick="etGenerateDiv(\'' + de + '\')">Generate ' + d + ' round robin</button>';
+    return h;
+  }
+
+  // Structure chooser: single group, or one option per valid split.
+  h += '<div style="font-size:12px;font-weight:700;color:#5aa98d;margin:0 0 6px;">How should this run?</div>';
+  h += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">';
+  // single group (always available, default)
+  const oneSel = (cfg.groups===1);
+  h += '<button onclick="etGroupSet(\'' + de + '\',1,null)" class="ac-btn ' + (oneSel?'ac-btn-primary':'ac-btn-ghost') + '" style="text-align:left;">'
+    + (oneSel?'● ':'○ ') + 'One group — everyone plays everyone (' + (cnt-1) + ' matches each), table winner</button>';
+  // each valid split
+  splits.forEach(s=>{
+    const sel = (cfg.groups===s.groups);
+    h += '<button onclick="etGroupSet(\'' + de + '\',' + s.groups + ',null)" class="ac-btn ' + (sel?'ac-btn-primary':'ac-btn-ghost') + '" style="text-align:left;">'
+      + (sel?'● ':'○ ') + s.groups + ' groups of ' + s.perGroup + ' — split the field into groups</button>';
+  });
+  h += '</div>';
+
+  // If a split is chosen, ask the OUTCOME (tiers vs knockout), then preview.
+  if(cfg.groups > 1){
+    h += '<div style="font-size:12px;font-weight:700;color:#5aa98d;margin:4px 0 6px;">What happens with the groups?</div>';
+    h += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">';
+    const tierSel = (cfg.outcomeChosen && cfg.mode==='block');
+    const koSel   = (cfg.outcomeChosen && cfg.mode==='snake');
+    h += '<button onclick="etGroupSet(\'' + de + '\',' + cfg.groups + ',\'block\')" class="ac-btn ' + (tierSel?'ac-btn-primary':'ac-btn-ghost') + '" style="text-align:left;line-height:1.35;">'
+      + (tierSel?'● ':'○ ') + '<b>Separate divisions</b> — split by strength, each group plays for its own winner (Advanced / Intermediate / …)</button>';
+    h += '<button onclick="etGroupSet(\'' + de + '\',' + cfg.groups + ',\'snake\')" class="ac-btn ' + (koSel?'ac-btn-primary':'ac-btn-ghost') + '" style="text-align:left;line-height:1.35;">'
+      + (koSel?'● ':'○ ') + '<b>Groups into a knockout</b> — balanced groups, top teams advance to a playoff for one champion</button>';
+    h += '</div>';
+
+    // Live allocation preview — the real seeds in the real groups (once outcome chosen).
+    if(cfg.outcomeChosen){ h += etGroupPreviewHTML(d, cnt, cfg); }
+    else { h += '<div class="sub" style="margin:0 0 10px;">Pick an outcome above to preview the groups.</div>'; }
+  }
+
+  // Generate button (enabled once the config is coherent).
+  const ready = (cfg.groups===1) || (cfg.groups>1 && cfg.outcomeChosen && (cfg.mode==='block'||cfg.mode==='snake'));
+  const label = (cfg.groups===1) ? ('Generate ' + d + ' round robin')
+    : (cfg.mode==='block' ? ('Generate ' + cfg.groups + ' tier round robins')
+      : ('Generate ' + cfg.groups + ' groups' ));
+  h += '<button class="ac-btn ac-btn-primary" style="width:100%;' + (ready?'':'opacity:.5;pointer-events:none;') + '" onclick="etGenerateDiv(\'' + de + '\')">' + label + '</button>';
+  if(cfg.groups>1 && cfg.mode==='snake'){
+    h += '<div class="sub" style="margin:6px 0 0;">The knockout playoff is set up after the group stage, once the groups have been played.</div>';
+  }
+  return h;
+}
+// Live preview: show each group with its actual seeds, given current config.
+function etGroupPreviewHTML(d, cnt, cfg){
+  if(cfg.groups<2 || !(cfg.mode==='block'||cfg.mode==='snake')) return '';
+  const alloc = TM.allocateGroups(cnt, cfg.groups, cfg.mode);
+  const tierNames = etTierNames(cfg.groups);
+  let h = '<div style="background:#fff;border:1px solid #e6e3ec;border-radius:9px;padding:10px;margin-bottom:10px;">'
+    + '<div style="font-size:11px;font-weight:700;color:#5aa98d;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">'
+    + (cfg.mode==='block' ? 'Preview — separate divisions by strength' : 'Preview — balanced groups') + '</div>';
+  alloc.labels.forEach((L,i)=>{
+    const seeds = alloc.groups[L];
+    const gname = (cfg.mode==='block') ? ('Group ' + L + ' · ' + tierNames[i]) : ('Group ' + L);
+    h += '<div style="margin:4px 0;font-size:12px;color:#0d4a38;"><b>' + gname + ':</b> seeds ' + seeds.join(', ') + '</div>';
+  });
+  if(cfg.mode==='block'){
+    h += '<div class="sub" style="margin:6px 0 0;">Each group is its own competition with its own winner. Group A holds the strongest teams.</div>';
+  } else {
+    h += '<div class="sub" style="margin:6px 0 0;">Groups are balanced so the knockout is fair — seed 1 and seed 2 can only meet in the final.</div>';
+  }
+  h += '</div>';
+  return h;
+}
+// Tier names for block allocation (strongest group first).
+function etTierNames(g){
+  if(g===2) return ['Advanced','Intermediate'];
+  if(g===3) return ['Advanced','Intermediate','Beginner'];
+  if(g===4) return ['Division 1','Division 2','Division 3','Division 4'];
+  const out=[]; for(let i=0;i<g;i++) out.push('Division '+(i+1)); return out;
+}
+// Set the config and re-render. groups=1 clears the outcome; a split defaults to no outcome
+// chosen yet (mode stays whatever it was, but the generate button waits for a valid mode).
+function etGroupSet(d, groups, mode){
+  const cfg = etGroupCfg(d);
+  if(groups===1){
+    cfg.groups = 1; cfg.mode='block'; cfg.playoff=false; cfg.outcomeChosen=true;
+  } else if(mode){
+    // an outcome button was pressed
+    cfg.groups = groups; cfg.mode = mode; cfg.playoff = (mode==='snake'); cfg.outcomeChosen = true;
+  } else {
+    // a split count was picked but no outcome yet — wait for the admin to choose
+    cfg.groups = groups; cfg.outcomeChosen = false;
+  }
+  renderEnterScreen();
+}
 
 // ---- SINGLES BULK ENTRY: tick several players, add them all in one go. ----
 // Uses the SAME eligibility rules as the single picker (gender by division name,
@@ -5126,12 +5317,16 @@ async function tmGenerateFixedDraw(tournament, chosenTotal, division) {
   loadTournamentSheet(tournament, division);
 }
 
-// ---- ROUND ROBIN draw generation (admin). Single group: everyone plays everyone.
-// Generates the COMPLETE schedule up front (circle method) and writes every
-// fixture at once with round_type 'rr'. Byes (odd field) are stored as
-// seed_b=0 with band 'bye' — they render as a non-tappable "bye this round"
-// row and never count toward standings. Reuses the same save_seeds +
-// write_fixtures path as the fixed/Swiss draw. No engine, no schema change.
+// ---- ROUND ROBIN draw generation (admin). Piece 2a: single group OR split into groups.
+// SINGLE GROUP (cfg.groups===1): everyone plays everyone; seeds saved without a group
+//   stamp; one round robin, rounds 1..N-1. (Original behaviour, unchanged.)
+// SPLIT (cfg.groups>1): seeds are allocated to groups (block = tiers, snake = balanced),
+//   each entry gets its group stamp `grp` ('A','B',...) via save_seeds, and a round robin
+//   is generated WITHIN each group. To keep groups from colliding on the round board, each
+//   group's rounds are offset into a distinct band: Group A = rounds 1..; B = 11..; C = 21..
+//   The band field carries the group label + round so the board reads "A · R1" etc.
+// Byes (odd group) are stored as seed_b=0 with band '<grp>·bye' and never count in standings.
+// Additive-only: writes the new `grp` column via save_seeds; no engine or schema change here.
 async function tmGenerateRoundRobinDraw(tournament, division){
   if (!TM_ADMIN_PIN) { TM_ADMIN_PIN = prompt('Enter admin PIN to generate the round robin:') || ''; }
   if (!TM_ADMIN_PIN) return;
@@ -5139,25 +5334,59 @@ async function tmGenerateRoundRobinDraw(tournament, division){
   const N = entries.length;
   if (N < 4) { alert('Need at least 4 teams for a round robin.'); return; }
 
-  const rr = TM.roundRobinRounds(N);
-  if (!rr.ok) { alert('Could not build a round robin for ' + N + ' teams.'); return; }
+  const cfg = (window._etGroupCfg && window._etGroupCfg[division]) || { groups:1, mode:'block' };
+  const grouped = (cfg.groups > 1);
 
-  // persist seeds (admin-gated, division-scoped) — same as the fixed draw
+  // ---- seed payload: include grp stamp when grouped, plain seed when single ----
+  const bySeed = {}; entries.forEach(e => bySeed[e.seed] = e);   // seed -> entry (has id)
+  let seedPayload, alloc = null, seedGroup = {};
+  if (grouped) {
+    alloc = TM.allocateGroups(N, cfg.groups, cfg.mode);
+    alloc.labels.forEach(L => alloc.groups[L].forEach(sd => { seedGroup[sd] = L; }));
+    seedPayload = entries.map(e => ({ id:e.id, seed:e.seed, grp: seedGroup[e.seed] || null }));
+  } else {
+    // single group: clear any stale grp stamp so a regenerate can't leave old groups behind
+    seedPayload = entries.map(e => ({ id:e.id, seed:e.seed, grp: null }));
+  }
+
   const seedResp = await fetch(SB_URL + '/functions/v1/tournament', {
     method: 'POST',
     headers: { apikey: SB_ANON, Authorization: 'Bearer ' + SB_ANON, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action:'save_seeds', club_id: CLUB_ID, admin_pin: TM_ADMIN_PIN,
-      seeds: entries.map(e=>({ id:e.id, seed:e.seed })) })
+    body: JSON.stringify({ action:'save_seeds', club_id: CLUB_ID, admin_pin: TM_ADMIN_PIN, seeds: seedPayload })
   });
   const seedJson = await seedResp.json().catch(()=>({}));
   if(!seedResp.ok || !seedJson.ok){ alert('Could not save seeds: ' + ((seedJson&&seedJson.error)||seedResp.status) + '\n\n(Check the admin PIN and that the tournament Edge Function is deployed.)'); return; }
 
-  // flatten every round into fixture rows; byes carry band 'bye'
+  // ---- build fixtures ----
   const rows = [];
-  rr.rounds.forEach((pairs, i) => pairs.forEach(([a, b]) => rows.push({
-    tournament, division, round: i + 1, round_type: 'rr',
-    seed_a: a, seed_b: b, band: (b === 0 ? 'bye' : '')
-  })));
+  let totalRounds = 0;
+  if (!grouped) {
+    const rr = TM.roundRobinRounds(N);
+    if (!rr.ok) { alert('Could not build a round robin for ' + N + ' teams.'); return; }
+    rr.rounds.forEach((pairs, i) => pairs.forEach(([a, b]) => rows.push({
+      tournament, division, round: i + 1, round_type: 'rr',
+      seed_a: a, seed_b: b, band: (b === 0 ? 'bye' : '')
+    })));
+    totalRounds = rr.rounds.length;
+  } else {
+    // per-group round robin, round numbers offset by group so the board keeps them apart
+    alloc.labels.forEach((L, gi) => {
+      const seeds = alloc.groups[L];                 // actual seeds in this group
+      const gN = seeds.length;
+      const rr = TM.roundRobinRounds(gN);            // circle method on 1..gN (positions)
+      const base = gi * 10;                          // A:0, B:10, C:20, ...
+      rr.rounds.forEach((pairs, i) => pairs.forEach(([pa, pb]) => {
+        // map circle positions (1..gN, 0=bye) back to real seeds
+        const a = (pa === 0) ? 0 : seeds[pa - 1];
+        const b = (pb === 0) ? 0 : seeds[pb - 1];
+        rows.push({
+          tournament, division, round: base + i + 1, round_type: 'rr',
+          seed_a: a, seed_b: b, band: (b === 0 ? (L + '·bye') : (L + '·R' + (i + 1)))
+        });
+      }));
+      totalRounds += rr.rounds.length;
+    });
+  }
 
   const fxResp = await fetch(SB_URL + '/functions/v1/tournament', {
     method: 'POST',
@@ -5168,7 +5397,12 @@ async function tmGenerateRoundRobinDraw(tournament, division){
   const fxJson = await fxResp.json().catch(()=>({}));
   if(!fxResp.ok || !fxJson.ok){ alert('Could not write fixtures: ' + ((fxJson&&fxJson.error)||fxResp.status)); return; }
   const byes = rows.filter(r=>r.seed_b===0).length;
-  alert(division + ' round robin created: ' + fxJson.count + ' fixtures across ' + rr.rounds.length + ' rounds' + (byes ? (' (' + byes + ' byes)') : '') + '. Play them in any order — the table decides the winner.');
+  if (!grouped) {
+    alert(division + ' round robin created: ' + fxJson.count + ' fixtures across ' + totalRounds + ' rounds' + (byes ? (' (' + byes + ' byes)') : '') + '. Play them in any order — the table decides the winner.');
+  } else {
+    const kind = (cfg.mode==='block') ? 'separate tier round robins' : 'balanced groups';
+    alert(division + ' created as ' + cfg.groups + ' ' + kind + ': ' + fxJson.count + ' fixtures' + (byes ? (' (' + byes + ' byes)') : '') + '. Each group plays its own round robin.' + (cfg.mode==='snake' ? ' Set up the knockout playoff after the groups are played.' : ''));
+  }
   loadTournamentSheet(tournament, division);
 }
 
