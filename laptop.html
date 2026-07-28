@@ -1553,7 +1553,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.27-07";  // Bracket advancement now SERVER-SIDE: recording a KO/playoff result (from the bracket boxes OR the main enter-match screen) writes the next round automatically. NEEDS updated tournament edge fn (advance_bracket action + advanceKnockout).
+const OPR_VERSION = "OTR-LAPTOP v2026.07.27-08";  // FIX: selecting an archived (past) tournament no longer snaps back to the current one — the picker now validates the viewed event against active AND archived, so closed tournaments stay viewable read-only.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -1839,13 +1839,17 @@ async function loadTournamentPicker(){
     return;
   }
   body.style.display='';
-  // default the viewed event to the first active one (or first archived)
-  const list = active.length? active : archived;
-  if(!list.find(t=>t.name===TOURNAMENT_EVENT)){ TOURNAMENT_EVENT = list[0].name; }
+  // The viewable set is BOTH active and archived — an archived (closed) tournament must
+  // stay selectable and viewable read-only. Only fall back to a default when the currently
+  // viewed event exists in NEITHER list (e.g. first load, or it was deleted).
+  const all = active.concat(archived);
+  if(!all.find(t=>t.name===TOURNAMENT_EVENT)){
+    TOURNAMENT_EVENT = (active.length ? active[0].name : archived[0].name);
+  }
   // is the currently-viewed event an archived one?
   TOURNAMENT_ARCHIVED = !!archived.find(t=>t.name===TOURNAMENT_EVENT) && !active.find(t=>t.name===TOURNAMENT_EVENT);
   // remember the type of the currently-viewed tournament (internal vs external)
-  const viewed = list.find(t=>t.name===TOURNAMENT_EVENT);
+  const viewed = all.find(t=>t.name===TOURNAMENT_EVENT);
   const isInternal = viewed && viewed.type==='internal';
   let html='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
     +'<span style="font-size:12px;color:#0d4a38;">Viewing:</span>'
