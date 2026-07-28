@@ -1553,7 +1553,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.27-04";  // RR playoff seeding simplified: group letter IS the seed (A=1,B=2…), fed to existing KO.bracketOrder so favourites sit in opposite halves (1v4/2v3 semis, 1v8/2v7 QF) and lines of play hold to an A1-vs-B1 final.
+const OPR_VERSION = "OTR-LAPTOP v2026.07.27-05";  // RR playoff FIX: KO fixtures moved to 90+ band (was 1/2/3, colliding with group RR rounds → duplicate-key rejection blocked semis + entry). Semis now auto-write and are tappable; results record cleanly.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -4192,13 +4192,18 @@ async function loadTournamentSheet(tournament, division) {
     const _isPlayoff = fixtures.some(f=> f.round_type==='rr');
     const rounds = [];
     if(_isPlayoff){
-      const r1fix = koFix.filter(f=> f.round===1);
+      // Playoff KO fixtures live in the 90+ band (90 = round 1, 91 = round 2, …) so they
+      // never collide with the group round-robin rounds (1-7, 11-17, …). The unique key
+      // is (club_id, tournament, round, seed_a, seed_b) with no round_type, so the bands
+      // MUST NOT overlap — that collision was rejecting playoff writes.
+      const PBASE = 90;
+      const r1fix = koFix.filter(f=> f.round===PBASE);
       const r1 = r1fix.map(f=>{
         if(f.seed_b===0) return { a:f.seed_a, b:0, fx:{seed_a:f.seed_a, seed_b:0, sets_a:1, sets_b:0} };
         return { a:f.seed_a, b:f.seed_b, fx:f };
       });
       rounds.push(r1);
-      let prev=r1, rno=2;
+      let prev=r1, rno=PBASE+1;
       while(prev.length>1){
         const next=[];
         for(let i=0;i<prev.length;i+=2){
@@ -4595,12 +4600,13 @@ async function loadTournamentSheet(tournament, division) {
     const teamForPlayoffSeed = ps => (ps>=1 && ps<=Q) ? playoffTeams[ps-1] : null;
 
     const rows = [];
+    const PBASE = 90;   // playoff KO band base — clear of all group RR rounds
     const label = KO.roundLabel(KO.nextPow2(Q));
     order.forEach(([psA, psB])=>{
       const a = teamForPlayoffSeed(psA), b = teamForPlayoffSeed(psB);
-      if(a && b){ rows.push({ tournament, division:TM_DIVISION, round:1, round_type:'ko', band:label, seed_a:a, seed_b:b }); }
-      else if(a && !b){ rows.push({ tournament, division:TM_DIVISION, round:1, round_type:'ko', band:'bye', seed_a:a, seed_b:0 }); }
-      else if(!a && b){ rows.push({ tournament, division:TM_DIVISION, round:1, round_type:'ko', band:'bye', seed_a:b, seed_b:0 }); }
+      if(a && b){ rows.push({ tournament, division:TM_DIVISION, round:PBASE, round_type:'ko', band:label, seed_a:a, seed_b:b }); }
+      else if(a && !b){ rows.push({ tournament, division:TM_DIVISION, round:PBASE, round_type:'ko', band:'bye', seed_a:a, seed_b:0 }); }
+      else if(!a && b){ rows.push({ tournament, division:TM_DIVISION, round:PBASE, round_type:'ko', band:'bye', seed_a:b, seed_b:0 }); }
     });
     if(!rows.length){ alert('Could not build the playoff bracket.'); return; }
 
@@ -4739,11 +4745,14 @@ async function tmEnsureBracketFixtures(){
     const plates= (typeof window._tmComputePlate==='function') ? window._tmComputePlate() : null;
     const toWrite = [];
     const existing = new Set(fixturesLocal.map(f=> f.round_type+':'+f.round+':'+[f.seed_a,f.seed_b].sort((x,y)=>x-y).join('-')));
+    const _isPlayoffEnsure = fixturesLocal.some(f=> f.round_type==='rr');
     function collect(rounds, type, baseRound){
       if(!rounds) return;
       rounds.forEach((rd, ri)=>{
         if(ri===0) return;                        // round 1 already stored
-        const roundNo = (type==='plate') ? (51+ri-1) : (ri+1);
+        // Playoff KO lives in the 90+ band (90=R1, 91=R2, …) to avoid colliding with the
+        // group round-robin rounds. Full-field KO uses ri+1; plate uses 51+.
+        const roundNo = (type==='plate') ? (51+ri-1) : (_isPlayoffEnsure ? (90+ri) : (ri+1));
         rd.forEach(m=>{
           if(m.a!=null && m.b!=null && m.b!==0 && !m.fx){
             const key = type+':'+roundNo+':'+[m.a,m.b].sort((x,y)=>x-y).join('-');
