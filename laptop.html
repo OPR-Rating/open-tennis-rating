@@ -1553,7 +1553,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.27-10";  // Item 2: SECTION FINALS for tiered round robins — a completed grouped RR now offers Combined knockout (one champion) OR Section finals (a knockout per section, top 2 or 4 each, its own winner). Sections use per-section round bands + banded fixtures; server advancement is section-aware. NEEDS updated tournament edge fn.
+const OPR_VERSION = "OTR-LAPTOP v2026.07.27-11";  // Item 3: round board groups rounds by section (Group A/B/C…) for split RRs. Item 4: forward-dated PARTNER SUBSTITUTION — admin '✎ sub' on the Teams tab replaces a partner from the next unplayed round on; past results keep the original, upcoming fixtures show the new name. NEEDS updated tournament edge fn (set_substitute).
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -3981,6 +3981,18 @@ async function loadTournamentSheet(tournament, division) {
   const BANDS = TM.makeBands(N);
   const bySeed = {}; entries.forEach(e => bySeed[e.seed] = e);
   const tName = s => (s===0) ? 'BYE' : (bySeed[s] ? tmTeamName(bySeed[s].p1, bySeed[s].p2) : ('Seed ' + s));
+  // Round-aware name: a PERMANENT partner substitution (sub_p2 from sub_from_round onward)
+  // shows the NEW partner on fixtures at/after that round, and the ORIGINAL on earlier ones.
+  // Past results are never relabelled — the swap is forward-only by construction.
+  const tNameAt = (s, round) => {
+    if(s===0) return 'BYE';
+    const e = bySeed[s];
+    if(!e) return 'Seed ' + s;
+    if(e.sub_p2 && e.sub_from_round!=null && round!=null && round >= e.sub_from_round){
+      return tmTeamName(e.p1, e.sub_p2);
+    }
+    return tmTeamName(e.p1, e.p2);
+  };
 
   const rounds = {};
   // Round board groups the GROUP-STAGE / Swiss rounds only. Knockout playoff fixtures
@@ -4041,16 +4053,25 @@ async function loadTournamentSheet(tournament, division) {
       + '<p class="sub">Seeded by frozen entry rating (strongest = Seed 1). ' + blurb + '</p>'
       + '<table><thead><tr><th class="num">Seed</th><th>' + who + '</th>'
       + (_showGroup ? '<th class="num">Group</th>' : '') + (_showBand ? '<th class="num">Band</th>' : '')
+      + (!_sg ? '<th class="num"></th>' : '')
       + '</tr></thead><tbody>';
     for (let s = 1; s <= N; s++) {
+      const e = bySeed[s];
+      const hasSub = e && e.sub_p2 && e.sub_from_round!=null;
       h += '<tr><td class="num"><span class="seed' + (s === 1 ? ' s1' : '') + '">' + s + '</span></td>'
-        + '<td><b>' + tName(s) + '</b></td>';
+        + '<td><b>' + tName(s) + '</b>'
+        + (hasSub ? ('<div style="font-size:11px;color:#B9770E;margin-top:2px;">→ ' + tmTeamName(e.p1, e.sub_p2) + ' from R' + e.sub_from_round + '</div>') : '')
+        + '</td>';
       if (_showGroup) {
         const L = _grpOf[s] || '—';
         const tn = _tierOf[L] ? (' <span style="color:#5aa98d;font-size:11px;">' + _tierOf[L] + '</span>') : '';
         h += '<td class="num"><b>' + L + '</b>' + tn + '</td>';
       }
       if (_showBand) { const [lo, hi] = BANDS[s]; h += '<td class="num">' + lo + '–' + hi + '</td>'; }
+      // Replace-partner control — doubles only (a singles entrant has no partner to swap).
+      if (!_sg) {
+        h += '<td class="num"><button class="menu-btn" style="padding:4px 9px;font-size:11px;border-color:#B9770E;" onclick="tmReplacePartner(' + s + ')" title="Permanently replace this team\'s partner from the next unplayed round onward">✎ sub</button></td>';
+      }
       h += '</tr>';
     }
     h += '</tbody></table></div>';
@@ -4058,12 +4079,44 @@ async function loadTournamentSheet(tournament, division) {
   }
   function roundsHTML() {
     if(!roundNos.length) return '<div class="card"><h2>Rounds <span class="tm-divtag">' + TM_DIVISION + '</span></h2><p class="sub">No draw generated yet for this division. An admin can generate it from the Enter screen.</p></div>';
-    let h = '<div class="card"><h2>Round Fixtures &amp; Results <span class="tm-divtag">' + TM_DIVISION + '</span></h2><div class="rsel">';
-    roundNos.forEach(r => {
-      const ft = rounds[r][0] ? rounds[r][0].round_type : '';
-      h += '<button class="' + (ft === 'fixed' ? 'fixed ' : '') + (r === curRound ? 'active' : '') + '" onclick="tmSetRound(' + r + ')">R' + r + '</button>';
-    });
-    h += '</div><table><thead><tr><th class="num">Sd</th><th class="ta">Team A</th><th class="num">Band</th>'
+    let h = '<div class="card"><h2>Round Fixtures &amp; Results <span class="tm-divtag">' + TM_DIVISION + '</span></h2>';
+
+    // For a SPLIT round robin, the fixtures carry a "L·R#" band (section + within-section
+    // round). Show the round buttons GROUPED by section — one labelled row per section —
+    // instead of a flat "R1 R2 … R11 R12" list where the offset bands leak confusingly.
+    const _rrSplit = _hasGroups && roundNos.some(r=> (rounds[r][0] && rounds[r][0].round_type==='rr'));
+    if(_rrSplit){
+      // map each round number to its section (from the band) and within-section round no.
+      const roundInfo = {};   // roundNo -> {sec, rn}
+      roundNos.forEach(r=>{
+        const f0 = rounds[r][0];
+        const band = f0 ? String(f0.band||'') : '';
+        const sec = band.split('·')[0] || '?';
+        const rn = (band.split('·')[1]||'').replace(/^R/,'') || String(r);
+        roundInfo[r] = { sec, rn };
+      });
+      const sections = [...new Set(roundNos.map(r=> roundInfo[r].sec))].sort();
+      const tiers = (typeof etTierNames==='function') ? etTierNames(sections.length) : [];
+      sections.forEach((sec, si)=>{
+        const secRounds = roundNos.filter(r=> roundInfo[r].sec===sec)
+          .sort((a,b)=> parseInt(roundInfo[a].rn)-parseInt(roundInfo[b].rn));
+        h += '<div style="margin:6px 0 2px;font-size:12px;font-weight:800;color:#0F6E56;">Group ' + sec
+          + (tiers[si] ? (' <span style="font-weight:600;color:#5aa98d;">· ' + tiers[si] + '</span>') : '') + '</div>';
+        h += '<div class="rsel">';
+        secRounds.forEach(r=>{
+          h += '<button class="' + (r === curRound ? 'active' : '') + '" onclick="tmSetRound(' + r + ')">R' + roundInfo[r].rn + '</button>';
+        });
+        h += '</div>';
+      });
+    } else {
+      h += '<div class="rsel">';
+      roundNos.forEach(r => {
+        const ft = rounds[r][0] ? rounds[r][0].round_type : '';
+        h += '<button class="' + (ft === 'fixed' ? 'fixed ' : '') + (r === curRound ? 'active' : '') + '" onclick="tmSetRound(' + r + ')">R' + r + '</button>';
+      });
+      h += '</div>';
+    }
+    h += '<table><thead><tr><th class="num">Sd</th><th class="ta">Team A</th><th class="num">Band</th>'
       + '<th class="tb">Team B</th><th class="num">Sd</th><th class="num">Score</th></tr></thead><tbody>';
     // Knockout rounds must display in bracket-slot order (1v16, 8v9, 4v13...).
     // Swiss rounds keep their generated order.
@@ -4089,9 +4142,9 @@ async function loadTournamentSheet(tournament, division) {
       const score = played ? (f.sets_a + '–' + f.sets_b + ' (' + f.games_a + '–' + f.games_b + ')') : '—';
       h += '<tr style="cursor:pointer;" onclick="tmEnterFixtureResult(' + f.id + ')" title="Tap to enter/edit the score">'
         + '<td class="num"><span class="seed' + (f.seed_a === 1 ? ' s1' : '') + '">' + f.seed_a + '</span></td>'
-        + '<td class="ta' + (aWin ? ' winr' : '') + '">' + tName(f.seed_a) + '</td>'
+        + '<td class="ta' + (aWin ? ' winr' : '') + '">' + tNameAt(f.seed_a, f.round) + '</td>'
         + '<td class="num"><span class="pill ' + f.band + '">' + (f.band||'') + '</span></td>'
-        + '<td class="tb' + (bWin ? ' winr' : '') + '">' + tName(f.seed_b) + '</td>'
+        + '<td class="tb' + (bWin ? ' winr' : '') + '">' + tNameAt(f.seed_b, f.round) + '</td>'
         + '<td class="num"><span class="seed' + (f.seed_b === 1 ? ' s1' : '') + '">' + f.seed_b + '</span></td>'
         + '<td class="num">' + (played ? '<span class="res-done">' + score + '</span>' : '<span style="color:#12855F;font-weight:700;">enter ▸</span>') + '</td></tr>';
     });
@@ -4598,6 +4651,39 @@ async function loadTournamentSheet(tournament, division) {
     setTimeout(function(){ w.focus(); w.print(); }, 350);
   };
   window.tmSetTab = function (id) { activeTab = id; render(); };
+
+  // Permanent partner substitution (forward-dated). Replaces a team's P2 from the next
+  // UNPLAYED round onward: past results keep the original partner (history untouched),
+  // upcoming fixtures show the new partner. Writes sub_p2 + sub_from_round on the entry.
+  // Doubles only. The actual match record still stores whoever truly played (recorded at
+  // entry), so ratings stay correct; this only governs the forward DISPLAY name.
+  window.tmReplacePartner = async function(seed){
+    const e = bySeed[seed];
+    if(!e){ alert('Team not found.'); return; }
+    if(e.p2==null){ alert('This is a singles entrant — no partner to replace.'); return; }
+    const cur = tmTeamName(e.p1, e.p2);
+    // find this team's next unplayed fixture round (the swap takes effect there)
+    const myFix = fixtures.filter(f=> (f.seed_a===seed||f.seed_b===seed) && f.seed_b!==0 && f.round<90 && f.round_type!=='ko' && f.round_type!=='plate');
+    const unplayed = myFix.filter(f=> f.sets_a==null).map(f=>f.round).sort((a,b)=>a-b);
+    if(!unplayed.length){ alert(cur+' has no remaining unplayed matches — nothing to substitute forward.'); return; }
+    const fromRound = unplayed[0];
+    const newName = (prompt('Replace '+e.p2+' (partner of '+e.p1+') for the REST of this event.\n\nPast results keep '+e.p2+'; upcoming matches (from the next unplayed round) will show the new partner.\n\nEnter the replacement partner\'s full name:', '')||'').trim();
+    if(!newName) return;
+    if(newName.toLowerCase()===String(e.p1||'').toLowerCase()){ alert('The replacement must be different from '+e.p1+'.'); return; }
+    if(!confirm('Confirm: from the next unplayed round on, this team plays as '+tmTeamName(e.p1, newName)+' (was '+cur+'). Past results are unchanged. Proceed?')) return;
+    const pin = (prompt('Admin PIN to record the substitution:')||'').trim();
+    if(!pin) return;
+    try{
+      const resp = await fetch(SB_URL+'/functions/v1/tournament',{ method:'POST',
+        headers:{ apikey:SB_ANON, Authorization:'Bearer '+SB_ANON, 'Content-Type':'application/json' },
+        body: JSON.stringify({ action:'set_substitute', club_id:CLUB_ID, admin_pin:pin,
+          entry_id:e.id, sub_p2:newName, sub_from_round:fromRound }) });
+      const j = await resp.json().catch(()=>({}));
+      if(!j.ok){ alert('Could not save the substitution: '+((j&&j.error)||resp.status)); return; }
+    }catch(err){ alert('Could not save the substitution. Check your connection.'); return; }
+    alert('Substitution saved. From R'+fromRound+' onward this team shows as '+tmTeamName(e.p1, newName)+'.');
+    loadTournamentSheet(TOURNAMENT_EVENT, TM_DIVISION);
+  };
   // For knockouts: once results are in, make sure the next-round boxes exist as real
   // fixtures so they can be tapped. Runs quietly; refreshes the sheet if it wrote any.
   (async ()=>{
