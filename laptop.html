@@ -1553,7 +1553,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.27-08";  // FIX: selecting an archived (past) tournament no longer snaps back to the current one — the picker now validates the viewed event against active AND archived, so closed tournaments stay viewable read-only.
+const OPR_VERSION = "OTR-LAPTOP v2026.07.27-10";  // Item 2: SECTION FINALS for tiered round robins — a completed grouped RR now offers Combined knockout (one champion) OR Section finals (a knockout per section, top 2 or 4 each, its own winner). Sections use per-section round bands + banded fixtures; server advancement is section-aware. NEEDS updated tournament edge fn.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -4114,14 +4114,21 @@ async function loadTournamentSheet(tournament, division) {
       if(_hasGroups && !_hasKO){
         h += '<div style="text-align:center;margin-top:10px;"><p class="sub" style="margin:6px 0;">Group matches — play in any order. Each group\'s standings update as results come in.</p>';
         if(_rrComplete){
-          h += '<button class="menu-btn" style="display:inline-block;width:auto;padding:10px 18px;border-color:#F1C40F;font-weight:700;" onclick="tmGeneratePlayoff()">🏆 Set up the knockout playoff</button>'
-            + '<div class="sub" style="margin-top:6px;">All group matches are complete. The top teams from each group cross into a knockout for one champion.</div>';
+          h += '<div style="font-size:12px;font-weight:700;color:#5aa98d;margin:8px 0 6px;">Set up the finals</div>'
+            + '<div style="display:flex;flex-direction:column;gap:8px;max-width:520px;margin:0 auto;">'
+            + '<button class="menu-btn" style="padding:10px 16px;border-color:#F1C40F;font-weight:700;text-align:left;line-height:1.35;" onclick="tmGeneratePlayoff(\'snake\')">'
+            + '🏆 <b>Combined knockout</b> — top teams from every group cross into one bracket for a single overall champion</button>'
+            + '<button class="menu-btn" style="padding:10px 16px;border-color:#12855F;font-weight:700;text-align:left;line-height:1.35;" onclick="tmGeneratePlayoff(\'block\')">'
+            + '🏅 <b>Section finals</b> — each group runs its own knockout for its own winner (a champion per section)</button>'
+            + '</div>'
+            + '<div class="sub" style="margin-top:8px;">All group matches are complete. Choose how the finals run — one overall champion, or a winner per section.</div>';
         } else {
-          h += '<div class="sub" style="margin-top:6px;color:#B9770E;">Finish every group match to unlock the knockout playoff.</div>';
+          h += '<div class="sub" style="margin-top:6px;color:#B9770E;">Finish every group match to unlock the finals.</div>';
         }
         h += '</div></div>';
       } else if(_hasKO){
-        h += '<div style="text-align:center;margin-top:10px;"><p class="sub" style="margin:6px 0;">Group stage complete — the knockout playoff is set. Enter results on the 🗂 Bracket tab; winners advance automatically.</p></div></div>';
+        const _secFin = fixtures.some(f=> f.round_type==='ko' && typeof f.band==='string' && /^[A-Z]·/.test(f.band));
+        h += '<div style="text-align:center;margin-top:10px;"><p class="sub" style="margin:6px 0;">Group stage complete — the '+(_secFin?'section finals are':'knockout playoff is')+' set. Enter results on the 🗂 Bracket tab; winners advance automatically.</p></div></div>';
       } else {
         h += '<div style="text-align:center;margin-top:10px;"><p class="sub" style="margin:6px 0;">The full round robin is already scheduled. Play the fixtures in any order — the standings table updates as results come in, and the leader is the winner once every fixture is played.</p></div></div>';
       }
@@ -4370,6 +4377,29 @@ async function loadTournamentSheet(tournament, division) {
   function bracketHTML(){
     if(!isKnockoutDiv()) return '<div class="card"><p class="sub">This division is not a knockout draw.</p></div>';
     const _isPlayoff = fixtures.some(f=> f.round_type==='rr');
+
+    // SECTION FINALS: KO fixtures carry a "L·…" band (section letter). Render one bracket
+    // per section, each crowning its own winner. Detect and branch before the single-draw path.
+    const _koFix = fixtures.filter(f=> f.round_type==='ko');
+    const _sectionTags = [...new Set(_koFix.map(f=>{
+      const p = String(f.band||'').split('·')[0];
+      return /^[A-Z]$/.test(p) ? p : null;
+    }).filter(Boolean))].sort();
+    if(_sectionTags.length){
+      const tiers = (typeof etTierNames==='function') ? etTierNames(_sectionTags.length) : [];
+      let sh = '<div class="card bkt-card" id="bktPrintArea">'
+        + '<div class="bkt-head"><h2>Section Finals <span class="tm-divtag">'+tmDivLabel(TM_DIVISION)+'</span></h2>'
+        + '<button class="menu-btn bkt-print-btn" onclick="tmPrintBracket()">🖨 Print draw</button></div>'
+        + '<div class="bkt-meta">'+TOURNAMENT_EVENT+' · '+tmDivLabel(TM_DIVISION)+' · a knockout in each section</div>';
+      _sectionTags.forEach((tag, i)=>{
+        const rounds = computeSectionBracket(tag);
+        const nm = 'Section '+tag + (tiers[i] ? (' · '+tiers[i]) : '');
+        sh += koTreeHTML(rounds, nm, false);
+      });
+      sh += '</div>';
+      return sh;
+    }
+
     const mainRounds = computeMainBracket();
     const plateRounds = computePlateBracket();
     const main = koTreeHTML(mainRounds, _isPlayoff ? 'Knockout Playoff' : 'Main Draw', false);
@@ -4383,6 +4413,33 @@ async function loadTournamentSheet(tournament, division) {
       + (_isPlayoff ? '' : (plate || '<div class="bkt-block"><h3 class="bkt-title">Plate (first-round losers)</h3><p class="sub">The Plate fills automatically as first-round results come in.</p></div>'))
       + '</div>';
     return h;
+  }
+
+  // Build the bracket for ONE section (section finals). Reads that section's KO fixtures
+  // (band starts "L·"), starting at its base round, and walks winners forward — same shape
+  // as the playoff branch of computeMainBracket, restricted to the section's band.
+  function computeSectionBracket(tag){
+    const koFix = fixtures.filter(f=> f.round_type==='ko' && String(f.band||'').split('·')[0]===tag);
+    if(!koFix.length) return null;
+    const base = Math.min(...koFix.map(f=> f.round));
+    const r1 = koFix.filter(f=> f.round===base).map(f=>{
+      if(f.seed_b===0) return { a:f.seed_a, b:0, fx:{seed_a:f.seed_a, seed_b:0, sets_a:1, sets_b:0} };
+      return { a:f.seed_a, b:f.seed_b, fx:f };
+    });
+    const rounds=[r1]; let prev=r1, rno=base+1;
+    while(prev.length>1){
+      const next=[];
+      for(let i=0;i<prev.length;i+=2){
+        const wa=koWinnerSeed(prev[i].fx);
+        const wb=prev[i+1]?koWinnerSeed(prev[i+1].fx):null;
+        let fx=null;
+        if(wa!=null&&wb!=null){ fx=koFix.find(f=> f.round===rno &&
+          ((f.seed_a===wa&&f.seed_b===wb)||(f.seed_a===wb&&f.seed_b===wa)))||null; }
+        next.push({a:wa,b:wb,fx});
+      }
+      rounds.push(next); prev=next; rno++;
+    }
+    return rounds;
   }
 
   // Group map from entries (Piece 2a). {} when the RR is a single group.
@@ -4523,10 +4580,10 @@ async function loadTournamentSheet(tournament, division) {
       .bkt-print-btn{display:none!important;} .bkt-head{display:flex;justify-content:space-between;align-items:center;}
       .bkt-title{margin:16px 0 6px;font-size:15px;color:#0F6E56;border-bottom:2px solid #eee;padding-bottom:3px;}
       .bkt-champ{margin:6px 0;padding:6px 10px;background:#f9f3dd;border:1px solid #F1C40F;border-radius:8px;font-weight:700;display:inline-block;}
-      .bkt-tree{display:flex;gap:26px;align-items:flex-start;overflow:visible;}
-      .bkt-colwrap{display:flex;flex-direction:column;justify-content:space-around;min-width:150px;}
+      .bkt-tree{display:flex;gap:26px;align-items:stretch;overflow:visible;}
+      .bkt-colwrap{display:flex;flex-direction:column;min-width:150px;}
       .bkt-rlabel{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;text-align:center;}
-      .bkt-col{display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:14px;}
+      .bkt-col{display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:0;}
       .bkt-match{border:1px solid #cbb8dd;border-radius:8px;overflow:hidden;margin:4px 0;}
       .bkt-team{display:flex;align-items:center;gap:6px;padding:5px 8px;font-size:12px;border-bottom:1px solid #eee;}
       .bkt-team:last-child{border-bottom:none;} .bkt-win{background:#eafaf0;font-weight:700;color:#1e7a34;}
@@ -4569,14 +4626,15 @@ async function loadTournamentSheet(tournament, division) {
   // (1 or 2). Qualifiers are cross-seeded so group winners are kept apart and a
   // winner never meets a runner-up from its OWN group in round 1. Writes KO round-1
   // fixtures (round_type 'ko'); the existing bracket engine auto-advances from there.
-  window.tmGeneratePlayoff = async function(){
+  window.tmGeneratePlayoff = async function(mode){
+    mode = (mode==='block') ? 'block' : 'snake';   // 'snake' = combined KO; 'block' = section finals
     const groupLabels = [...new Set(entries.map(e=>e.grp).filter(Boolean))].sort();
     if(groupLabels.length < 2){ alert('This is not a grouped round robin.'); return; }
     // all group matches complete?
     const rrFix = fixtures.filter(f=> f.round_type==='rr');
     const anyOpen = rrFix.some(f=> f.seed_b!==0 && f.sets_a==null);
-    if(anyOpen){ alert('Finish every group match before setting up the playoff.'); return; }
-    if(fixtures.some(f=> f.round_type==='ko')){ alert('The playoff has already been generated.'); return; }
+    if(anyOpen){ alert('Finish every group match before setting up the finals.'); return; }
+    if(fixtures.some(f=> f.round_type==='ko')){ alert('The finals have already been generated.'); return; }
 
     // per-group standings (reuse the global standings; filter per group, ranked within)
     const fullStandings = standings(maxPlayed);
@@ -4587,6 +4645,59 @@ async function loadTournamentSheet(tournament, division) {
     });
     const minGroupSize = Math.min(...groupLabels.map(L=>rankInGroup[L].length));
 
+    // ============================================================
+    // SECTION FINALS (block): each group runs its OWN knockout for its OWN winner.
+    // Admin picks top-2 (straight final) or top-4 (1v4/2v3 semis + final) per section.
+    // Each section's KO lives in its own round band so they never collide:
+    //   Section A = rounds 90-92, B = 93-95, C = 96-98, … (base = 90 + gi*3).
+    // Fixtures are banded "A·<round>" so the bracket view can group them by section.
+    // ============================================================
+    if(mode==='block'){
+      const maxAdvB = Math.min(4, minGroupSize);
+      let advB = 2;
+      if(maxAdvB >= 4){
+        const ans = prompt('How many advance to EACH section\'s knockout?\n\n  2  = top two → straight section final\n  4  = top four → semi-finals (1v4, 2v3) + section final\n\nEnter 2 or 4:', '4');
+        if(ans===null) return;
+        advB = (ans.trim()==='4') ? 4 : 2;
+      } else if(maxAdvB < 2){
+        alert('Sections need at least 2 teams for a final.'); return;
+      }
+      const rows = [];
+      groupLabels.forEach((L, gi)=>{
+        const ranked = rankInGroup[L];
+        const take = Math.min(advB, ranked.length);
+        // seed the section's qualifiers 1..take by their group rank, into a bracket
+        const sTeams = ranked.slice(0, take);
+        const sOrder = KO.bracketOrder(KO.nextPow2(sTeams.length));
+        const sBase = 90 + gi*3;                    // A:90, B:93, C:96, …
+        const sLabel = KO.roundLabel(KO.nextPow2(sTeams.length));
+        const tFor = ps => (ps>=1 && ps<=sTeams.length) ? sTeams[ps-1] : null;
+        sOrder.forEach(([psA,psB])=>{
+          const a=tFor(psA), b=tFor(psB);
+          if(a&&b){ rows.push({ tournament, division:TM_DIVISION, round:sBase, round_type:'ko', band:L+'·'+sLabel, seed_a:a, seed_b:b }); }
+          else if(a&&!b){ rows.push({ tournament, division:TM_DIVISION, round:sBase, round_type:'ko', band:L+'·bye', seed_a:a, seed_b:0 }); }
+          else if(!a&&b){ rows.push({ tournament, division:TM_DIVISION, round:sBase, round_type:'ko', band:L+'·bye', seed_a:b, seed_b:0 }); }
+        });
+      });
+      if(!rows.length){ alert('Could not build the section finals.'); return; }
+      const pin = (prompt('Admin PIN to generate the '+TM_DIVISION+' section finals (top '+advB+' per section):')||'').trim();
+      if(!pin) return;
+      TM_ADMIN_PIN = pin;
+      const resp = await fetch(SB_URL+'/functions/v1/tournament',{ method:'POST',
+        headers:{ apikey:SB_ANON, Authorization:'Bearer '+SB_ANON, 'Content-Type':'application/json' },
+        body: JSON.stringify({ action:'write_fixtures', club_id:CLUB_ID, admin_pin:pin,
+          tournament, division:TM_DIVISION, replace:false, fixtures:rows }) });
+      const j = await resp.json().catch(()=>({}));
+      if(!j.ok){ alert('Could not create section finals: '+((j&&j.error)||resp.status)); return; }
+      box._tab='bracket';
+      alert('Section finals created — a knockout in each of the '+groupLabels.length+' sections (top '+advB+' each). Enter results on the Bracket tab; each section crowns its own winner.');
+      loadTournamentSheet(tournament, TM_DIVISION);
+      return;
+    }
+
+    // ============================================================
+    // COMBINED KNOCKOUT (snake): top teams from every group cross into one bracket.
+    // ============================================================
     // choose advancement
     const maxAdv = Math.min(2, minGroupSize);
     let adv = 1;
