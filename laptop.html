@@ -1553,7 +1553,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.27-05";  // RR playoff FIX: KO fixtures moved to 90+ band (was 1/2/3, colliding with group RR rounds → duplicate-key rejection blocked semis + entry). Semis now auto-write and are tappable; results record cleanly.
+const OPR_VERSION = "OTR-LAPTOP v2026.07.27-07";  // Bracket advancement now SERVER-SIDE: recording a KO/playoff result (from the bracket boxes OR the main enter-match screen) writes the next round automatically. NEEDS updated tournament edge fn (advance_bracket action + advanceKnockout).
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -3203,6 +3203,20 @@ async function doSubmit(btn){
     // Ratings just changed — clear the cached ratings map so next read is fresh.
     window._ratingMap = null;
 
+    // If the result landed on a knockout/playoff fixture, advance the bracket server-side
+    // so the NEXT round's fixtures get written — making them enterable from EITHER the
+    // bracket boxes or here. This mirrors what the bracket-box entry path does, so both
+    // entry methods complete the rounds identically (no PIN-in-memory dependency).
+    const _ev=(entryData.event||'').trim();
+    if(_ev && _ev!=='Social' && _ev!=='Ladder Match' && result.fixture!=='nomatch'){
+      try{
+        const _div = entryData.type + (entryData.format==='singles' ? ' Singles' : '');
+        await fetch(SB_URL+'/functions/v1/tournament',{ method:'POST',
+          headers:{ apikey:SB_ANON, Authorization:'Bearer '+SB_ANON, 'Content-Type':'application/json' },
+          body: JSON.stringify({ action:'advance_bracket', club_id:CLUB_ID, tournament:_ev, division:_div }) });
+      }catch(e){ /* advancement is best-effort; the result itself is saved */ }
+    }
+
     // If this was a Ladder Match, apply the position change (insert/shift).
     if((entryData.event||'')==='Ladder Match'){
       try{
@@ -4809,7 +4823,13 @@ async function tmEnterFixtureResult(fixtureId){
       set_scores:setScores, match_date:dateRaw }) });
   const j = await resp.json().catch(()=>({}));
   if(!j.ok){ alert('Could not record: '+((j&&j.error)||resp.status)); return; }
-  // reload the sheet so the board shows the score
+  // The user just proved admin by entering a valid PIN — hold it so the bracket's own
+  // auto-advance (which runs on reload) can write the NEXT round's fixtures (semis, final).
+  // Previously the PIN wasn't held after entry, so tmEnsureBracketFixtures bailed at its
+  // `if(!TM_ADMIN_PIN) return` gate and the semis were never created (dead boxes).
+  TM_ADMIN_PIN = pin;
+  // reload the sheet — its render fires tmEnsureBracketFixtures with the PIN now held and
+  // fresh fixture data (including this result), so the next round is written and shown.
   loadTournamentSheet(ctx.tournament, ctx.division);
 }
 
