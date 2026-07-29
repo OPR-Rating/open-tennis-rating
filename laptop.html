@@ -1580,7 +1580,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.27-23";  // Front page: '🎯 Recent Handicap Results' dropdown below Recent Matches — collapsed by default, lazy-loads on open (zero cost on page load), only appears if handicap events exist. Reads handicap results from the TOURNAMENT tables only (never matches/ratings); shows last 5 with winner ticked + event name. The safe 'quick glimpse'.
+const OPR_VERSION = "OTR-LAPTOP v2026.07.27-24";  // Handicap entry is now SEAMLESS (Option B): entering a handicap event's score on the main +enter screen silently routes to the safe tournament path (matches teams→fixture→record_fixture_result, server-gated). Same familiar screen; the rating engine (submit_match/recompute) is NEVER called for handicap events. No Rounds-tab detour needed.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -3248,8 +3248,84 @@ async function submitMatch(){
   doSubmit(btn);
 }
 
-async function doSubmit(btn){
-  const err=document.getElementById('err4');
+// Route a handicap-event score (entered on the main screen) to the SAFE tournament path.
+// Matches the entered teams to a tournament fixture, then calls record_fixture_result (which
+// is server-gated to skip the master matches write + recompute for handicap events). The
+// rating engine (submit_match/recompute) is never called. Returns true if handled.
+async function routeHandicapEntry(ed, err, btn){
+  const done = (msg, ok)=>{ err.innerHTML = msg; err.style.display='block'; btn.disabled=false; btn.textContent='\u2713 Submit Match'; return true; };
+  const tour = (ed.event||'').trim();
+  const div = ed.type;
+  const isSingles = ed.format==='singles';
+  // normalise a player-name for comparison
+  const norm = s => (s||'').trim().toLowerCase();
+  // team identity = the set of its player names (order-independent within a pair)
+  const teamKey = (p1,p2)=> isSingles ? norm(p1) : [norm(p1),norm(p2)].sort().join('|');
+  const t1key = teamKey(ed.t1p1, ed.t1p2);
+  const t2key = teamKey(ed.t2p1, ed.t2p2);
+  let entries, fixtures;
+  try{
+    entries  = await sbGet(`tournament_entries?select=seed,p1,p2&club_id=${'eq.'+CLUB_ID}&tournament=eq.${encodeURIComponent(tour)}&category=eq.${encodeURIComponent(div)}`) || [];
+    fixtures = await sbGet(`tournament_fixtures?select=id,round,seed_a,seed_b,sets_a&club_id=${'eq.'+CLUB_ID}&tournament=eq.${encodeURIComponent(tour)}&division=eq.${encodeURIComponent(div)}`) || [];
+  }catch(e){ return done('<strong>⚠️ Could not load the handicap draw.</strong><br>Please try again, or enter this result on the tournament\'s Rounds tab.', false); }
+  if(!entries.length || !fixtures.length){
+    return done('<strong>🎯 Handicap event.</strong><br>No draw found for “'+div+'” in this event. Generate the draw first, or enter on the Rounds tab.', false);
+  }
+  // seed lookup by team identity
+  const seedOf = {};
+  entries.forEach(e=>{ seedOf[teamKey(e.p1, e.p2)] = e.seed; });
+  const s1 = seedOf[t1key], s2 = seedOf[t2key];
+  if(s1==null || s2==null){
+    const miss = s1==null ? (isSingles?ed.t1p1:(ed.t1p1+' / '+ed.t1p2)) : (isSingles?ed.t2p1:(ed.t2p1+' / '+ed.t2p2));
+    return done('<strong>⚠️ Team not in this event.</strong><br>“'+miss+'” isn\'t an entered team in “'+tour+'” ('+div+'). Check the names, or enter on the Rounds tab.', false);
+  }
+  // find the fixture pairing these two seeds (either orientation), preferring an unplayed one
+  const cand = fixtures.filter(f=> (f.seed_a===s1&&f.seed_b===s2)||(f.seed_a===s2&&f.seed_b===s1));
+  if(!cand.length){
+    return done('<strong>⚠️ No fixture for these two teams.</strong><br>They may not be drawn to meet (or already played every meeting). You can enter on the Rounds tab.', false);
+  }
+  const fx = cand.find(f=> f.sets_a==null) || cand[0];  // prefer unplayed; else overwrite
+  // orient the score to the fixture's seed_a/seed_b
+  const aIsT1 = (fx.seed_a===s1);
+  const sets_a = aIsT1 ? ed.t1sets : ed.t2sets;
+  const sets_b = aIsT1 ? ed.t2sets : ed.t1sets;
+  const games_a= aIsT1 ? ed.t1games: ed.t2games;
+  const games_b= aIsT1 ? ed.t2games: ed.t1games;
+  // set_scores oriented to team A
+  const parts=[];
+  for(let i=1;i<=ed.sets;i++){
+    const a=ed['set'+i+'t1'], b=ed['set'+i+'t2'];
+    if(a!==undefined&&a!==''&&b!==undefined&&b!=='') parts.push(aIsT1 ? (a+'-'+b) : (b+'-'+a));
+  }
+  btn.textContent='Recording handicap result…';
+  try{
+    const resp = await fetch(SB_URL+'/functions/v1/tournament',{ method:'POST',
+      headers:{ apikey:SB_ANON, Authorization:'Bearer '+SB_ANON, 'Content-Type':'application/json' },
+      body: JSON.stringify({ action:'record_fixture_result', club_id:CLUB_ID, admin_pin:ed._pin,
+        fixture_id:fx.id, tournament:tour, division:div, round:fx.round,
+        seed_a:fx.seed_a, seed_b:fx.seed_b, sets_a, sets_b, games_a, games_b,
+        set_scores:parts.join(','), match_date:ed.date }) });
+    const j = await resp.json().catch(()=>({}));
+    if(!resp.ok || !j.ok){
+      return done('<strong>⚠️ Not saved.</strong><br>'+((j&&j.error)||('status '+resp.status))+'<br><span style="font-size:12px;">You can also enter this on the tournament\'s Rounds tab.</span>', false);
+    }
+  }catch(e){
+    return done('<strong>⚠️ Connection problem.</strong><br>The handicap result was not saved. Please try again.', false);
+  }
+  // success — clear the cached ratings map is NOT needed (ratings untouched). Show confirmation.
+  const t1 = isSingles?ed.t1p1:(ed.t1p1+' / '+ed.t1p2);
+  const t2 = isSingles?ed.t2p1:(ed.t2p1+' / '+ed.t2p2);
+  err.style.display='none';
+  const box=document.getElementById('entryResult')||document.getElementById('err4');
+  btn.disabled=false; btn.textContent='\u2713 Submit Match';
+  alert('🎯 Handicap result saved (no rating effect):\n\n'+t1+'  '+ed.t1sets+'–'+ed.t2sets+'  '+t2+'\n\nEvent: '+tour+' · '+div+'\nSee it in the tournament standings and the front-page “Recent Handicap Results”.');
+  // reset the entry form back to start, like a normal successful submit
+  if(typeof showScreen==='function') showScreen('homeScreen');
+  if(typeof loadRecent==='function'){ _hcGlimpseLoaded=false; loadRecent(); }
+  return true;
+}
+
+async function doSubmit(btn){  const err=document.getElementById('err4');
   if(!navigator.onLine){
     err.innerHTML='<strong>You are offline.</strong> Your score was <strong>NOT</strong> sent. Please reconnect and submit again — nothing has been saved yet.';
     err.style.display='block'; btn.disabled=false; btn.textContent='\u2713 Submit Match';
@@ -3257,21 +3333,22 @@ async function doSubmit(btn){
   }
   btn.textContent='Verifying & submitting...';
   try{
-    // HANDICAP SAFETY: a handicap event must NEVER go through submit_match (which writes to
-    // the master matches table and fires recompute). Handicap results are entered on the
-    // tournament's Rounds tab (tap the fixture → record_fixture_result, which is gated
-    // server-side to skip ratings). If this event is a handicap tournament, stop here and
-    // direct the user there. This keeps the main entry screen from ever rating a handicap match.
+    // HANDICAP ROUTING (Architecture B — the rating engine is NEVER touched). A handicap
+    // event must not go through submit_match (which writes to matches + fires recompute).
+    // Instead we detect it here and route the SAME entered score to the safe, server-gated
+    // tournament path (record_fixture_result), so the user enters it in the familiar place
+    // and the separation is invisible. No change to submit_match / recompute / the engine.
     const _evName = (entryData.event||'').trim();
     if(_evName && _evName!=='Social' && _evName!=='Ladder Match'){
+      let _isHc = false;
       try{
         const hrow = await sbGet(`tournaments?select=handicap&club_id=eq.${CLUB_ID}&name=eq.${encodeURIComponent(_evName)}&limit=1`);
-        if(hrow && hrow[0] && hrow[0].handicap){
-          err.innerHTML='<strong>🎯 Handicap event.</strong><br>Enter handicap results on the tournament\'s <b>Rounds</b> tab (tap the fixture). This keeps them out of ratings — handicap events are just for fun and never affect anyone\'s rating.';
-          err.style.display='block'; btn.disabled=false; btn.textContent='\u2713 Submit Match';
-          return;
-        }
-      }catch(e){ /* if the check fails, fall through — the server gate is the backstop */ }
+        _isHc = !!(hrow && hrow[0] && hrow[0].handicap);
+      }catch(e){ _isHc = false; }
+      if(_isHc){
+        const routed = await routeHandicapEntry(entryData, err, btn);
+        return; // handled (success or a shown error) — never falls through to submit_match
+      }
     }
     // Build set_scores string e.g. "6-3,6-4"
     const setParts=[];
