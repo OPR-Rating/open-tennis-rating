@@ -486,6 +486,11 @@
         <div class="home-recent-col">
           <div style="background:#c4e000;color:#2a3000;border:1.5px solid #a9c400;border-radius:10px;padding:8px 12px;margin:22px 0 10px;font-size:13px;font-weight:800;letter-spacing:0.5px;text-align:center;">Recent Matches</div>
           <div id="homeRecentList" style="max-height:420px;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px;"><div style="color:#888;font-size:12px;">Loading...</div></div>
+          <div id="homeHcWrap" style="display:none;margin-top:12px;">
+            <button id="homeHcToggle" onclick="toggleHandicapGlimpse()" style="width:100%;text-align:left;background:#fffdf5;color:#8a6d1a;border:1.5px solid #B9770E;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:800;letter-spacing:0.3px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+              <span>🎯 Recent Handicap Results</span><span id="homeHcCaret">▸</span></button>
+            <div id="homeHcList" style="display:none;max-height:360px;overflow-y:auto;margin-top:8px;padding-right:2px;"></div>
+          </div>
         </div>
       </div>
       <div id="oprVerTag" style="text-align:center;color:#b3a9c4;font-size:10px;letter-spacing:0.5px;margin:14px 0 6px;"></div>
@@ -1575,7 +1580,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.27-18";  // Teams tab: sub/team buttons now truly compact (new .tm-minibtn overrides menu-btn's min-height:52px which was forcing tall rows) — rows are now low. Fixes the row-height issue from -17.
+const OPR_VERSION = "OTR-LAPTOP v2026.07.27-23";  // Front page: '🎯 Recent Handicap Results' dropdown below Recent Matches — collapsed by default, lazy-loads on open (zero cost on page load), only appears if handicap events exist. Reads handicap results from the TOURNAMENT tables only (never matches/ratings); shows last 5 with winner ticked + event name. The safe 'quick glimpse'.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -2575,6 +2580,72 @@ async function loadRecent(){
     if(data.length===0){document.getElementById('homeRecentList').innerHTML='<div style="color:#888;font-size:12px;">No matches yet</div>';return;}
     renderRecentList();
   }catch(e){document.getElementById('homeRecentList').innerHTML='<div style="color:#888;font-size:12px;">Could not load: '+(e.message||e)+'</div>';}
+  // Cheap check: reveal the handicap glimpse bar ONLY if any handicap tournament exists.
+  // (Just asks for 1 handicap-flagged tournament name — negligible; no results fetched yet.)
+  try{
+    const hct = await sbGet(`tournaments?select=name&club_id=eq.${CLUB_ID}&handicap=eq.true&limit=1`);
+    if(hct && hct.length){ const w=document.getElementById('homeHcWrap'); if(w) w.style.display=''; }
+  }catch(e){ /* if the flag/column isn't there yet, just leave the bar hidden */ }
+}
+
+// Lazy-loading handicap glimpse. Fetches ONLY when opened (zero cost on page load).
+// Reads handicap results from the tournament tables — NEVER from matches — so it can never
+// affect ratings. Shows the most recent handful with the winning pair highlighted + event name.
+let _hcGlimpseLoaded = false;
+async function toggleHandicapGlimpse(){
+  const list=document.getElementById('homeHcList'), caret=document.getElementById('homeHcCaret');
+  if(!list) return;
+  const open = list.style.display!=='none';
+  if(open){ list.style.display='none'; caret.textContent='▸'; return; }
+  list.style.display=''; caret.textContent='▾';
+  if(_hcGlimpseLoaded) return;                 // already have them; don't refetch
+  list.innerHTML='<div style="color:#888;font-size:12px;padding:4px 2px;">Loading…</div>';
+  try{
+    // 1) handicap tournaments for this club
+    const tours = await sbGet(`tournaments?select=name&club_id=eq.${CLUB_ID}&handicap=eq.true`) || [];
+    if(!tours.length){ list.innerHTML='<div style="color:#888;font-size:12px;padding:4px 2px;">No handicap events yet.</div>'; _hcGlimpseLoaded=true; return; }
+    // 2) each tournament's PLAYED fixtures (result present). We query per tournament (there
+    // won't be many handicap events) and order by id — a column that always exists — to avoid
+    // depending on an updated_at column. Read from the tournament table ONLY (never matches).
+    let allFx = [];
+    for(const t of tours){
+      const rows = await sbGet(`tournament_fixtures?select=id,tournament,division,seed_a,seed_b,sets_a,sets_b,games_a,games_b&club_id=eq.${CLUB_ID}&tournament=eq.${encodeURIComponent(t.name)}&sets_a=not.is.null&order=id.desc&limit=5`) || [];
+      allFx = allFx.concat(rows);
+    }
+    if(!allFx.length){ list.innerHTML='<div style="color:#888;font-size:12px;padding:4px 2px;">No handicap results in yet — check back after some matches.</div>'; _hcGlimpseLoaded=true; return; }
+    // most recent overall by id (proxy for recency), take 5
+    allFx.sort((a,b)=> (b.id||0)-(a.id||0));
+    const fx = allFx.slice(0,5);
+    // 3) resolve team names per (tournament,division), cached
+    const nameCache = {};
+    async function teamName(tour, div, seed){
+      const key = tour+'|'+div;
+      if(!nameCache[key]){
+        const ents = await sbGet(`tournament_entries?select=seed,p1,p2&club_id=eq.${CLUB_ID}&tournament=eq.${encodeURIComponent(tour)}&category=eq.${encodeURIComponent(div)}`) || [];
+        const m={}; ents.forEach(e=>{ m[e.seed]= e.p2 ? (e.p1+' / '+e.p2) : e.p1; }); nameCache[key]=m;
+      }
+      return nameCache[key][seed] || ('Seed '+seed);
+    }
+    let html='';
+    for(const f of fx){
+      const aName = await teamName(f.tournament, f.division, f.seed_a);
+      const bName = await teamName(f.tournament, f.division, f.seed_b);
+      const aWin = f.sets_a>f.sets_b;
+      const score = f.sets_a+'–'+f.sets_b+' ('+f.games_a+'–'+f.games_b+')';
+      html += '<div style="border:1px solid #f0e0b0;background:#fffdf8;border-radius:8px;padding:7px 10px;margin-bottom:6px;">'
+        + '<div style="font-size:12px;line-height:1.5;">'
+        + '<b style="color:'+(aWin?'#0F6E56':'#555')+';">'+aName+(aWin?' ✓':'')+'</b>'
+        + '<span style="color:#999;"> vs </span>'
+        + '<b style="color:'+(!aWin?'#0F6E56':'#555')+';">'+bName+(!aWin?' ✓':'')+'</b></div>'
+        + '<div style="font-size:11px;color:#8a6d1a;margin-top:2px;">'+score+' · <span style="opacity:.8;">'+f.tournament+'</span> '
+        + '<span style="background:#B9770E;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;">H</span></div>'
+        + '</div>';
+    }
+    list.innerHTML = html + '<div style="font-size:10px;color:#b0a48a;text-align:center;margin-top:2px;">Handicap results — just for fun, no effect on ratings.</div>';
+    _hcGlimpseLoaded = true;
+  }catch(e){
+    list.innerHTML='<div style="color:#c0392b;font-size:12px;padding:4px 2px;">Could not load handicap results: '+(e.message||e)+'</div>';
+  }
 }
 
 function renderRecentList(){
@@ -3186,6 +3257,22 @@ async function doSubmit(btn){
   }
   btn.textContent='Verifying & submitting...';
   try{
+    // HANDICAP SAFETY: a handicap event must NEVER go through submit_match (which writes to
+    // the master matches table and fires recompute). Handicap results are entered on the
+    // tournament's Rounds tab (tap the fixture → record_fixture_result, which is gated
+    // server-side to skip ratings). If this event is a handicap tournament, stop here and
+    // direct the user there. This keeps the main entry screen from ever rating a handicap match.
+    const _evName = (entryData.event||'').trim();
+    if(_evName && _evName!=='Social' && _evName!=='Ladder Match'){
+      try{
+        const hrow = await sbGet(`tournaments?select=handicap&club_id=eq.${CLUB_ID}&name=eq.${encodeURIComponent(_evName)}&limit=1`);
+        if(hrow && hrow[0] && hrow[0].handicap){
+          err.innerHTML='<strong>🎯 Handicap event.</strong><br>Enter handicap results on the tournament\'s <b>Rounds</b> tab (tap the fixture). This keeps them out of ratings — handicap events are just for fun and never affect anyone\'s rating.';
+          err.style.display='block'; btn.disabled=false; btn.textContent='\u2713 Submit Match';
+          return;
+        }
+      }catch(e){ /* if the check fails, fall through — the server gate is the backstop */ }
+    }
     // Build set_scores string e.g. "6-3,6-4"
     const setParts=[];
     for(let i=1;i<=entryData.sets;i++){
@@ -3776,7 +3863,7 @@ const TM = (function () {
       }
     }
     if (steps > 5) steps = 5;
-    steps = rhu(steps * 4) / 4;                     // quarter-step resolution (alternating games)
+    steps = Math.round(steps * 4) / 4;              // quarter-step resolution (alternating games)
     // realise steps as integer base + a fractional alternation:
     const base = Math.floor(steps);
     const frac = steps - base;                      // 0, .25, .5, .75
@@ -4070,8 +4157,16 @@ async function loadTournamentSheet(tournament, division) {
 
   const entries = await tmLoadEntries(tournament, TM_DIVISION);
   const fixtures = await tmLoadFixtures(tournament, TM_DIVISION);
+  // Is this a handicap event? (flag on the tournaments row.) Drives the per-match handicap
+  // display. Read-only lookup; the safety gate that protects ratings is server-side.
+  let _isHandicap = false;
+  try {
+    const trow = await sbGet(`tournaments?select=handicap&club_id=eq.${CLUB_ID}&name=eq.${encodeURIComponent(tournament)}&limit=1`);
+    _isHandicap = !!(trow && trow[0] && trow[0].handicap);
+  } catch(e){ _isHandicap = false; }
+  window._tmIsHandicap = _isHandicap;
   // stash for the fixture-result entry (called from onclick outside this scope)
-  window._tmCtx = { tournament, division: TM_DIVISION };
+  window._tmCtx = { tournament, division: TM_DIVISION, handicap: _isHandicap };
   window._tmFixturesById = {}; fixtures.forEach(f=>{ window._tmFixturesById[f.id]=f; });
   window._tmAllFixtures = fixtures;
   window._tmComputeMain = computeMainBracket;   // expose for tmEnsureBracketFixtures
@@ -4101,6 +4196,33 @@ async function loadTournamentSheet(tournament, division) {
       return tmTeamName(p1, p2);
     }
     return tmTeamName(e.p1, e.p2);
+  };
+
+  // Per-fixture handicap (for handicap events). Uses the two teams' frozen seed_rating
+  // (already the division-correct pair rating — combined for Men's/Ladies', weighted 0.6/0.4
+  // for Mixed/All Sorts — since that's what seeded them). Returns a short display string
+  // telling each team its on-court head start, per the approved ladder. Display only; never
+  // touches ratings. (Living per-round recompute from live ratings can layer on later.)
+  const tmFixtureHandicap = (seedA, seedB) => {
+    const eA = bySeed[seedA], eB = bySeed[seedB];
+    if(!eA || !eB || eA.seed_rating==null || eB.seed_rating==null) return null;
+    const rA = eA.seed_rating, rB = eB.seed_rating;
+    if(Math.round(rA) === Math.round(rB)) return { scratch:true, text:'Scratch — no handicap (evenly matched)' };
+    const favSeed = rA > rB ? seedA : seedB;      // stronger side
+    const undSeed = rA > rB ? seedB : seedA;      // weaker side
+    const hc = TM.computeHandicap(Math.max(rA,rB), Math.min(rA,rB));
+    if(hc.steps === 0) return { scratch:true, bySeed:{} };
+    // Court-friendly shorthand per team. + = receive (start ahead), − = owe (behind).
+    // "alt." = the value alternates each game. Returns a label per seed so each sits under
+    // its own team name in the fixture row.
+    const recVal = (n, alt) => alt ? ((n ? (n===1?'15':'30')+'/'+(n===1?'30':'40') : '15/30') + ' alt.') : (n===1?'15':'30');
+    const oweVal = (n, alt) => alt ? ((n ? (n===1?'15':n===2?'30':'40')+'/'+(n===1?'30':'40') : '15/30') + ' alt.') : (n===1?'15':n===2?'30':'40');
+    const undLabel = (hc.receive || hc.altReceive) ? ('+' + recVal(hc.receive, hc.altReceive)) : null;
+    const favLabel = (hc.owe || hc.altOwe) ? ('−' + oweVal(hc.owe, hc.altOwe)) : null;
+    const byS = {};
+    if(undLabel) byS[undSeed] = undLabel;
+    if(favLabel) byS[favSeed] = favLabel;
+    return { scratch:false, favSeed, undSeed, bySeed: byS, capped:hc.capped };
   };
 
   const rounds = {};
@@ -4197,6 +4319,13 @@ async function loadTournamentSheet(tournament, division) {
   function roundsHTML() {
     if(!roundNos.length) return '<div class="card"><h2>Rounds <span class="tm-divtag">' + TM_DIVISION + '</span></h2><p class="sub">No draw generated yet for this division. An admin can generate it from the Enter screen.</p></div>';
     let h = '<div class="card"><h2>Round Fixtures &amp; Results <span class="tm-divtag">' + TM_DIVISION + '</span></h2>';
+    if (window._tmIsHandicap) {
+      h += '<div style="margin:0 0 10px;padding:8px 12px;border:1.5px solid #B9770E;border-radius:9px;background:#fffdf5;font-size:12px;color:#8a6d1a;line-height:1.5;">'
+        + '🎯 <b>Handicap event — just for fun (no rating effect).</b> Each match shows the head start to play on court: '
+        + '<b>(+)</b> = that pair <b>receives</b> (starts the game ahead), <b>(−)</b> = that pair <b>owes</b> (starts behind). '
+        + '<b>“alt.”</b> = the value alternates each game (e.g. −30/40 alt. = owe 30 one game, 40 the next). Enter the final score as played.'
+        + '</div>';
+    }
 
     // For a SPLIT round robin, the fixtures carry a "L·R#" band (section + within-section
     // round). Show the round buttons GROUPED by section — one labelled row per section —
@@ -4257,11 +4386,23 @@ async function loadTournamentSheet(tournament, division) {
       const played = f.sets_a != null;
       const aWin = played && f.sets_a > f.sets_b, bWin = played && f.sets_b > f.sets_a;
       const score = played ? (f.sets_a + '–' + f.sets_b + ' (' + f.games_a + '–' + f.games_b + ')') : '—';
+      // Handicap (handicap events only): a small tag under each team's own name.
+      let hcA = '', hcB = '';
+      if (window._tmIsHandicap) {
+        const hc = tmFixtureHandicap(f.seed_a, f.seed_b);
+        if (hc && !hc.scratch) {
+          const tag = v => '<div style="font-size:11px;font-weight:700;color:#B9770E;margin-top:1px;">' + v + (hc.capped ? ' <span style="color:#c0392b;">(max)</span>' : '') + '</div>';
+          if (hc.bySeed[f.seed_a]) hcA = tag(hc.bySeed[f.seed_a]);
+          if (hc.bySeed[f.seed_b]) hcB = tag(hc.bySeed[f.seed_b]);
+        } else if (hc && hc.scratch) {
+          hcA = '<div style="font-size:11px;color:#5aa98d;margin-top:1px;">scratch</div>';
+        }
+      }
       h += '<tr style="cursor:pointer;" onclick="tmEnterFixtureResult(' + f.id + ')" title="Tap to enter/edit the score">'
         + '<td class="num"><span class="seed' + (f.seed_a === 1 ? ' s1' : '') + '">' + f.seed_a + '</span></td>'
-        + '<td class="ta' + (aWin ? ' winr' : '') + '">' + tNameAt(f.seed_a, f.round) + '</td>'
+        + '<td class="ta' + (aWin ? ' winr' : '') + '">' + tNameAt(f.seed_a, f.round) + hcA + '</td>'
         + '<td class="num"><span class="pill ' + f.band + '">' + (f.band||'') + '</span></td>'
-        + '<td class="tb' + (bWin ? ' winr' : '') + '">' + tNameAt(f.seed_b, f.round) + '</td>'
+        + '<td class="tb' + (bWin ? ' winr' : '') + '">' + tNameAt(f.seed_b, f.round) + hcB + '</td>'
         + '<td class="num"><span class="seed' + (f.seed_b === 1 ? ' s1' : '') + '">' + f.seed_b + '</span></td>'
         + '<td class="num">' + (played ? '<span class="res-done">' + score + '</span>' : '<span style="color:#12855F;font-weight:700;">enter ▸</span>') + '</td></tr>';
     });
@@ -5448,7 +5589,7 @@ function etGroupConfigHTML(d, cnt){
     const tierSel = (cfg.outcomeChosen && cfg.mode==='block');
     const koSel   = (cfg.outcomeChosen && cfg.mode==='snake');
     h += '<button onclick="etGroupSet(\'' + de + '\',' + cfg.groups + ',\'block\')" class="ac-btn ' + (tierSel?'ac-btn-primary':'ac-btn-ghost') + '" style="text-align:left;line-height:1.35;">'
-      + (tierSel?'● ':'○ ') + '<b>Separate divisions</b> — split by strength, each group plays for its own winner (Advanced / Intermediate / …)</button>';
+      + (tierSel?'● ':'○ ') + '<b>Separate divisions</b> — split by strength, each group plays for its own winner (Division 1 / Division 2 / …)</button>';
     h += '<button onclick="etGroupSet(\'' + de + '\',' + cfg.groups + ',\'snake\')" class="ac-btn ' + (koSel?'ac-btn-primary':'ac-btn-ghost') + '" style="text-align:left;line-height:1.35;">'
       + (koSel?'● ':'○ ') + '<b>Groups into a knockout</b> — balanced groups, top teams advance to a playoff for one champion</button>';
     h += '</div>';
@@ -5492,9 +5633,7 @@ function etGroupPreviewHTML(d, cnt, cfg){
 }
 // Tier names for block allocation (strongest group first).
 function etTierNames(g){
-  if(g===2) return ['Advanced','Intermediate'];
-  if(g===3) return ['Advanced','Intermediate','Beginner'];
-  if(g===4) return ['Division 1','Division 2','Division 3','Division 4'];
+  // Neutral labels only — no skill judgement (Advanced/Intermediate/Beginner removed).
   const out=[]; for(let i=0;i<g;i++) out.push('Division '+(i+1)); return out;
 }
 // Set the config and re-render. groups=1 clears the outcome; a split defaults to no outcome
