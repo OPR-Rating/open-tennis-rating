@@ -56,6 +56,7 @@
   .club-panel-link:hover { text-decoration:underline; }
   .menu-btn { padding: 14px 8px; background: #fff; border: 1.5px solid #1a1a1a; border-radius: 12px; font-size: 13px; font-weight: 600; color: #1a1a1a; cursor: pointer; text-align: center; transition: all 0.15s; display: flex; align-items: center; justify-content: center; min-height: 52px; }
   .menu-btn:active { background: rgba(15,110,86,.12); transform: scale(0.97); }
+  .menu-btn.tm-minibtn { min-height: 0 !important; padding: 2px 7px !important; border-radius: 6px !important; font-size: 10px !important; font-weight: 700; line-height: 1.25 !important; display: inline-flex; }
   .menu-btn .icon { font-size: 20px; display: block; margin-bottom: 3px; }
   .menu-btn.full-width { grid-column: span 2; }
   .ladders-group-title { font-size: 11px; font-weight: 700; color: #0F6E56; text-transform: uppercase; letter-spacing: 0.6px; margin: 14px 0 8px; }
@@ -1574,7 +1575,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.27-16";  // Handicap Part 1 (Architecture B — ratings NEVER touched): 🎯 handicap-event toggle on create (forces internal, 'no rating effect' note) + edge fn set_handicap + record_fixture_result SAFETY GATE that skips the master matches write & recompute for handicap events. NEEDS handicap column + updated edge fn. Entry routing/display = Part 2.
+const OPR_VERSION = "OTR-LAPTOP v2026.07.27-18";  // Teams tab: sub/team buttons now truly compact (new .tm-minibtn overrides menu-btn's min-height:52px which was forcing tall rows) — rows are now low. Fixes the row-height issue from -17.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -4160,6 +4161,7 @@ async function loadTournamentSheet(tournament, division) {
     let h = '<div class="card"><h2>' + heading + ' <span class="tm-divtag">' + tmDivLabel(TM_DIVISION) + '</span></h2>'
       + '<p class="sub">Seeded by frozen entry rating (strongest = Seed 1). ' + blurb + '</p>'
       + '<table><thead><tr><th class="num">Seed</th><th>' + who + '</th>'
+      + '<th class="num">Rating</th>'
       + (_showGroup ? '<th class="num">Group</th>' : '') + (_showBand ? '<th class="num">Band</th>' : '')
       + (!_sg ? '<th class="num"></th>' : '')
       + '</tr></thead><tbody>';
@@ -4170,7 +4172,8 @@ async function loadTournamentSheet(tournament, division) {
       h += '<tr><td class="num"><span class="seed' + (s === 1 ? ' s1' : '') + '">' + s + '</span></td>'
         + '<td><b>' + tName(s) + '</b>'
         + (hasSub ? ('<div style="font-size:11px;color:#B9770E;margin-top:2px;">→ ' + subName + ' from R' + e.sub_from_round + '</div>') : '')
-        + '</td>';
+        + '</td>'
+        + '<td class="num"><b style="color:#0F6E56;">' + (e && e.seed_rating!=null ? Math.round(e.seed_rating) : '—') + '</b></td>';
       if (_showGroup) {
         const L = _grpOf[s] || '—';
         const tn = _tierOf[L] ? (' <span style="color:#5aa98d;font-size:11px;">' + _tierOf[L] + '</span>') : '';
@@ -4181,9 +4184,9 @@ async function loadTournamentSheet(tournament, division) {
       // "⇄ team" replaces BOTH (whole-team takeover, inherits the seat's standing).
       if (!_sg) {
         h += '<td class="num">'
-          + '<div style="display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:nowrap;">'
-          + '<button class="menu-btn" style="display:inline-block;width:auto;padding:4px 8px;font-size:11px;border-color:#B9770E;white-space:nowrap;" onclick="tmReplacePartner(' + s + ')" title="Replace ONE player from the next unplayed round onward">✎ sub</button>'
-          + '<button class="menu-btn" style="display:inline-block;width:auto;padding:4px 8px;font-size:11px;border-color:#7D3C98;white-space:nowrap;" onclick="tmReplaceTeam(' + s + ')" title="Replace the WHOLE team — the new pair takes this seat and its tournament standing from the next unplayed round">⇄ team</button>'
+          + '<div style="display:flex;gap:5px;justify-content:flex-end;align-items:center;flex-wrap:nowrap;">'
+          + '<button class="menu-btn tm-minibtn" style="border-color:#B9770E;white-space:nowrap;" onclick="tmReplacePartner(' + s + ')" title="Replace ONE player from the next unplayed round onward">✎ sub</button>'
+          + '<button class="menu-btn tm-minibtn" style="border-color:#7D3C98;white-space:nowrap;" onclick="tmReplaceTeam(' + s + ')" title="Replace the WHOLE team — the new pair takes this seat and its tournament standing from the next unplayed round">⇄ team</button>'
           + '</div></td>';
       }
       h += '</tr>';
