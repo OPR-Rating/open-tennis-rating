@@ -243,8 +243,8 @@
   #tournamentSheetContent .pill.DB { background:var(--db); }
   #tournamentSheetContent .pill.Cross { background:var(--cross); }
   #tournamentSheetContent .sub-flag { font-size:10px; color:var(--warn); font-weight:700; display:block; }
-  .tm-nav { display:flex; gap:6px; padding:12px; background:rgba(15,110,86,.10); margin:0 12px 12px; border-radius:11px; }
-  .tm-nav button { flex:1; padding:9px 6px; border:none; background:none; border-radius:8px; font-size:12px; font-weight:700; color:#7a6688; cursor:pointer; font-family:inherit; }
+  .tm-nav { display:flex; gap:6px; padding:6px; background:rgba(15,110,86,.10); margin:0 12px 10px; border-radius:11px; }
+  .tm-nav button { flex:1; padding:6px 6px; border:none; background:none; border-radius:8px; font-size:12px; font-weight:700; color:#7a6688; cursor:pointer; font-family:inherit; }
   .tm-nav button.active { background:#fff; color:#0F6E56; box-shadow:0 1px 4px rgba(0,0,0,0.1); }
 
   .ac-btn-gold { background:linear-gradient(180deg,#F1C40F,#E3AC00); color:#083b2c; }
@@ -832,8 +832,8 @@
                 <div class="at-divrow"><label><input type="checkbox" id="atDivMenSingles" onchange="atSyncCap('MenSingles')"> Men's Singles</label><input id="atCapMenSingles" type="number" min="2" step="1" placeholder="cap" class="ac-capf" disabled></div>
                 <div class="at-divrow"><label><input type="checkbox" id="atDivLadiesSingles" onchange="atSyncCap('LadiesSingles')"> Ladies Singles</label><input id="atCapLadiesSingles" type="number" min="2" step="1" placeholder="cap" class="ac-capf" disabled></div>
                 <div style="font-size:11px;color:#7ba392;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:10px 0 4px;">Doubles</div>
-                <div class="at-divrow"><label><input type="checkbox" id="atDivMen" checked onchange="atSyncCap('Men')"> Men's Doubles</label><input id="atCapMen" type="number" min="4" step="2" placeholder="cap" class="ac-capf"></div>
-                <div class="at-divrow"><label><input type="checkbox" id="atDivLadies" checked onchange="atSyncCap('Ladies')"> Ladies Doubles</label><input id="atCapLadies" type="number" min="4" step="2" placeholder="cap" class="ac-capf"></div>
+                <div class="at-divrow"><label><input type="checkbox" id="atDivMen" onchange="atSyncCap('Men')"> Men's Doubles</label><input id="atCapMen" type="number" min="4" step="2" placeholder="cap" class="ac-capf" disabled></div>
+                <div class="at-divrow"><label><input type="checkbox" id="atDivLadies" onchange="atSyncCap('Ladies')"> Ladies Doubles</label><input id="atCapLadies" type="number" min="4" step="2" placeholder="cap" class="ac-capf" disabled></div>
                 <div class="at-divrow"><label><input type="checkbox" id="atDivMixed" onchange="atSyncCap('Mixed')"> Mixed Doubles</label><input id="atCapMixed" type="number" min="4" step="2" placeholder="cap" class="ac-capf" disabled></div>
                 <div class="at-divrow"><label><input type="checkbox" id="atDivAllSorts" onchange="atSyncCap('AllSorts')"> All Sorts</label><input id="atCapAllSorts" type="number" min="4" step="2" placeholder="cap" class="ac-capf" disabled></div>
               </div>
@@ -1553,7 +1553,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.27-11";  // Item 3: round board groups rounds by section (Group A/B/C…) for split RRs. Item 4: forward-dated PARTNER SUBSTITUTION — admin '✎ sub' on the Teams tab replaces a partner from the next unplayed round on; past results keep the original, upcoming fixtures show the new name. NEEDS updated tournament edge fn (set_substitute).
+const OPR_VERSION = "OTR-LAPTOP v2026.07.27-15";  // Admin: Men's/Ladies Doubles no longer ticked by default in create-tournament (admin must choose — prevents accidental extra divisions). Cosmetic: shorter tab bar; rounds-sheet Group headers left-aligned to match the round buttons.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -3698,6 +3698,89 @@ const TM = (function () {
     return { labels, groups: g };
   }
 
+  // ===========================================================================
+  // HANDICAP (approved model, 2026-07-27). Handicap the GAME on the 7-step tennis
+  // ladder: -40,-30,-15,scratch,+15,+30,+40,GAME. The handicap is the DISTANCE
+  // between the two sides' start rungs. Fill RECEIVE first (underdog up to rec-30,
+  // never rec-40), THEN OWE the favourite (down to owe-40). Max = owe-40/rec-30 (5
+  // steps). Fractions realised by ALTERNATING games. Route B: the result is later
+  // rated against the handicap-adjusted (~50%) expectation.
+  //
+  // computeHandicap(rFav, rUnd) -> {
+  //   gap, share,               // rating gap and raw favourite expected share
+  //   steps,                    // fair separation in fifteens (0..5, may be fractional)
+  //   receive, owe,             // integer rungs applied each game (receive 0..2 =15/30; owe 0..3 =15/30/40)
+  //   altReceive, altOwe,       // extra rung applied every OTHER game (the ½-step)
+  //   label, favLabel, undLabel // human strings
+  // }
+  // rFav must be >= rUnd (favourite is the stronger side). If equal, scratch.
+  // ---------------------------------------------------------------------------
+  function hcExpectedShare(rFav, rUnd) {
+    return 1 / (1 + Math.pow(10, (rUnd - rFav) / 250));   // favourite expected share
+  }
+  // The step ladder value: favourite game-win% for an EVEN pair at a given integer
+  // separation (from the approved model table). Used to invert share -> steps.
+  const HC_LADDER = [0.500, 0.344, 0.188, 0.109, 0.062, 0.035];  // steps 0..5
+  function computeHandicap(rFav, rUnd) {
+    const gap = Math.max(0, rFav - rUnd);
+    const share = hcExpectedShare(rFav, rUnd);
+    // Find the separation whose LADDER value best offsets the favourite's edge. The ladder
+    // gives the favourite's game-win% for an even pair at each integer step; we want the
+    // step where (1 - ladder) ≈ share's complement, i.e. the handicap that pulls the game
+    // to ~50%. Invert by interpolating between the bracketing integer steps for a fraction.
+    // Target: favourite's post-handicap game share ≈ 0.5. The favourite's advantage over
+    // even is (share - 0.5); each step reduces their game-win% per HC_LADDER. Solve for the
+    // step where the favourite's handicapped game-win% crosses 0.5.
+    // favourite handicapped game% ≈ share - (0.5 - HC_LADDER[step])  (edge minus what the
+    // step removes from an even pair). Find step where this ≈ 0.5.
+    let steps = 0;
+    if (share > 0.5) {
+      let prev = 0.5, target = share;               // favourite even-game baseline vs their real share
+      // walk the ladder; the amount each step removes from an even favourite is (0.5 - HC_LADDER[k])
+      let k = 0;
+      for (k = 1; k <= 5; k++) {
+        const removedPrev = 0.5 - HC_LADDER[k - 1]; // cumulative removal at step k-1
+        const removed = 0.5 - HC_LADDER[k];         // at step k
+        const favAtPrev = share - removedPrev;
+        const favAtK = share - removed;
+        if (favAtK <= 0.5) {
+          // crossed between k-1 and k — interpolate the fraction
+          const span = favAtPrev - favAtK;
+          const frac = span > 0 ? (favAtPrev - 0.5) / span : 0;
+          steps = (k - 1) + Math.max(0, Math.min(1, frac));
+          break;
+        }
+        steps = k;                                  // not yet at 50% — keep climbing (caps at 5)
+      }
+    }
+    if (steps > 5) steps = 5;
+    steps = rhu(steps * 4) / 4;                     // quarter-step resolution (alternating games)
+    // realise steps as integer base + a fractional alternation:
+    const base = Math.floor(steps);
+    const frac = steps - base;                      // 0, .25, .5, .75
+    const splitFill = (n) => ({ receive: Math.min(2, n), owe: Math.max(0, n - 2) });
+    const b = splitFill(base);
+    const nxt = splitFill(Math.min(5, base + 1));
+    const altReceive = (frac > 0 && nxt.receive > b.receive) ? nxt.receive : 0;
+    const altOwe = (frac > 0 && nxt.owe > b.owe) ? nxt.owe : 0;
+    const undLabel = (b.receive === 0 && !altReceive) ? 'scratch'
+      : ('receive ' + (altReceive ? ((b.receive ? '30 (with 15 alternating up)' : '15 (alternating)')) : (b.receive === 1 ? '15' : '30')));
+    const favLabel = (b.owe === 0 && !altOwe) ? 'scratch'
+      : ('owe ' + (altOwe ? ((b.owe ? '30/40 (alternating)' : '15 (alternating)')) : (b.owe === 1 ? '15' : b.owe === 2 ? '30' : '40')));
+    let label;
+    if (steps === 0) label = 'Scratch (no handicap)';
+    else {
+      const parts = [];
+      if (b.receive || altReceive) parts.push('underdog ' + undLabel);
+      if (b.owe || altOwe) parts.push('favourite ' + favLabel);
+      label = parts.join(', ');
+      if (frac === 0.5) label += ' — alternates every other game';
+      else if (frac === 0.25) label += ' — the step-up applies every 4th game';
+      else if (frac === 0.75) label += ' — the step-up applies 3 of every 4 games';
+    }
+    return { gap, share, steps, receive: b.receive, owe: b.owe, altReceive, altOwe, base, frac, label, favLabel, undLabel, capped: steps >= 5 };
+  }
+
   // Swiss round from a ranked seed order.
   // -------------------------------------------------------------------------
   // FIX (2026-07): protect TRUE SWISS — strength must meet strength.
@@ -3810,6 +3893,7 @@ const TM = (function () {
   return {
     makeBands, divSplit, bandClass, fixedRounds, swissRound, roundRobinRounds,
     validSplits, allocateGroups,
+    computeHandicap, hcExpectedShare,
     maxSafeRounds, suggestRounds, pairRating, usesCombined,
     readCurrentRating, seedEntries
   };
@@ -3981,15 +4065,18 @@ async function loadTournamentSheet(tournament, division) {
   const BANDS = TM.makeBands(N);
   const bySeed = {}; entries.forEach(e => bySeed[e.seed] = e);
   const tName = s => (s===0) ? 'BYE' : (bySeed[s] ? tmTeamName(bySeed[s].p1, bySeed[s].p2) : ('Seed ' + s));
-  // Round-aware name: a PERMANENT partner substitution (sub_p2 from sub_from_round onward)
-  // shows the NEW partner on fixtures at/after that round, and the ORIGINAL on earlier ones.
-  // Past results are never relabelled — the swap is forward-only by construction.
+  // Round-aware name: a PERMANENT substitution shows the replacement player(s) on fixtures
+  // at/after sub_from_round, and the ORIGINAL(s) on earlier ones. Supports replacing P1 only,
+  // P2 only, or BOTH (whole-team takeover). Past results are never relabelled (forward-only).
   const tNameAt = (s, round) => {
     if(s===0) return 'BYE';
     const e = bySeed[s];
     if(!e) return 'Seed ' + s;
-    if(e.sub_p2 && e.sub_from_round!=null && round!=null && round >= e.sub_from_round){
-      return tmTeamName(e.p1, e.sub_p2);
+    const active = e.sub_from_round!=null && round!=null && round >= e.sub_from_round && (e.sub_p1 || e.sub_p2);
+    if(active){
+      const p1 = e.sub_p1 || e.p1;
+      const p2 = (e.p2!=null) ? (e.sub_p2 || e.p2) : e.p2;
+      return tmTeamName(p1, p2);
     }
     return tmTeamName(e.p1, e.p2);
   };
@@ -4057,10 +4144,11 @@ async function loadTournamentSheet(tournament, division) {
       + '</tr></thead><tbody>';
     for (let s = 1; s <= N; s++) {
       const e = bySeed[s];
-      const hasSub = e && e.sub_p2 && e.sub_from_round!=null;
+      const hasSub = e && e.sub_from_round!=null && (e.sub_p1 || e.sub_p2);
+      const subName = hasSub ? tmTeamName(e.sub_p1 || e.p1, (e.p2!=null ? (e.sub_p2 || e.p2) : e.p2)) : '';
       h += '<tr><td class="num"><span class="seed' + (s === 1 ? ' s1' : '') + '">' + s + '</span></td>'
         + '<td><b>' + tName(s) + '</b>'
-        + (hasSub ? ('<div style="font-size:11px;color:#B9770E;margin-top:2px;">→ ' + tmTeamName(e.p1, e.sub_p2) + ' from R' + e.sub_from_round + '</div>') : '')
+        + (hasSub ? ('<div style="font-size:11px;color:#B9770E;margin-top:2px;">→ ' + subName + ' from R' + e.sub_from_round + '</div>') : '')
         + '</td>';
       if (_showGroup) {
         const L = _grpOf[s] || '—';
@@ -4068,9 +4156,14 @@ async function loadTournamentSheet(tournament, division) {
         h += '<td class="num"><b>' + L + '</b>' + tn + '</td>';
       }
       if (_showBand) { const [lo, hi] = BANDS[s]; h += '<td class="num">' + lo + '–' + hi + '</td>'; }
-      // Replace-partner control — doubles only (a singles entrant has no partner to swap).
+      // Substitution controls — doubles only. "✎ sub" swaps ONE player (either slot);
+      // "⇄ team" replaces BOTH (whole-team takeover, inherits the seat's standing).
       if (!_sg) {
-        h += '<td class="num"><button class="menu-btn" style="padding:4px 9px;font-size:11px;border-color:#B9770E;" onclick="tmReplacePartner(' + s + ')" title="Permanently replace this team\'s partner from the next unplayed round onward">✎ sub</button></td>';
+        h += '<td class="num">'
+          + '<div style="display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:nowrap;">'
+          + '<button class="menu-btn" style="display:inline-block;width:auto;padding:4px 8px;font-size:11px;border-color:#B9770E;white-space:nowrap;" onclick="tmReplacePartner(' + s + ')" title="Replace ONE player from the next unplayed round onward">✎ sub</button>'
+          + '<button class="menu-btn" style="display:inline-block;width:auto;padding:4px 8px;font-size:11px;border-color:#7D3C98;white-space:nowrap;" onclick="tmReplaceTeam(' + s + ')" title="Replace the WHOLE team — the new pair takes this seat and its tournament standing from the next unplayed round">⇄ team</button>'
+          + '</div></td>';
       }
       h += '</tr>';
     }
@@ -4100,7 +4193,7 @@ async function loadTournamentSheet(tournament, division) {
       sections.forEach((sec, si)=>{
         const secRounds = roundNos.filter(r=> roundInfo[r].sec===sec)
           .sort((a,b)=> parseInt(roundInfo[a].rn)-parseInt(roundInfo[b].rn));
-        h += '<div style="margin:6px 0 2px;font-size:12px;font-weight:800;color:#0F6E56;">Group ' + sec
+        h += '<div style="margin:6px 0 2px;font-size:12px;font-weight:800;color:#0F6E56;text-align:left;">Group ' + sec
           + (tiers[si] ? (' <span style="font-weight:600;color:#5aa98d;">· ' + tiers[si] + '</span>') : '') + '</div>';
         h += '<div class="rsel">';
         secRounds.forEach(r=>{
@@ -4652,36 +4745,97 @@ async function loadTournamentSheet(tournament, division) {
   };
   window.tmSetTab = function (id) { activeTab = id; render(); };
 
-  // Permanent partner substitution (forward-dated). Replaces a team's P2 from the next
-  // UNPLAYED round onward: past results keep the original partner (history untouched),
-  // upcoming fixtures show the new partner. Writes sub_p2 + sub_from_round on the entry.
-  // Doubles only. The actual match record still stores whoever truly played (recorded at
-  // entry), so ratings stay correct; this only governs the forward DISPLAY name.
+  // Find a team's next unplayed round (where a forward substitution takes effect).
+  function tmNextUnplayedRound(seed){
+    const myFix = fixtures.filter(f=> (f.seed_a===seed||f.seed_b===seed) && f.seed_b!==0 && f.round<90 && f.round_type!=='ko' && f.round_type!=='plate');
+    const unplayed = myFix.filter(f=> f.sets_a==null).map(f=>f.round).sort((a,b)=>a-b);
+    return unplayed.length ? unplayed[0] : null;
+  }
+  function tmHasPlayed(seed){
+    return fixtures.some(f=> (f.seed_a===seed||f.seed_b===seed) && f.seed_b!==0 && f.sets_a!=null && f.round<90 && f.round_type!=='ko' && f.round_type!=='plate');
+  }
+
+  // Replace ONE player (either slot). Forward-dated: past results keep the original player,
+  // upcoming fixtures show the replacement. Writes sub_p1 OR sub_p2 + sub_from_round.
+  // The master match record still stores whoever truly played, so ratings stay correct.
   window.tmReplacePartner = async function(seed){
     const e = bySeed[seed];
     if(!e){ alert('Team not found.'); return; }
     if(e.p2==null){ alert('This is a singles entrant — no partner to replace.'); return; }
     const cur = tmTeamName(e.p1, e.p2);
-    // find this team's next unplayed fixture round (the swap takes effect there)
-    const myFix = fixtures.filter(f=> (f.seed_a===seed||f.seed_b===seed) && f.seed_b!==0 && f.round<90 && f.round_type!=='ko' && f.round_type!=='plate');
-    const unplayed = myFix.filter(f=> f.sets_a==null).map(f=>f.round).sort((a,b)=>a-b);
-    if(!unplayed.length){ alert(cur+' has no remaining unplayed matches — nothing to substitute forward.'); return; }
-    const fromRound = unplayed[0];
-    const newName = (prompt('Replace '+e.p2+' (partner of '+e.p1+') for the REST of this event.\n\nPast results keep '+e.p2+'; upcoming matches (from the next unplayed round) will show the new partner.\n\nEnter the replacement partner\'s full name:', '')||'').trim();
+    const fromRound = tmNextUnplayedRound(seed);
+    if(fromRound==null){ alert(cur+' has no remaining unplayed matches — nothing to substitute forward.'); return; }
+    // which player is being replaced?
+    const whichRaw = (prompt('Replace ONE player on '+cur+' for the rest of the event.\n\nWhich player is leaving?\n  1 = '+e.p1+'\n  2 = '+e.p2+'\n\nEnter 1 or 2:', '2')||'').trim();
+    if(whichRaw!=='1' && whichRaw!=='2') return;
+    const which = parseInt(whichRaw);
+    const leaving = (which===1) ? e.p1 : e.p2;
+    const staying = (which===1) ? e.p2 : e.p1;
+    const newName = (prompt('Replace '+leaving+' (partner of '+staying+') from R'+fromRound+' onward.\n\nPast results keep '+leaving+'; upcoming matches show the new player.\n\nEnter the replacement player\'s full name:', '')||'').trim();
     if(!newName) return;
-    if(newName.toLowerCase()===String(e.p1||'').toLowerCase()){ alert('The replacement must be different from '+e.p1+'.'); return; }
-    if(!confirm('Confirm: from the next unplayed round on, this team plays as '+tmTeamName(e.p1, newName)+' (was '+cur+'). Past results are unchanged. Proceed?')) return;
+    if(newName.toLowerCase()===String(staying||'').toLowerCase()){ alert('The replacement must be different from '+staying+'.'); return; }
+    const newTeam = (which===1) ? tmTeamName(newName, e.p2) : tmTeamName(e.p1, newName);
+    if(!confirm('Confirm: from R'+fromRound+' on, this team plays as '+newTeam+' (was '+cur+'). Past results are unchanged. Proceed?')) return;
     const pin = (prompt('Admin PIN to record the substitution:')||'').trim();
     if(!pin) return;
+    const payload = { action:'set_substitute', club_id:CLUB_ID, admin_pin:pin, entry_id:e.id, sub_from_round:fromRound };
+    if(which===1) payload.sub_p1 = newName; else payload.sub_p2 = newName;
     try{
       const resp = await fetch(SB_URL+'/functions/v1/tournament',{ method:'POST',
         headers:{ apikey:SB_ANON, Authorization:'Bearer '+SB_ANON, 'Content-Type':'application/json' },
-        body: JSON.stringify({ action:'set_substitute', club_id:CLUB_ID, admin_pin:pin,
-          entry_id:e.id, sub_p2:newName, sub_from_round:fromRound }) });
+        body: JSON.stringify(payload) });
       const j = await resp.json().catch(()=>({}));
       if(!j.ok){ alert('Could not save the substitution: '+((j&&j.error)||resp.status)); return; }
     }catch(err){ alert('Could not save the substitution. Check your connection.'); return; }
-    alert('Substitution saved. From R'+fromRound+' onward this team shows as '+tmTeamName(e.p1, newName)+'.');
+    alert('Substitution saved. From R'+fromRound+' onward this team shows as '+newTeam+'.');
+    loadTournamentSheet(TOURNAMENT_EVENT, TM_DIVISION);
+  };
+
+  // Replace the WHOLE team at a seat. The new pair TAKES OVER the seat and its tournament
+  // standing (the seat's record is continuous — no redraw, no lost points). Forward-dated:
+  // past results stay attributed to the OLD pair in the master (rated to them), the seat
+  // shows/continues as the NEW pair from the next unplayed round. If the team has NOT played
+  // yet, it's a clean overwrite (no history to preserve). Ratings always follow the real
+  // players per match — the new pair are rated only on matches they actually play.
+  window.tmReplaceTeam = async function(seed){
+    const e = bySeed[seed];
+    if(!e){ alert('Team not found.'); return; }
+    if(e.p2==null){ alert('This is a singles entrant — use ✎ sub to replace the player.'); return; }
+    const cur = tmTeamName(e.p1, e.p2);
+    const played = tmHasPlayed(seed);
+    const fromRound = tmNextUnplayedRound(seed);
+    if(fromRound==null && played){ alert(cur+' has already played all their matches — nothing left to hand over.'); return; }
+    const p1new = (prompt('Replace the WHOLE team at seed '+seed+' ('+cur+').\n\nThe new pair takes this seat and its tournament standing'+(played?(' from R'+fromRound+' on. Past results stay with '+cur+' in the master (rated to them); the seat continues as the new pair.'):' (this team has not played yet — a clean takeover).')+'\n\nEnter NEW player 1 full name:', '')||'').trim();
+    if(!p1new) return;
+    const p2new = (prompt('Enter NEW player 2 full name:', '')||'').trim();
+    if(!p2new) return;
+    if(p1new.toLowerCase()===p2new.toLowerCase()){ alert('The two players must be different.'); return; }
+    const newTeam = tmTeamName(p1new, p2new);
+    const msg = played
+      ? ('Confirm whole-team takeover from R'+fromRound+':\n\n'+cur+'  →  '+newTeam+'\n\n• The seat keeps its tournament standing (no redraw).\n• Past results stay with '+cur+' in the master (their ratings).\n• '+newTeam+' play and are rated from R'+fromRound+' on.\n\nProceed?')
+      : ('Confirm clean team replacement (not played yet):\n\n'+cur+'  →  '+newTeam+'\n\nThe new pair takes the seat entirely. Proceed?');
+    if(!confirm(msg)) return;
+    const pin = (prompt('Admin PIN to record the team replacement:')||'').trim();
+    if(!pin) return;
+    let payload;
+    if(played){
+      // forward-dated whole-team sub: both slots replaced from fromRound
+      payload = { action:'set_substitute', club_id:CLUB_ID, admin_pin:pin, entry_id:e.id,
+                  sub_p1:p1new, sub_p2:p2new, sub_from_round:fromRound };
+    } else {
+      // clean overwrite: replace the entry's players outright (no history to preserve)
+      payload = { action:'replace_entry_team', club_id:CLUB_ID, admin_pin:pin, entry_id:e.id,
+                  p1:p1new, p2:p2new };
+    }
+    try{
+      const resp = await fetch(SB_URL+'/functions/v1/tournament',{ method:'POST',
+        headers:{ apikey:SB_ANON, Authorization:'Bearer '+SB_ANON, 'Content-Type':'application/json' },
+        body: JSON.stringify(payload) });
+      const j = await resp.json().catch(()=>({}));
+      if(!j.ok){ alert('Could not replace the team: '+((j&&j.error)||resp.status)); return; }
+    }catch(err){ alert('Could not replace the team. Check your connection.'); return; }
+    alert(played ? ('Team takeover saved. From R'+fromRound+' the seat continues as '+newTeam+'; past results stay with '+cur+'.')
+                 : ('Team replaced. Seed '+seed+' is now '+newTeam+'.'));
     loadTournamentSheet(TOURNAMENT_EVENT, TM_DIVISION);
   };
   // For knockouts: once results are in, make sure the next-round boxes exist as real
