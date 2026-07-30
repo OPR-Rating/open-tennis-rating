@@ -487,9 +487,9 @@
           <div style="background:#c4e000;color:#2a3000;border:1.5px solid #a9c400;border-radius:10px;padding:8px 12px;margin:22px 0 10px;font-size:13px;font-weight:800;letter-spacing:0.5px;text-align:center;">Recent Matches</div>
           <div id="homeRecentList" style="max-height:420px;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px;"><div style="color:#888;font-size:12px;">Loading...</div></div>
           <div id="homeHcWrap" style="display:none;margin-top:12px;">
-            <button id="homeHcToggle" onclick="toggleHandicapGlimpse()" style="width:100%;text-align:left;background:#fffdf5;color:#8a6d1a;border:1.5px solid #B9770E;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:800;letter-spacing:0.3px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
-              <span>🎯 Recent Handicap Results</span><span id="homeHcCaret">▸</span></button>
-            <div id="homeHcList" style="display:none;max-height:360px;overflow-y:auto;margin-top:8px;padding-right:2px;"></div>
+            <button id="homeHcToggle" onclick="toggleHandicapGlimpse()" style="width:100%;text-align:center;background:#12855F;color:#fff;border:1.5px solid #0F6E56;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:800;letter-spacing:0.5px;cursor:pointer;display:flex;justify-content:center;align-items:center;gap:8px;position:relative;">
+              <span>🎯 Recent Handicap Results</span><span id="homeHcCaret" style="position:absolute;right:12px;">▸</span></button>
+            <div id="homeHcList" style="display:none;max-height:360px;overflow-y:auto;margin-top:8px;padding-right:2px;text-align:center;"></div>
           </div>
         </div>
       </div>
@@ -1580,7 +1580,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.27-24";  // Handicap entry is now SEAMLESS (Option B): entering a handicap event's score on the main +enter screen silently routes to the safe tournament path (matches teams→fixture→record_fixture_result, server-gated). Same familiar screen; the rating engine (submit_match/recompute) is NEVER called for handicap events. No Rounds-tab detour needed.
+const OPR_VERSION = "OTR-LAPTOP v2026.07.27-26";  // FIX: plain knockout brackets went BLANK on screen after a round advanced (print still worked) — the section-finals detection was too greedy: a plain-KO advancement band 'R' (single capital) was mistaken for section 'R', switching the render into broken section mode. Now a section requires a letter FOLLOWED BY '·' (e.g. 'A·SF'). Fixed in bracketHTML AND edge advanceKnockout.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -2021,7 +2021,19 @@ async function loadTournament(category, title) {
     // Sort by WIN % (self-explaining for casual players) → sets won → game diff/set.
     // Qualifier: 6 sets played together; sub-6 shown greyed for reference, not ranked.
     const data = await sbGet(`${tourTable()}?select=rank,p1,p2,combined,weighted,level,sets,sets_won,set_win_pct,game_diff_per_set&event=eq.${encodeURIComponent(TOURNAMENT_EVENT)}&category=eq.${encodeURIComponent(category)}&club_id=eq.${CLUB_ID}`);
-    if(data.length===0){document.getElementById('tournamentSheetContent').innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>No tournament matches in this category yet.</p></div>';return;}
+    if(data.length===0){
+      // A handicap event never feeds the master statistics (results live in the tournament
+      // only, by design). Explain where to find them instead of a confusing blank page.
+      let _hc = false;
+      try{ const hr = await sbGet(`tournaments?select=handicap&club_id=eq.${CLUB_ID}&name=eq.${encodeURIComponent(TOURNAMENT_EVENT)}&limit=1`); _hc = !!(hr&&hr[0]&&hr[0].handicap); }catch(e){}
+      if(_hc){
+        document.getElementById('tournamentSheetContent').innerHTML =
+          '<div class="empty-state" style="padding:24px 18px;"><div class="icon">🎯</div>'
+          + '<p style="font-weight:700;color:#0F6E56;margin-bottom:6px;">Handicap event — just for fun</p>'
+          + '<p style="font-size:13px;color:#555;line-height:1.5;max-width:420px;margin:0 auto;">Handicap play doesn\'t feed statistics or ratings. See the results in the <b>Draw &amp; Rounds</b> tab, the tournament <b>Standings</b>, and the <b>Recent Handicap Results</b> panel on the home page.</p></div>';
+        return;
+      }
+      document.getElementById('tournamentSheetContent').innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>No tournament matches in this category yet.</p></div>';return;}
     const ratingHdr = isSingles ? 'Rating' : (usesCombined ? 'Rating (Comb)' : 'Rating (Wtd)');
     const nameHdr = isSingles ? 'Player' : 'Pair';
     const STATS_MIN = 6;
@@ -4769,9 +4781,15 @@ async function loadTournamentSheet(tournament, division) {
     // SECTION FINALS: KO fixtures carry a "L·…" band (section letter). Render one bracket
     // per section, each crowning its own winner. Detect and branch before the single-draw path.
     const _koFix = fixtures.filter(f=> f.round_type==='ko');
+    // Section finals carry a band of the form "A·<round>" (a section LETTER, then "·").
+    // A plain knockout / playoff uses "R" (or "R·…" was never used) — a bare "R" must NOT be
+    // read as section "R". So require the letter to be FOLLOWED BY "·" to count as a section.
     const _sectionTags = [...new Set(_koFix.map(f=>{
-      const p = String(f.band||'').split('·')[0];
-      return /^[A-Z]$/.test(p) ? p : null;
+      const b = String(f.band||'');
+      const dot = b.indexOf('·');
+      if(dot<=0) return null;                 // no "·" → not a section band (plain KO like "R")
+      const p = b.slice(0, dot);
+      return /^[A-Z]$/.test(p) ? p : null;    // single-letter section tag before the "·"
     }).filter(Boolean))].sort();
     if(_sectionTags.length){
       const tiers = (typeof etTierNames==='function') ? etTierNames(_sectionTags.length) : [];
