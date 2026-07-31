@@ -43,75 +43,77 @@
   .btn-marker { width:100%; padding:15px; background:#123f34; color:#8fd6bd; border:1.5px solid #12855F; border-radius:14px; font-size:16px; font-weight:800; cursor:pointer; margin:0 0 16px; letter-spacing:.3px; transition:transform .1s; }
   .btn-marker:active { transform:scale(.99); }
   /* ===== LIVE MARKER (umpire) — OTR tennis ===== */
-  #markerScreen { position:fixed; inset:0; z-index:60; background:#0f3b30; color:#fff; display:none; flex-direction:column; }
+  /* Umpire screen — white, to match the rest of the site (+Enter Score look). */
+  #markerScreen { position:fixed; inset:0; z-index:60; background:#fff; color:#222; display:none; flex-direction:column; }
   #markerScreen.on { display:flex; }
   .mk-setup { flex:1; overflow-y:auto; padding:20px 16px 28px; max-width:560px; margin:0 auto; width:100%; }
-  .mk-setup h1 { font-size:20px; font-weight:800; margin-bottom:2px; }
-  .mk-setup .mk-sub { font-size:12px; color:#8fd6bd; margin-bottom:16px; }
-  .mk-grp { background:#123f34; border:1px solid rgba(143,214,189,.14); border-radius:14px; padding:14px; margin-bottom:13px; }
-  .mk-grp h3 { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#8fd6bd; margin-bottom:10px; font-weight:800; }
+  .mk-setup h1 { font-size:20px; font-weight:800; margin-bottom:2px; color:#04241b; }
+  .mk-setup .mk-sub { font-size:12px; color:#6b6b76; margin-bottom:16px; }
+  .mk-grp { background:rgba(15,110,86,.08); border:1.5px solid rgba(15,110,86,.22); border-radius:14px; padding:14px; margin-bottom:13px; }
+  .mk-grp h3 { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#0F6E56; margin-bottom:10px; font-weight:800; }
   .mk-tb { margin-bottom:10px; } .mk-tb:last-child{ margin-bottom:0; }
-  .mk-tl { font-size:12px; font-weight:700; margin-bottom:6px; display:flex; align-items:center; gap:7px; }
+  .mk-tl { font-size:12px; font-weight:700; margin-bottom:6px; display:flex; align-items:center; gap:7px; color:#0F6E56; }
   .mk-dot { width:13px; height:13px; border-radius:50%; flex:none; }
-  .mk-pick { width:100%; padding:11px 12px; border:1.5px solid rgba(143,214,189,.20); border-radius:10px; font-size:15px; background:#175044; color:#fff; text-align:left; cursor:pointer; margin-bottom:7px; display:flex; justify-content:space-between; align-items:center; font-family:inherit; }
-  .mk-pick .ph { color:#6fae99; }
-  .mk-pick.set { border-color:#12855F; }
-  .mk-seg { display:flex; gap:6px; background:#175044; border-radius:10px; padding:4px; }
-  .mk-seg button { flex:1; padding:9px; border:none; background:none; color:#6fae99; font-size:13px; font-weight:700; border-radius:7px; cursor:pointer; font-family:inherit; }
-  .mk-seg button.on { background:#12855F; color:#fff; }
+  /* Player / event pickers — white "Tap to select" buttons like +Enter Score's .player-display */
+  .mk-pick { width:100%; padding:11px 12px; border:1.5px solid #ddd; border-radius:10px; font-size:15px; background:#fff; color:#222; text-align:left; cursor:pointer; margin-bottom:7px; display:flex; justify-content:space-between; align-items:center; font-family:inherit; }
+  .mk-pick .ph { color:#888; }
+  .mk-pick.set { border-color:#0F6E56; background:rgba(15,110,86,.10); color:#0F6E56; font-weight:600; }
+  .mk-seg { display:flex; gap:6px; background:rgba(15,110,86,.08); border:1px solid rgba(15,110,86,.16); border-radius:10px; padding:4px; }
+  .mk-seg button { flex:1; padding:9px; border:none; background:none; color:#5a6b64; font-size:13px; font-weight:700; border-radius:7px; cursor:pointer; font-family:inherit; }
+  .mk-seg button.on { background:#0F6E56; color:#fff; }
   .mk-row2 { display:flex; gap:10px; } .mk-row2>*{ flex:1; }
-  .mk-start { width:100%; padding:17px; background:linear-gradient(180deg,#8fd6bd,#12855F); color:#0c2e26; border:none; border-radius:14px; font-size:17px; font-weight:800; cursor:pointer; margin-top:6px; box-shadow:0 6px 16px rgba(18,133,95,.3); }
+  .mk-start { width:100%; padding:17px; background:linear-gradient(180deg,#39ffb0,#12b488); color:#04241b; border:none; border-radius:14px; font-size:17px; font-weight:800; cursor:pointer; margin-top:6px; box-shadow:0 8px 22px rgba(15,110,86,.4), inset 0 1px 0 rgba(255,255,255,.55); }
   .mk-start:disabled { opacity:.4; box-shadow:none; }
-  /* live court */
-  .mk-live { flex:1; display:none; flex-direction:column; } .mk-live.on{ display:flex; }
-  .mk-top { padding:10px 14px 8px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(143,214,189,.12); }
-  .mk-top .mk-fmt { font-size:11px; color:#8fd6bd; }
-  .mk-top .mk-setnum { font-size:11px; color:#8fd6bd; font-weight:800; text-transform:uppercase; letter-spacing:1px; }
-  .mk-top .mk-sets { font-size:13px; font-weight:800; }
-  .mk-call { text-align:center; font-size:13px; font-weight:700; padding:6px; color:#8fd6bd; min-height:28px; letter-spacing:.3px; }
+
+  .mk-live { flex:1; display:none; flex-direction:column; background:#fff; } .mk-live.on{ display:flex; }
+  .mk-top { padding:10px 14px 8px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #eee; }
+  .mk-top .mk-fmt { font-size:11px; color:#6b6b76; }
+  .mk-top .mk-setnum { font-size:11px; color:#0F6E56; font-weight:800; text-transform:uppercase; letter-spacing:1px; }
+  .mk-top .mk-sets { font-size:13px; font-weight:800; color:#04241b; }
+  .mk-call { text-align:center; font-size:13px; font-weight:700; padding:6px; color:#0F6E56; min-height:28px; letter-spacing:.3px; }
   .mk-courts { flex:1; display:flex; gap:3px; padding:0 3px; }
-  .mk-side { flex:1; border-radius:16px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; position:relative; transition:transform .06s; user-select:none; overflow:hidden; }
+  .mk-side { flex:1; border-radius:16px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; position:relative; transition:transform .06s; user-select:none; overflow:hidden; color:#fff; }
   .mk-side:active { transform:scale(.985); }
-  .mk-side.t1 { background:linear-gradient(160deg,#12855F,#0d5f49); }
-  .mk-side.t2 { background:linear-gradient(160deg,#1a5748,#124135); border:1px solid rgba(143,214,189,.18); }
-  .mk-side .mk-names { font-size:13px; font-weight:700; text-align:center; padding:0 12px; opacity:.92; line-height:1.35; position:absolute; top:14px; left:0; right:0; }
+  /* Two clearly distinct tap targets in the site green palette (still bold for live tapping) */
+  .mk-side.t1 { background:linear-gradient(160deg,#12b488,#0F6E56); }
+  .mk-side.t2 { background:linear-gradient(160deg,#0F6E56,#0a4d3c); }
+  .mk-side .mk-names { font-size:13px; font-weight:700; text-align:center; padding:0 12px; opacity:.95; line-height:1.35; position:absolute; top:14px; left:0; right:0; }
   .mk-side .mk-score { font-size:24vw; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; }
-  @media(min-width:560px){ .mk-side .mk-score{ font-size:120px; } }
-  .mk-side .mk-gtally { position:absolute; bottom:44px; font-size:14px; font-weight:800; opacity:.8; letter-spacing:.5px; }
-  .mk-side .mk-sv { position:absolute; top:14px; right:14px; width:14px; height:14px; border-radius:50%; background:#8fd6bd; box-shadow:0 0 10px #8fd6bd; display:none; }
+  .mk-side .mk-gtally { position:absolute; bottom:44px; font-size:14px; font-weight:800; opacity:.85; letter-spacing:.5px; }
+  .mk-side .mk-sv { position:absolute; top:14px; right:14px; width:14px; height:14px; border-radius:50%; background:#fff; box-shadow:0 0 10px rgba(255,255,255,.9); display:none; }
   .mk-side.serving .mk-sv { display:block; }
-  .mk-side .mk-svbox { position:absolute; top:36px; right:12px; font-size:10px; color:#8fd6bd; font-weight:800; display:none; letter-spacing:.5px; }
+  .mk-side .mk-svbox { position:absolute; top:36px; right:12px; font-size:10px; color:#eafff6; font-weight:800; display:none; letter-spacing:.5px; }
   .mk-side.serving .mk-svbox { display:block; }
-  .mk-hcap { position:absolute; bottom:16px; font-size:12px; font-weight:800; color:#ffd98a; opacity:.9; }
-  /* controls */
-  .mk-ctrls { padding:9px 10px calc(9px + env(safe-area-inset-bottom)); border-top:1px solid rgba(143,214,189,.12); }
+  .mk-hcap { position:absolute; bottom:16px; font-size:12px; font-weight:800; color:#ffe08a; opacity:.95; }
+
+  .mk-ctrls { padding:9px 10px calc(9px + env(safe-area-inset-bottom)); border-top:1px solid #eee; background:#fff; }
   .mk-crow { display:flex; gap:7px; margin-bottom:7px; } .mk-crow:last-child{ margin-bottom:0; }
-  .mk-btn { flex:1; padding:11px 4px; border:1.5px solid rgba(143,214,189,.26); background:#175044; color:#fff; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
-  .mk-btn:active { background:#123f34; }
-  .mk-btn.fault { border-color:#f0c040; color:#f0c040; }
-  .mk-btn.undo { border-color:rgba(255,255,255,.25); color:#dfeee8; }
-  .mk-btn.end { border-color:#12855F; background:#12855F; color:#0c2e26; font-weight:800; }
-  /* finish */
-  .mk-finish { flex:1; display:none; flex-direction:column; padding:22px 18px; overflow-y:auto; max-width:560px; margin:0 auto; width:100%; } .mk-finish.on{ display:flex; }
-  .mk-finish h1 { font-size:22px; font-weight:800; margin-bottom:14px; text-align:center; }
-  .mk-rcard { background:#123f34; border-radius:16px; padding:18px; border:1px solid rgba(143,214,189,.16); margin-bottom:14px; }
-  .mk-rteam { display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid rgba(143,214,189,.12); } .mk-rteam:last-child{ border-bottom:none; }
-  .mk-rteam.win { color:#8fd6bd; font-weight:800; }
+  .mk-btn { flex:1; padding:11px 4px; border:1.5px solid #ddd; background:#fff; color:#333; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .mk-btn:active { background:#f3f3f3; }
+  .mk-btn.fault { border-color:#e0a800; color:#b9770e; }
+  .mk-btn.undo { border-color:#ccc; color:#555; }
+  .mk-btn.end { border-color:#0F6E56; background:#0F6E56; color:#fff; font-weight:800; }
+
+  .mk-finish { flex:1; display:none; flex-direction:column; padding:22px 18px; overflow-y:auto; max-width:560px; margin:0 auto; width:100%; background:#fff; } .mk-finish.on{ display:flex; }
+  .mk-finish h1 { font-size:22px; font-weight:800; margin-bottom:14px; text-align:center; color:#04241b; }
+  .mk-rcard { background:rgba(15,110,86,.08); border-radius:16px; padding:18px; border:1.5px solid rgba(15,110,86,.20); margin-bottom:14px; }
+  .mk-rteam { display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid rgba(15,110,86,.14); color:#333; } .mk-rteam:last-child{ border-bottom:none; }
+  .mk-rteam.win { color:#0F6E56; font-weight:800; }
   .mk-rteam .rn { font-size:14px; } .mk-rteam .rg { font-size:22px; font-weight:800; }
-  .mk-rmeta { font-size:13px; color:#8fd6bd; text-align:center; margin:10px 0 4px; }
-  .mk-rsets { text-align:center; font-size:15px; font-weight:700; letter-spacing:.5px; margin-bottom:4px; }
+  .mk-rmeta { font-size:13px; color:#6b6b76; text-align:center; margin:10px 0 4px; }
+  .mk-rsets { text-align:center; font-size:15px; font-weight:700; letter-spacing:.5px; margin-bottom:4px; color:#04241b; }
   .mk-fbtns { display:flex; gap:10px; margin-top:14px; }
   .mk-fbtns button { flex:1; padding:14px; border-radius:12px; font-size:15px; font-weight:800; cursor:pointer; font-family:inherit; border:none; }
-  .mk-fb-back { background:#123f34; color:#dfeee8; border:1.5px solid rgba(143,214,189,.22)!important; }
-  .mk-fb-sub { background:linear-gradient(180deg,#8fd6bd,#12855F); color:#0c2e26; }
-  /* modal */
-  .mk-ov { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:70; display:none; align-items:flex-end; justify-content:center; } .mk-ov.on{ display:flex; }
-  .mk-sheet { width:100%; max-width:560px; background:#123f34; border-radius:18px 18px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom)); border-top:2px solid #12855F; }
-  .mk-sheet h3 { font-size:14px; font-weight:800; margin-bottom:4px; }
-  .mk-sheet .mk-shsub { font-size:12px; color:#8fd6bd; margin-bottom:14px; }
-  .mk-opt { width:100%; padding:14px; border:1.5px solid rgba(143,214,189,.20); background:#175044; color:#fff; border-radius:11px; font-size:15px; font-weight:600; cursor:pointer; margin-bottom:8px; text-align:left; font-family:inherit; }
-  .mk-opt:active { background:#123f34; }
-  .mk-cancel { width:100%; padding:13px; background:none; border:none; color:#8fd6bd; font-size:14px; cursor:pointer; margin-top:4px; font-family:inherit; }
+  .mk-fb-back { background:#eef2f0; color:#0F6E56; border:1.5px solid rgba(15,110,86,.22)!important; }
+  .mk-fb-sub { background:linear-gradient(180deg,#39ffb0,#12b488); color:#04241b; }
+
+  .mk-ov { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:70; display:none; align-items:flex-end; justify-content:center; } .mk-ov.on{ display:flex; }
+  .mk-sheet { width:100%; max-width:560px; background:#fff; border-radius:18px 18px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom)); border-top:2px solid #0F6E56; }
+  .mk-sheet h3 { font-size:14px; font-weight:800; margin-bottom:4px; color:#04241b; }
+  .mk-sheet .mk-shsub { font-size:12px; color:#6b6b76; margin-bottom:14px; }
+  .mk-opt { width:100%; padding:14px; border:1.5px solid #ddd; background:#fff; color:#222; border-radius:11px; font-size:15px; font-weight:600; cursor:pointer; margin-bottom:8px; text-align:left; font-family:inherit; }
+  .mk-opt:active { background:#f3f3f3; }
+  .mk-cancel { width:100%; padding:13px; background:none; border:none; color:#0F6E56; font-size:14px; cursor:pointer; margin-top:4px; font-family:inherit; }
   .mk-plist { max-height:46vh; overflow-y:auto; }
   .btn-enter:active { transform: scale(0.98); }
   .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
@@ -1653,7 +1655,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.07.31-01";  // Tournament fixes: (#6) single-group round robin can now generate a top-2/top-4 knockout finish (tmGeneratePlayoffSingle); (#4) draw-complete precheck now judges over ALL fixture types so a still-open plate/final no longer trips a false "complete" warning; (#5 client) main+plate run concurrently — ambiguity precheck now drops main-draw fixtures for teams already eliminated there, so plate results stop tripping "does not match" (server matcher patched separately in submit_match.ts); (#2/#8) marker Event moved to top, a tournament auto-selects & locks its category/format, and Start now activates once selections are complete in ANY order; (#7) umpire scheme lightened. // prev: Member profile Matches stat card; stat grid auto-fits 5 cards.
+const OPR_VERSION = "OTR-LAPTOP v2026.07.31-03";  // -03 ROOT CAUSE of plate "does not match": plate fixtures were never created (DB had only round_type=ko, zero plate rows). The "Advance knockout / plate" button that creates plate fixtures (round_type=plate) via tmAdvanceKnockout was hidden (display:none). Un-hidden it so admins can advance round 1 -> plate fixtures get created -> plate results then place. // UMPIRE RESTYLE: whole marker section now matches the rest of the site — white screen, light-green cards, white "Tap to select" pickers, site-green (#0F6E56) accents and .btn-enter gradient buttons (was a bespoke dark scheme). Live courts kept as two bold green tap-targets on white. RR KNOCKOUT CHOICE: single-group round robin now offers, AT GENERATION, "Table decides / Top 2 / Top 4" so the finish is known up front (stamped on RR fixtures as band KO2/KO4); bracket builds when the RR completes; end-of-RR button kept as failsafe. // -01: (#6) single-group RR→knockout; (#4) draw-complete all-types; (#5 client) plate/main concurrent eligibility (server patched in submit_match.ts); (#2/#8) marker Event-to-top + auto-lock + order-independent Start.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -4947,7 +4949,7 @@ async function loadTournamentSheet(tournament, division) {
     h += '</tbody></table><p class="sub" style="margin-top:8px;">Tap a fixture to enter or edit its score (admin).</p>';
     if(_isKO){
       h += '<div style="text-align:center;margin-top:10px;"><p class="sub" style="margin:6px 0;">Enter each result here or on the 🗂 Bracket tab — winners advance and the Plate fills automatically. No need to generate rounds.</p>'
-        + '<button class="menu-btn" style="display:none;" onclick="tmAdvanceKnockout(window._tmCtx.tournament, window._tmCtx.division)">▶ Advance knockout / plate</button>'
+        + '<button class="menu-btn" style="display:inline-block;width:auto;padding:10px 18px;border-color:#0F6E56;font-weight:700;margin-top:6px;" onclick="tmAdvanceKnockout(window._tmCtx.tournament, window._tmCtx.division)">▶ Advance knockout / plate</button>'
         + '<div class="sub" style="margin-top:6px;">Enter all current-round results, then advance. First-round losers form the Plate automatically.</div></div></div>';
     } else if(_isRR){
       // Round robin. If it's a SPLIT (has groups) and every group match is done, offer
@@ -4975,16 +4977,31 @@ async function loadTournamentSheet(tournament, division) {
         const _secFin = fixtures.some(f=> f.round_type==='ko' && typeof f.band==='string' && /^[A-Z]·/.test(f.band));
         h += '<div style="text-align:center;margin-top:10px;"><p class="sub" style="margin:6px 0;">Group stage complete — the '+(_secFin?'section finals are':'knockout playoff is')+' set. Enter results on the 🗂 Bracket tab; winners advance automatically.</p></div></div>';
       } else {
-        h += '<div style="text-align:center;margin-top:10px;"><p class="sub" style="margin:6px 0;">The full round robin is already scheduled. Play the fixtures in any order — the standings table updates as results come in, and the leader is the winner once every fixture is played.</p>';
-        if(_rrComplete){
-          h += '<div style="font-size:12px;font-weight:700;color:#5aa98d;margin:10px 0 6px;">Add a knockout finish (optional)</div>'
-            + '<div style="max-width:520px;margin:0 auto;">'
-            + '<button class="menu-btn" style="padding:10px 16px;border-color:#F1C40F;font-weight:700;text-align:left;line-height:1.35;" onclick="tmGeneratePlayoffSingle()">'
-            + '🏆 <b>Top teams into a knockout</b> — the round robin seeds a final (top 2) or semi-finals + final (top 4)</button>'
+        // Was a knockout finish CHOSEN UP FRONT? It's stamped on a round-1 RR fixture
+        // as band 'KO2' / 'KO4'. If so, the knockout builds AUTOMATICALLY the moment the
+        // round robin is complete (that's when the final standings — the top 2/4 — exist).
+        const _koMark = _rrFix.map(f=> (typeof f.band==='string' && /^KO([24])$/.test(f.band)) ? Number(RegExp.$1) : 0).find(x=>x>0) || 0;
+        const _hasKOalready = fixtures.some(f=> f.round_type==='ko');
+        if(_koMark && _rrComplete && !_hasKOalready){
+          h += '<div style="text-align:center;margin-top:10px;"><p class="sub" style="margin:6px 0;">Round robin complete — setting up the top-'+_koMark+' knockout from the final table…</p>'
+            + '<div style="max-width:520px;margin:8px auto 0;">'
+            + '<button class="menu-btn" style="padding:10px 16px;border-color:#F1C40F;font-weight:700;text-align:center;line-height:1.35;" onclick="tmGeneratePlayoffSingle('+_koMark+')">'
+            + '🏆 <b>Build the top-'+_koMark+' knockout now</b></button>'
             + '</div>'
-            + '<div class="sub" style="margin-top:8px;">The round robin stays on record. The table order decides who goes through.</div>';
+            + '<div class="sub" style="margin-top:8px;">This was chosen when the round robin was created. Tap to seed the bracket.</div></div></div>';
+        } else {
+          h += '<div style="text-align:center;margin-top:10px;"><p class="sub" style="margin:6px 0;">The full round robin is already scheduled. Play the fixtures in any order — the standings table updates as results come in, and the leader is the winner once every fixture is played.</p>';
+          if(_rrComplete && !_hasKOalready){
+            // Failsafe: no knockout was pre-chosen, but the admin can still add one now.
+            h += '<div style="font-size:12px;font-weight:700;color:#5aa98d;margin:10px 0 6px;">Add a knockout finish (optional)</div>'
+              + '<div style="max-width:520px;margin:0 auto;">'
+              + '<button class="menu-btn" style="padding:10px 16px;border-color:#F1C40F;font-weight:700;text-align:left;line-height:1.35;" onclick="tmGeneratePlayoffSingle()">'
+              + '🏆 <b>Top teams into a knockout</b> — the round robin seeds a final (top 2) or semi-finals + final (top 4)</button>'
+              + '</div>'
+              + '<div class="sub" style="margin-top:8px;">The round robin stays on record. The table order decides who goes through.</div>';
+          }
+          h += '</div></div>';
         }
-        h += '</div></div>';
       }
     } else {
       h += '<div style="text-align:center;margin-top:10px;"><button class="menu-btn" style="display:inline-block;width:auto;padding:10px 18px;border-color:#12855F;font-weight:700;" onclick="tmGenerateNextRound()">➕ Generate next round (Swiss)</button>'
@@ -5583,7 +5600,7 @@ async function loadTournamentSheet(tournament, division) {
   // SINGLE-GROUP round robin → knockout finals. A plain (ungrouped) RR has no group
   // letters, so tmGeneratePlayoff can't seed it. This takes the top-N teams by final
   // standings and seeds them straight into a bracket via the SAME tested KO helpers.
-  window.tmGeneratePlayoffSingle = async function(){
+  window.tmGeneratePlayoffSingle = async function(preSize){
     const groupLabels = [...new Set(entries.map(e=>e.grp).filter(Boolean))].sort();
     if(groupLabels.length >= 2){ alert('This is a grouped round robin — use the group finals options.'); return; }
     const rrFix = fixtures.filter(f=> f.round_type==='rr');
@@ -5593,9 +5610,11 @@ async function loadTournamentSheet(tournament, division) {
     const ranked = standings(maxPlayed).map(r=>r.seed);   // best..worst by the live table
     const fieldMax = ranked.length;
     if(fieldMax < 2){ alert('Need at least 2 teams for a final.'); return; }
-    // how many advance to the knockout
+    // Size chosen UP FRONT (preSize 2/4) skips the prompt; otherwise ask (failsafe path).
     let take = 2;
-    if(fieldMax >= 4){
+    if(preSize===2 || preSize===4){
+      take = preSize;
+    } else if(fieldMax >= 4){
       const ans = prompt('How many of the top teams go through to the knockout?\n\n  2  = top two → straight final\n  4  = top four → semi-finals (1v4, 2v3) + final\n\nEnter 2 or 4:', '4');
       if(ans===null) return;
       take = (ans.trim()==='4') ? 4 : 2;
@@ -6143,8 +6162,44 @@ function etPickDiv(d){ window._etCat = d; renderEnterScreen(); }
 // The admin picks the OUTCOME in plain language; block/snake is derived, never shown.
 function etGroupCfg(d){
   if(!window._etGroupCfg) window._etGroupCfg = {};
-  if(!window._etGroupCfg[d]) window._etGroupCfg[d] = { groups:1, mode:'block', playoff:false, outcomeChosen:true };
+  if(!window._etGroupCfg[d]) window._etGroupCfg[d] = { groups:1, mode:'block', playoff:false, playoffSize:0, outcomeChosen:true };
   return window._etGroupCfg[d];
+}
+
+// Single-group RR: choose UP FRONT whether it finishes on the table or feeds a
+// knockout. The choice is a known parameter from the start (players know what
+// they're playing for), stamped onto the RR fixtures at generation. The bracket
+// itself is built only when the round robin is COMPLETE — that's when the final
+// standings (and therefore the top 2 / top 4) exist.
+function etRRFinishHTML(d, cnt){
+  const cfg = etGroupCfg(d);
+  const de = d.replace(/'/g,"\\'");
+  const size = cfg.playoff ? (cfg.playoffSize||2) : 0;
+  const maxTop = Math.min(4, cnt);
+  let h = '<div style="font-size:12px;font-weight:700;color:#5aa98d;margin:8px 0 6px;">How does it finish?</div>';
+  h += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">';
+  const tblSel = !cfg.playoff;
+  h += '<button onclick="etRRFinishSet(\'' + de + '\',0)" class="ac-btn ' + (tblSel?'ac-btn-primary':'ac-btn-ghost') + '" style="text-align:left;line-height:1.35;">'
+    + (tblSel?'● ':'○ ') + '<b>Table decides</b> — final standings crown the winner, no knockout</button>';
+  const ko2 = (cfg.playoff && size===2);
+  h += '<button onclick="etRRFinishSet(\'' + de + '\',2)" class="ac-btn ' + (ko2?'ac-btn-primary':'ac-btn-ghost') + '" style="text-align:left;line-height:1.35;">'
+    + (ko2?'● ':'○ ') + '<b>Top 2 → final</b> — the top two on the table play a final</button>';
+  if(maxTop>=4){
+    const ko4 = (cfg.playoff && size===4);
+    h += '<button onclick="etRRFinishSet(\'' + de + '\',4)" class="ac-btn ' + (ko4?'ac-btn-primary':'ac-btn-ghost') + '" style="text-align:left;line-height:1.35;">'
+      + (ko4?'● ':'○ ') + '<b>Top 4 → semi-finals + final</b> — top four cross over (1v4, 2v3)</button>';
+  }
+  h += '</div>';
+  if(cfg.playoff){
+    h += '<div class="sub" style="margin:0 0 10px;">The knockout is built automatically the moment the round robin is complete — seeded from the final table.</div>';
+  }
+  return h;
+}
+function etRRFinishSet(d, size){
+  const cfg = etGroupCfg(d);
+  cfg.playoff = (size>0);
+  cfg.playoffSize = size;
+  renderEnterScreen();
 }
 // Build the group-config card body for one division.
 function etGroupConfigHTML(d, cnt){
@@ -6159,8 +6214,9 @@ function etGroupConfigHTML(d, cnt){
   if(!splits.length){
     h += '<div class="sub" style="margin:0 0 8px;">' + cnt + ' teams — one round robin'
       + (cnt % 2 !== 0 ? ' <span style="color:#B9770E;">(odd field — one team byes each round)</span>' : '')
-      + '. Everyone plays everyone; the table decides the winner.</div>'
-      + '<button class="ac-btn ac-btn-primary" style="width:100%;" onclick="etGenerateDiv(\'' + de + '\')">Generate ' + d + ' round robin</button>';
+      + '. Everyone plays everyone; the table decides the winner.</div>';
+    h += etRRFinishHTML(d, cnt);
+    h += '<button class="ac-btn ac-btn-primary" style="width:100%;" onclick="etGenerateDiv(\'' + de + '\')">Generate ' + d + ' round robin</button>';
     return h;
   }
 
@@ -6195,6 +6251,9 @@ function etGroupConfigHTML(d, cnt){
     if(cfg.outcomeChosen){ h += etGroupPreviewHTML(d, cnt, cfg); }
     else { h += '<div class="sub" style="margin:0 0 10px;">Pick an outcome above to preview the groups.</div>'; }
   }
+
+  // Single-group (chosen among available splits) — offer the knockout finish choice too.
+  if(cfg.groups===1){ h += etRRFinishHTML(d, cnt); }
 
   // Generate button (enabled once the config is coherent).
   const ready = (cfg.groups===1) || (cfg.groups>1 && cfg.outcomeChosen && (cfg.mode==='block'||cfg.mode==='snake'));
@@ -6671,9 +6730,14 @@ async function tmGenerateRoundRobinDraw(tournament, division){
   if (!grouped) {
     const rr = TM.roundRobinRounds(N);
     if (!rr.ok) { alert('Could not build a round robin for ' + N + ' teams.'); return; }
+    // Pre-chosen knockout finish (set up front at generation): carry it as a band
+    // marker on round-1 non-bye fixtures ('KO2' / 'KO4'). The bracket is built later,
+    // when the RR completes and the final standings exist. No schema change — reuses band.
+    const _koSize = (cfg.playoff && (cfg.playoffSize===2 || cfg.playoffSize===4)) ? cfg.playoffSize : 0;
     rr.rounds.forEach((pairs, i) => pairs.forEach(([a, b]) => rows.push({
       tournament, division, round: i + 1, round_type: 'rr',
-      seed_a: a, seed_b: b, band: (b === 0 ? 'bye' : '')
+      seed_a: a, seed_b: b,
+      band: (b === 0 ? 'bye' : ((i === 0 && _koSize) ? ('KO' + _koSize) : ''))
     })));
     totalRounds = rr.rounds.length;
   } else {
