@@ -1667,7 +1667,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-PHONE (tennisotr) v2026.07.31-03";  // -03 Same as laptop: un-hid the "Advance knockout / plate" button (was display:none) so plate fixtures (round_type=plate) actually get created; that is why plate results were failing to place. // UMPIRE RESTYLE (same as laptop -02): whole marker section now matches the site — white screen, light-green cards, white "Tap to select" pickers, site-green accents, gradient Start button. Courts stay SIDE-BY-SIDE (#9) as bold green tap-targets on white; Recent Matches centred (#10). RR KNOCKOUT CHOICE at generation (Table/Top 2/Top 4), bracket builds on RR completion, failsafe button kept. // -01: (#6) single-group RR→knockout; (#4) draw-complete all-types; (#5 client) plate/main eligibility (server in submit_match.ts); (#2/#8) marker Event-to-top + auto-lock + order-independent Start.
+const OPR_VERSION = "OTR-PHONE (tennisotr) v2026.08.01-01";  // -03 Same as laptop: un-hid the "Advance knockout / plate" button (was display:none) so plate fixtures (round_type=plate) actually get created; that is why plate results were failing to place. // UMPIRE RESTYLE (same as laptop -02): whole marker section now matches the site — white screen, light-green cards, white "Tap to select" pickers, site-green accents, gradient Start button. Courts stay SIDE-BY-SIDE (#9) as bold green tap-targets on white; Recent Matches centred (#10). RR KNOCKOUT CHOICE at generation (Table/Top 2/Top 4), bracket builds on RR completion, failsafe button kept. // -01: (#6) single-group RR→knockout; (#4) draw-complete all-types; (#5 client) plate/main eligibility (server in submit_match.ts); (#2/#8) marker Event-to-top + auto-lock + order-independent Start.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -4825,17 +4825,14 @@ async function loadTournamentSheet(tournament, division) {
       : 'Bands keep matches competitive.';
 
     let h = '<div class="card"><h2>' + heading + ' <span class="tm-divtag">' + tmDivLabel(TM_DIVISION) + '</span></h2>'
-      + '<p class="sub">Seeded by frozen entry rating (strongest = Seed 1). ' + blurb + '</p>'
-      + '<table><thead><tr><th class="num">Seed</th><th>' + who + '</th>'
-      + '<th class="num">Rating</th>'
-      + (_showGroup ? '<th class="num">Group</th>' : '') + (_showBand ? '<th class="num">Band</th>' : '')
-      + (!_sg ? '<th class="num"></th>' : '')
-      + '</tr></thead><tbody>';
-    for (let s = 1; s <= N; s++) {
+      + '<p class="sub">Seeded by frozen entry rating (strongest = Seed 1). ' + blurb + '</p>';
+
+    // Render one team row for a given seed. Shared by the flat and the grouped layouts.
+    const teamRowHTML = (s) => {
       const e = bySeed[s];
       const hasSub = e && e.sub_from_round!=null && (e.sub_p1 || e.sub_p2);
       const subName = hasSub ? tmTeamName(e.sub_p1 || e.p1, (e.p2!=null ? (e.sub_p2 || e.p2) : e.p2)) : '';
-      h += '<tr><td class="num"><span class="seed' + (s === 1 ? ' s1' : '') + '">' + s + '</span></td>'
+      let r = '<tr><td class="num"><span class="seed' + (s === 1 ? ' s1' : '') + '">' + s + '</span></td>'
         + '<td><b>' + tName(s) + '</b>'
         + (hasSub ? ('<div style="font-size:11px;color:#B9770E;margin-top:2px;">→ ' + subName + ' from R' + e.sub_from_round + '</div>') : '')
         + '</td>'
@@ -4843,19 +4840,45 @@ async function loadTournamentSheet(tournament, division) {
       if (_showGroup) {
         const L = _grpOf[s] || '—';
         const tn = _tierOf[L] ? (' <span style="color:#5aa98d;font-size:11px;">' + _tierOf[L] + '</span>') : '';
-        h += '<td class="num"><b>' + L + '</b>' + tn + '</td>';
+        r += '<td class="num"><b>' + L + '</b>' + tn + '</td>';
       }
-      if (_showBand) { const [lo, hi] = BANDS[s]; h += '<td class="num">' + lo + '–' + hi + '</td>'; }
+      if (_showBand) { const [lo, hi] = BANDS[s]; r += '<td class="num">' + lo + '–' + hi + '</td>'; }
       // Substitution controls — doubles only. "✎ sub" swaps ONE player (either slot);
       // "⇄ team" replaces BOTH (whole-team takeover, inherits the seat's standing).
       if (!_sg) {
-        h += '<td class="num">'
+        r += '<td class="num">'
           + '<div style="display:flex;gap:5px;justify-content:flex-end;align-items:center;flex-wrap:nowrap;">'
           + '<button class="menu-btn tm-minibtn" style="border-color:#B9770E;white-space:nowrap;" onclick="tmReplacePartner(' + s + ')" title="Replace ONE player from the next unplayed round onward">✎ sub</button>'
           + '<button class="menu-btn tm-minibtn" style="border-color:#7D3C98;white-space:nowrap;" onclick="tmReplaceTeam(' + s + ')" title="Replace the WHOLE team — the new pair takes this seat and its tournament standing from the next unplayed round">⇄ team</button>'
           + '</div></td>';
       }
-      h += '</tr>';
+      r += '</tr>';
+      return r;
+    };
+    const theadHTML = '<thead><tr><th class="num">Seed</th><th>' + who + '</th>'
+      + '<th class="num">Rating</th>'
+      + (_showGroup ? '<th class="num">Group</th>' : '') + (_showBand ? '<th class="num">Band</th>' : '')
+      + (!_sg ? '<th class="num"></th>' : '')
+      + '</tr></thead>';
+
+    if (_showGroup && _hasGroups && _groupLabels.length) {
+      // GROUPED layout — one sub-table per division, mirroring the Standings tab, so a
+      // grouped RR shows its teams IN their groups rather than as one flat field.
+      _groupLabels.forEach((L) => {
+        const tn = _tierOf[L] ? (' <span style="font-weight:600;color:#5aa98d;">· ' + _tierOf[L] + '</span>') : '';
+        h += '<div style="font-size:13px;font-weight:800;color:#0F6E56;margin:12px 0 4px;">Group ' + L + tn + '</div>';
+        h += '<table>' + theadHTML + '<tbody>';
+        for (let s = 1; s <= N; s++) { if ((_grpOf[s] || '—') === L) h += teamRowHTML(s); }
+        h += '</tbody></table>';
+      });
+      h += '</div>';
+      return h;
+    }
+
+    // FLAT layout — single-group RR / knockout / bands (unchanged behaviour).
+    h += '<table>' + theadHTML + '<tbody>';
+    for (let s = 1; s <= N; s++) {
+      h += teamRowHTML(s);
     }
     h += '</tbody></table></div>';
     return h;
