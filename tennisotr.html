@@ -1022,6 +1022,7 @@ const GIDS = {
 };
 
 let MEN = [];
+let OTR_RATING = {};   // name -> current rating, for the entry pairing/player preview
 let LADIES = [];
 
 async function loadPlayers() {
@@ -1031,7 +1032,35 @@ async function loadPlayers() {
     const l = data.filter(p=>p.gender==='F').map(p=>p.name);
     if (m.length > 0) MEN = m.sort((a,b)=>a.localeCompare(b));
     if (l.length > 0) LADIES = l.sort((a,b)=>a.localeCompare(b));
+    try{
+      const pr = await sbGet(`player_results?select=name,current_rating&club_id=eq.${CLUB_ID}`) || [];
+      OTR_RATING = {}; pr.forEach(r=>{ if(r.name!=null && r.current_rating!=null) OTR_RATING[r.name]=Number(r.current_rating); });
+    }catch(_e){}
   } catch(e){}
+}
+
+// Update the rating line under each team on the entry screen. Doubles shows the pair's
+// combined rating (Men's/Ladies = 50/50 average; Mixed/All Sorts = 60/40 weighted, stronger
+// partner favoured). Singles shows the player's own rating. No result row yet => 1500 seed.
+function otrUpdatePreview(){
+  const singles=(entryData.format==='singles');
+  const R=(nm)=> (nm && OTR_RATING[nm]!=null) ? OTR_RATING[nm] : (nm ? 1500 : null);
+  [['t1p1','t1p2','otrPrev1'],['t2p1','t2p2','otrPrev2']].forEach(([a,b,cid])=>{
+    const el=document.getElementById(cid); if(!el) return;
+    const na=(document.getElementById(a+'_val')||{}).value||'';
+    const nb=singles ? '' : ((document.getElementById(b+'_val')||{}).value||'');
+    if(singles){
+      if(!na){ el.style.display='none'; return; }
+      el.innerHTML='Rating · <b style="color:#D35400;">'+Math.round(R(na))+'</b>';
+      el.style.display='block'; return;
+    }
+    if(!(na && nb)){ el.style.display='none'; return; }
+    const ra=R(na), rb=R(nb);
+    const usesComb=(entryData.type==="Men's"||entryData.type==='Ladies');
+    const val = usesComb ? Math.round((ra+rb)/2) : Math.round(Math.max(ra,rb)*0.6+Math.min(ra,rb)*0.4);
+    el.innerHTML='Pair rating · <b style="color:#D35400;">'+val+'</b>';
+    el.style.display='block';
+  });
 }
 
 function parseCSV(row) {
@@ -1666,7 +1695,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-PHONE (tennisotr) v2026.08.07-02 · Live scoring moved into +Enter Score (OPR/ODR-style): after teams, ◉ Live Umpire opens the umpire pre-filled (teams/format/category/event/best-of from the entry), you confirm serve+options, score live, and on End it returns to Step 3 pre-filled for the normal confirm+submit. Standalone umpire button removed from home. Singles+doubles both carried through. Tennis pre-scoring options retained. Engine untouched. (Edge: submit_match now fires advance_bracket after a KO/plate/final auto-place.)";  // -03 Same as laptop: un-hid the "Advance knockout / plate" button (was display:none) so plate fixtures (round_type=plate) actually get created; that is why plate results were failing to place. // UMPIRE RESTYLE (same as laptop -02): whole marker section now matches the site — white screen, light-green cards, white "Tap to select" pickers, site-green accents, gradient Start button. Courts stay SIDE-BY-SIDE (#9) as bold green tap-targets on white; Recent Matches centred (#10). RR KNOCKOUT CHOICE at generation (Table/Top 2/Top 4), bracket builds on RR completion, failsafe button kept. // -01: (#6) single-group RR→knockout; (#4) draw-complete all-types; (#5 client) plate/main eligibility (server in submit_match.ts); (#2/#8) marker Event-to-top + auto-lock + order-independent Start.
+const OPR_VERSION = "OTR-PHONE (tennisotr) v2026.08.07-03 - Live Umpire from +Enter Score now SKIPS the setup screen and goes straight to the serve prompt (matchup + who serves first), like ODR/OPR; on End returns to Step 3 pre-filled. Entry screen shows a rating preview under each side (singles: player rating; doubles: pair rating, Men's/Ladies combined, Mixed/All Sorts weighted 60/40). Standalone umpire removed from home. Engine untouched.";  // -03 Same as laptop: un-hid the "Advance knockout / plate" button (was display:none) so plate fixtures (round_type=plate) actually get created; that is why plate results were failing to place. // UMPIRE RESTYLE (same as laptop -02): whole marker section now matches the site — white screen, light-green cards, white "Tap to select" pickers, site-green accents, gradient Start button. Courts stay SIDE-BY-SIDE (#9) as bold green tap-targets on white; Recent Matches centred (#10). RR KNOCKOUT CHOICE at generation (Table/Top 2/Top 4), bracket builds on RR completion, failsafe button kept. // -01: (#6) single-group RR→knockout; (#4) draw-complete all-types; (#5 client) plate/main eligibility (server in submit_match.ts); (#2/#8) marker Event-to-top + auto-lock + order-independent Start.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -2981,6 +3010,7 @@ function renderStep2(){
           <span id="t1p1_lbl">Tap to select...</span><span class="arrow">&#9660;</span>
         </button>
       </div>${_p2slotT1}
+      <div id="otrPrev1" class="pair-preview" style="display:none;margin-top:8px;padding:9px 12px;background:#fff;border-radius:8px;font-size:14px;color:#333;"></div>
     </div>
     <div class="team-card">
       <div class="team-label"><span>2</span>${_t2label}</div>
@@ -2991,6 +3021,7 @@ function renderStep2(){
           <span id="t2p1_lbl">Tap to select...</span><span class="arrow">&#9660;</span>
         </button>
       </div>${_p2slotT2}
+      <div id="otrPrev2" class="pair-preview" style="display:none;margin-top:8px;padding:9px 12px;background:#fff;border-radius:8px;font-size:14px;color:#333;"></div>
     </div>
     <div id="err2" class="error-msg">${_singles?'Please select both players.':'Please select all four players.'}</div>
     <div class="nav-row">
@@ -3091,25 +3122,47 @@ function umpireFromEntry(){
 
   entryData.t1p1=t1p1; entryData.t1p2=t1p2; entryData.t2p1=t2p1; entryData.t2p2=t2p2;
 
-  mkOpen();                 // build the setup screen (resets MK to defaults)
-  mkPrefillFromEntry(singles ? 'singles' : 'doubles', t1p1, t1p2, t2p1, t2p2);
-  MK.returnToEntry = true;  // finish returns to Step 3 instead of the marker's own PIN/submit
-}
-
-// Pre-fill the umpire setup screen from entryData, then let the user confirm serve/format.
-function mkPrefillFromEntry(fmt, t1p1, t1p2, t2p1, t2p2){
+  // preload MK directly — NO setup screen. Teams/format/category/best-of all come from the
+  // entry pages; the only thing left to choose is who serves first (like ODR/OPR).
   MK.players = { t1p1:t1p1, t1p2:t1p2, t2p1:t2p1, t2p2:t2p2 };
-  MK.matchFormat = fmt;
+  MK.matchFormat = singles ? 'singles' : 'doubles';
   MK.format = (Number(entryData.sets)===5) ? 5 : 3;   // Best-of from the entry's set count
   MK.cat = entryData.type || "Men's";
-  mkSegSet('mkFmtSeg', String(MK.format));
-  mkSegSet('mkFormatSeg', fmt);
-  mkSegSet('mkCatSeg', MK.cat);
-  const ev=(entryData.event||'Social');
-  const evSel=document.getElementById('mkEvent'); if(evSel){ evSel.value=ev; if(typeof mkEventChanged==='function'){ try{ mkEventChanged(); }catch(e){} } }
-  if(typeof mkRenderPicks==='function') mkRenderPicks();
-  if(typeof mkReady==='function') mkReady();
+  MK.firstServe = 1;
+  MK.returnToEntry = true;   // finish returns to Step 3, not the marker's own PIN/submit
+  mkServePrompt();
 }
+
+// Serve prompt shown when the umpire is opened from +Enter Score. Skips the full setup screen
+// (everything was chosen on the entry pages) — shows the matchup + "Who serves first?" only,
+// then goes straight to live scoring. Mirrors ODR/OPR.
+function mkServePrompt(){
+  const sing=(MK.matchFormat==='singles');
+  const nm=(t)=>{ const p1=MK.players['t'+t+'p1'], p2=MK.players['t'+t+'p2'];
+    return sing ? (p1||'Player') : ((p1||'—')+' & '+(p2||'—')); };
+  document.getElementById('markerScreen').classList.add('on');
+  const setup=document.getElementById('mkSetup');
+  document.getElementById('mkLive').classList.remove('on');
+  document.getElementById('mkFinish').classList.remove('on');
+  setup.style.display='';
+  setup.innerHTML = `
+    <h1>Live Umpire</h1>
+    <div class="mk-grp" style="text-align:center;">
+      <div style="font-size:12px;color:#8fd6bd;margin-bottom:4px;">${(MK.event||entryData.event||'Social')} · ${MK.cat} · ${sing?'Singles':'Doubles'} · Best of ${MK.format}</div>
+      <div style="font-size:16px;color:#12b488;font-weight:800;">${nm(1)}</div>
+      <div style="font-size:12px;color:#8fd6bd;">vs</div>
+      <div style="font-size:16px;color:#12b488;font-weight:800;">${nm(2)}</div>
+    </div>
+    <div class="mk-grp">
+      <h3>Who serves first?</h3>
+      <div class="mk-seg" id="mkFirstSeg">
+        <button data-v="1" onclick="mkStartFromServe(1)">${sing?'Player 1':'Team 1'}</button>
+        <button data-v="2" onclick="mkStartFromServe(2)">${sing?'Player 2':'Team 2'}</button>
+      </div>
+    </div>
+    <button class="mk-cancel" onclick="mkClose()">‹ Back to teams</button>`;
+}
+function mkStartFromServe(side){ MK.firstServe=side; mkStart(); }
 
 function renderStep3(){
   setStep(3);
@@ -4203,6 +4256,7 @@ function selectModalPlayer(name) {
   if (lblEl) lblEl.textContent = name;
   if (btnEl) btnEl.classList.add('selected');
   closePlayerModal();
+  if(typeof otrUpdatePreview==='function') otrUpdatePreview();
 }
 
 // Generic picker: open the same modal with a custom name list + a callback.
