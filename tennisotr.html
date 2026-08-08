@@ -562,7 +562,6 @@
     </div>
     <div class="screen-content home-content">
       <button class="btn-enter" onclick="showScreen('entryScreen')">✚ Enter your match score here</button>
-      <button class="btn-marker" onclick="mkOpen()">◉ Score a match live (umpire)</button>
       <div class="menu-grid">
         <button class="menu-btn" onclick="showScreen('laddersScreen')">Current Ratings and Ladders</button>
         <button class="menu-btn" onclick="showProfileSearch()">Member Profile</button>
@@ -1667,7 +1666,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-PHONE (tennisotr) v2026.08.01-01";  // -03 Same as laptop: un-hid the "Advance knockout / plate" button (was display:none) so plate fixtures (round_type=plate) actually get created; that is why plate results were failing to place. // UMPIRE RESTYLE (same as laptop -02): whole marker section now matches the site — white screen, light-green cards, white "Tap to select" pickers, site-green accents, gradient Start button. Courts stay SIDE-BY-SIDE (#9) as bold green tap-targets on white; Recent Matches centred (#10). RR KNOCKOUT CHOICE at generation (Table/Top 2/Top 4), bracket builds on RR completion, failsafe button kept. // -01: (#6) single-group RR→knockout; (#4) draw-complete all-types; (#5 client) plate/main eligibility (server in submit_match.ts); (#2/#8) marker Event-to-top + auto-lock + order-independent Start.
+const OPR_VERSION = "OTR-PHONE (tennisotr) v2026.08.07-02 · Live scoring moved into +Enter Score (OPR/ODR-style): after teams, ◉ Live Umpire opens the umpire pre-filled (teams/format/category/event/best-of from the entry), you confirm serve+options, score live, and on End it returns to Step 3 pre-filled for the normal confirm+submit. Standalone umpire button removed from home. Singles+doubles both carried through. Tennis pre-scoring options retained. Engine untouched. (Edge: submit_match now fires advance_bracket after a KO/plate/final auto-place.)";  // -03 Same as laptop: un-hid the "Advance knockout / plate" button (was display:none) so plate fixtures (round_type=plate) actually get created; that is why plate results were failing to place. // UMPIRE RESTYLE (same as laptop -02): whole marker section now matches the site — white screen, light-green cards, white "Tap to select" pickers, site-green accents, gradient Start button. Courts stay SIDE-BY-SIDE (#9) as bold green tap-targets on white; Recent Matches centred (#10). RR KNOCKOUT CHOICE at generation (Table/Top 2/Top 4), bracket builds on RR completion, failsafe button kept. // -01: (#6) single-group RR→knockout; (#4) draw-complete all-types; (#5 client) plate/main eligibility (server in submit_match.ts); (#2/#8) marker Event-to-top + auto-lock + order-independent Start.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -2917,7 +2916,8 @@ function renderStep2(){
       <div class="nav-row">
         <button class="btn btn-secondary" onclick="renderStep1()">&larr; Back</button>
         <button class="btn btn-primary" onclick="step2NextLadder()">Next: Enter Scores &rarr;</button>
-      </div>`;
+      </div>
+      <button class="btn" onclick="umpireFromEntry()" style="width:100%;margin-top:10px;background:#123f34;color:#8fd6bd;border:1.5px solid #12855F;font-weight:800;">◉ Live Umpire (score the match live)</button>`;
     return;
   }
   // SINGLES LADDER MATCH: pick two players from the singles ladder, shown in
@@ -2947,7 +2947,8 @@ function renderStep2(){
       <div class="nav-row">
         <button class="btn btn-secondary" onclick="renderStep1()">&larr; Back</button>
         <button class="btn btn-primary" onclick="step2NextSinglesLadder()">Next: Enter Scores &rarr;</button>
-      </div>`;
+      </div>
+      <button class="btn" onclick="umpireFromEntry()" style="width:100%;margin-top:10px;background:#123f34;color:#8fd6bd;border:1.5px solid #12855F;font-weight:800;">◉ Live Umpire (score the match live)</button>`;
     return;
   }
   const _singles = (entryData.format==='singles');
@@ -2995,7 +2996,8 @@ function renderStep2(){
     <div class="nav-row">
       <button class="btn btn-secondary" onclick="renderStep1()">&larr; Back</button>
       <button class="btn btn-primary" onclick="step2Next()">Next: Enter Scores &rarr;</button>
-    </div>`;
+    </div>
+    <button class="btn" onclick="umpireFromEntry()" style="width:100%;margin-top:10px;background:#123f34;color:#8fd6bd;border:1.5px solid #12855F;font-weight:800;">◉ Live Umpire (score the match live)</button>`;
 }
 
 function step2NextLadder(){
@@ -3046,6 +3048,67 @@ function step2Next(){
   if(new Set(vals).size<4){document.getElementById('err2').textContent='All four must be different.';document.getElementById('err2').style.display='block';return;}
   entryData.t1p1=vals[0];entryData.t1p2=vals[1];entryData.t2p1=vals[2];entryData.t2p2=vals[3];
   renderStep3();
+}
+
+// LIVE UMPIRE from inside +Enter Score. Everything the setup asks for was already chosen on
+// the entry pages (event, category, format, sets, teams), so we open the umpire, pre-fill its
+// setup screen from entryData, and flag it to RETURN to Step 3 pre-filled on finish (rather
+// than running its own PIN/submit screen). Tennis keeps the FULLER setup: the pre-filled setup
+// screen still shows so the user can confirm serve + Best-of + tiebreak before Start.
+function umpireFromEntry(){
+  const err=document.getElementById('err2');
+  const singles=(entryData.format==='singles');
+  let t1p1=null,t1p2=null,t2p1=null,t2p2=null;
+  const isLadder=(entryData.event||'')==='Ladder Match' && Array.isArray(window._ladderTeams) && window._ladderTeams.length;
+
+  if(isLadder && !singles){
+    const i1=document.getElementById('ladderT1'), i2=document.getElementById('ladderT2');
+    const v1=i1?i1.value:'', v2=i2?i2.value:'';
+    if(v1===''||v2===''){ if(err){err.textContent='Please select both teams first.';err.style.display='block';} return; }
+    if(v1===v2){ if(err){err.textContent='A team cannot play itself.';err.style.display='block';} return; }
+    const a=window._ladderTeams[Number(v1)], b=window._ladderTeams[Number(v2)];
+    t1p1=a.p1; t1p2=a.p2; t2p1=b.p1; t2p2=b.p2;
+  } else if(isLadder && singles){
+    const i1=document.getElementById('ladderS1'), i2=document.getElementById('ladderS2');
+    const v1=i1?i1.value:'', v2=i2?i2.value:'';
+    if(v1===''||v2===''){ if(err){err.textContent='Please select both players first.';err.style.display='block';} return; }
+    if(v1===v2){ if(err){err.textContent='A player cannot play themselves.';err.style.display='block';} return; }
+    t1p1=window._ladderTeams[Number(v1)].p1; t1p2=null; t2p1=window._ladderTeams[Number(v2)].p1; t2p2=null;
+  } else if(singles){
+    const a=(document.getElementById('t1p1_val')||{}).value?document.getElementById('t1p1_val').value.trim():'';
+    const b=(document.getElementById('t2p1_val')||{}).value?document.getElementById('t2p1_val').value.trim():'';
+    if(!a||!b){ if(err){err.textContent='Please select both players first.';err.style.display='block';} return; }
+    if(a===b){ if(err){err.textContent='The two players must be different.';err.style.display='block';} return; }
+    t1p1=a; t1p2=null; t2p1=b; t2p2=null;
+  } else {
+    const ids=['t1p1','t1p2','t2p1','t2p2'];
+    const vals=ids.map(id=>{ const el=document.getElementById(id+'_val'); return el?el.value.trim():''; });
+    if(vals.some(v=>!v)){ if(err){err.textContent='Please select all four players first.';err.style.display='block';} return; }
+    if(new Set(vals).size<4){ if(err){err.textContent='All four must be different.';err.style.display='block';} return; }
+    t1p1=vals[0]; t1p2=vals[1]; t2p1=vals[2]; t2p2=vals[3];
+  }
+  if(err) err.style.display='none';
+
+  entryData.t1p1=t1p1; entryData.t1p2=t1p2; entryData.t2p1=t2p1; entryData.t2p2=t2p2;
+
+  mkOpen();                 // build the setup screen (resets MK to defaults)
+  mkPrefillFromEntry(singles ? 'singles' : 'doubles', t1p1, t1p2, t2p1, t2p2);
+  MK.returnToEntry = true;  // finish returns to Step 3 instead of the marker's own PIN/submit
+}
+
+// Pre-fill the umpire setup screen from entryData, then let the user confirm serve/format.
+function mkPrefillFromEntry(fmt, t1p1, t1p2, t2p1, t2p2){
+  MK.players = { t1p1:t1p1, t1p2:t1p2, t2p1:t2p1, t2p2:t2p2 };
+  MK.matchFormat = fmt;
+  MK.format = (Number(entryData.sets)===5) ? 5 : 3;   // Best-of from the entry's set count
+  MK.cat = entryData.type || "Men's";
+  mkSegSet('mkFmtSeg', String(MK.format));
+  mkSegSet('mkFormatSeg', fmt);
+  mkSegSet('mkCatSeg', MK.cat);
+  const ev=(entryData.event||'Social');
+  const evSel=document.getElementById('mkEvent'); if(evSel){ evSel.value=ev; if(typeof mkEventChanged==='function'){ try{ mkEventChanged(); }catch(e){} } }
+  if(typeof mkRenderPicks==='function') mkRenderPicks();
+  if(typeof mkReady==='function') mkReady();
 }
 
 function renderStep3(){
@@ -3466,7 +3529,8 @@ const MK = {
   serve:1,              // 1 or 2 (first/second serve)
   inTB:false, tb:[0,0], // tiebreak state
   hist:[],              // undo stack (deep snapshots)
-  live:false
+  live:false,
+  returnToEntry:false   // true when the umpire was opened from +Enter Score → finish returns to Step 3
 };
 const MK_PTLABEL=['0','15','30','40'];
 
@@ -3474,6 +3538,7 @@ function mkOpen(){
   // reset
   MK.players={t1p1:null,t1p2:null,t2p1:null,t2p2:null};
   MK.format=3; MK.matchFormat='doubles'; MK.cat="Men's"; MK.firstServe=1;
+  MK.returnToEntry=false;   // default; umpireFromEntry() sets this true after mkOpen()
   document.getElementById('markerScreen').classList.add('on');
   document.getElementById('mkSetup').style.display='';
   document.getElementById('mkLive').classList.remove('on');
@@ -3729,7 +3794,43 @@ function mkEnd(){
   }
   // if a set is in progress, bank it as-is (current games)
   if(MK.games[0]!==0||MK.games[1]!==0){ MK.setScores.push(MK.games[0]+'-'+MK.games[1]); if(MK.games[0]>MK.games[1])MK.setsWon[0]++; else if(MK.games[1]>MK.games[0])MK.setsWon[1]++; }
-  MK.live=false; mkGoFinish();
+  MK.live=false;
+  // FROM ENTRY FLOW: return to Step 3 pre-filled instead of the marker's own PIN/submit screen.
+  if(MK.returnToEntry){ mkReturnToStep3(); return; }
+  mkGoFinish();
+}
+
+// Hand a completed umpired match BACK to +Enter Score at Step 3 (pre-filled). Builds the same
+// per-set values the normal flow uses; the user confirms and submits through the normal path.
+function mkReturnToStep3(){
+  const sing=(MK.matchFormat==='singles');
+  const sc={};
+  MK.setScores.forEach((s,idx)=>{ const [a,b]=s.split('-').map(Number); sc['set'+(idx+1)+'t1']=a; sc['set'+(idx+1)+'t2']=b; });
+  let t1g=0,t2g=0; MK.setScores.forEach(s=>{ const [a,b]=s.split('-').map(Number); t1g+=a; t2g+=b; });
+  entryData = Object.assign({}, entryData, {
+    type: MK.cat,
+    format: MK.matchFormat,
+    sets: MK.setScores.length,
+    t1p1: MK.players.t1p1, t1p2: sing ? null : MK.players.t1p2,
+    t2p1: MK.players.t2p1, t2p2: sing ? null : MK.players.t2p2,
+    t1sets: MK.setsWon[0], t2sets: MK.setsWon[1], t1games: t1g, t2games: t2g
+  }, sc);
+  MK.returnToEntry=false;
+  mkClose();
+  // show the entry screen at Step 3 WITHOUT showScreen('entryScreen') — that calls renderStep1
+  // and would reset the flow (wiping entryData). Un-hide entry, render Step 3, pre-fill scores.
+  document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.classList.add('hidden');});
+  const es=document.getElementById('entryScreen'); es.classList.remove('hidden'); es.classList.add('active');
+  window.scrollTo(0,0);
+  renderStep3();
+  setTimeout(()=>{
+    MK.setScores.forEach((s,idx)=>{
+      const [a,b]=s.split('-').map(Number);
+      const i1=document.getElementById('s'+(idx+1)+'t1'), i2=document.getElementById('s'+(idx+1)+'t2');
+      if(i1) i1.value=a; if(i2) i2.value=b;
+      if(typeof hlWin==='function') hlWin(idx+1);
+    });
+  }, 30);
 }
 
 async function mkSubmit(){
