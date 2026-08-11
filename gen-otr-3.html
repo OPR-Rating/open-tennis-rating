@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>OTR</title>
+<title>OTR · Gen-OTR 3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600;1,9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="manifest" href='data:application/manifest+json,{"name":"OTR · TourTest","short_name":"OTR TourTest","start_url":"./tourtest.html","scope":"./","display":"standalone","background_color":"%23071a12","theme_color":"%23071a12","icons":[{"src":"./icon-192.png","sizes":"192x192","type":"image/png"},{"src":"./icon-512.png","sizes":"512x512","type":"image/png"}]}'>
+<link rel="manifest" href='data:application/manifest+json,{"name":"OTR Gen-OTR 3","short_name":"Gen-OTR 3","start_url":"./gen-otr-3.html","scope":"./","display":"standalone","background_color":"%23071a12","theme_color":"%23071a12","icons":[{"src":"./icon-192.png","sizes":"192x192","type":"image/png"},{"src":"./icon-512.png","sizes":"512x512","type":"image/png"}]}'>
 <meta name="theme-color" content="#0F6E56">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="OTR Demo">
+<meta name="apple-mobile-web-app-title" content="Gen-OTR 3">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -524,6 +524,27 @@
     .opponents.amr-prof .amr-rl{ display:inline-block; width:84px; margin-top:3px; }
     .opponents.amr-prof .amr-mv{ display:inline-block; margin-left:6px; }
   }
+
+  /* ===== PHONE TUNING (tennisotr) ===== */
+  @media (max-width: 640px){
+    /* #9: courts SIDE BY SIDE (left/right tap, like OSR) — easier for the umpire
+       than up/down. Two columns share the width; names wrap, score stays big. */
+    .mk-courts { flex-direction:row; gap:4px; padding:4px; }
+    .mk-side .mk-score { font-size:60px; }
+    .mk-side .mk-names { font-size:12px; top:10px; left:6px; right:6px; line-height:1.15; }
+    .mk-side .mk-gtally { bottom:12px; font-size:12px; }
+    .mk-setup { padding:16px 12px 24px; }
+    .mk-btn { padding:14px 4px; font-size:14px; }
+    .mk-side .mk-sv { width:14px; height:14px; }
+    /* #10: centre the Recent Matches column on phone (was left-hugging) */
+    .home-recent-col { max-width:520px; margin-left:auto; margin-right:auto; width:100%; }
+    #homeRecentList { max-width:520px; margin-left:auto; margin-right:auto; width:100%; }
+  }
+  @media (max-width: 900px) and (orientation: landscape){
+    .mk-courts { flex-direction:row; }
+    .mk-side .mk-score { font-size:88px; }
+  }
+
 </style>
 </head>
 <body>
@@ -550,15 +571,6 @@
         <button class="menu-btn" onclick="showScreen('aboutScreen')">About OTR</button>
       </div>
       <div class="home-lower">
-        <div class="home-club-col">
-          <div class="club-panel">
-            <div class="club-panel-head">Club Overview</div>
-            <div id="clubStats" class="club-stats"><div style="color:#999;font-size:12px;">Loading…</div></div>
-            <div class="club-panel-foot">
-              <a href="https://www.opr-online.com" target="_blank" rel="noopener" class="club-panel-link">Powered by OTR · opr-online.com ›</a>
-            </div>
-          </div>
-        </div>
         <div class="home-recent-col">
           <div style="background:#c4e000;color:#2a3000;border:1.5px solid #a9c400;border-radius:10px;padding:8px 12px;margin:22px 0 10px;font-size:13px;font-weight:800;letter-spacing:0.5px;text-align:center;">Recent Matches</div>
           <div id="homeRecentList" style="max-height:420px;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px;"><div style="color:#888;font-size:12px;">Loading...</div></div>
@@ -1017,8 +1029,7 @@ let LADIES = [];
 
 let _playersLoaded = false;
 async function loadPlayers(force) {
-  // Cache the roster: fetch once, then reuse. Re-fetching on every player-picker open
-  // caused a small lag on each selection. Pass force=true after adding/editing members.
+  // Cache the roster: fetch once, then reuse. Pass force=true after adding/editing members.
   if (_playersLoaded && !force) return;
   try {
     const data = await sbGet(`players_public?select=name,gender&order=name.asc&club_id=eq.${CLUB_ID}`);
@@ -1026,7 +1037,6 @@ async function loadPlayers(force) {
     const l = data.filter(p=>p.gender==='F').map(p=>p.name);
     if (m.length > 0) MEN = m.sort((a,b)=>a.localeCompare(b));
     if (l.length > 0) LADIES = l.sort((a,b)=>a.localeCompare(b));
-    // ratings for the entry-screen pairing/player preview (name -> current rating)
     try{
       const pr = await sbGet(`player_results?select=name,current_rating&club_id=eq.${CLUB_ID}`) || [];
       OTR_RATING = {}; pr.forEach(r=>{ if(r.name!=null && r.current_rating!=null) OTR_RATING[r.name]=Number(r.current_rating); });
@@ -1037,8 +1047,7 @@ async function loadPlayers(force) {
 
 // Update the rating line under each team on the entry screen. Doubles shows the pair's
 // combined rating (Men's/Ladies = 50/50 average; Mixed/All Sorts = 60/40 weighted, stronger
-// partner favoured) — matching how the rest of OTR ranks pairs. Singles shows the player's
-// own rating. A player with no result row yet counts as 1500 (seed) so a number still shows.
+// partner favoured). Singles shows the player's own rating. No result row yet => 1500 seed.
 function otrUpdatePreview(){
   const singles=(entryData.format==='singles');
   const R=(nm)=> (nm && OTR_RATING[nm]!=null) ? OTR_RATING[nm] : (nm ? 1500 : null);
@@ -1102,9 +1111,15 @@ async function adminUnlock(){
   const r=await adminCall('list_clubs');
   if(!r.ok){ document.getElementById('adminGateErr').textContent=r.error||'Access denied.'; document.getElementById('adminGateErr').style.display='block'; ADMIN_PIN=''; return; }
   window._adminRole = r.role || 'club';
+  const isMaster = (window._adminRole === 'master');
+  const allowed = isMaster || (Array.isArray(r.clubs) && r.clubs.some(c=>Number(c.id)===Number(CLUB_ID)));
+  if(!allowed){
+    var ge=document.getElementById('adminGateErr'); if(ge){ ge.textContent='That PIN is not valid for this club.'; ge.style.display='block'; }
+    ADMIN_PIN=''; return;
+  }
   document.getElementById('adminGate').style.display='none';
   document.getElementById('adminPanel').style.display='block';
-  fillClubs(r.clubs);
+  fillClubs(isMaster ? r.clubs : r.clubs.filter(c=>Number(c.id)===Number(CLUB_ID)));
 }
 // ---- Admin Control Room: tabs + context ----
 function adminExit(){
@@ -1510,7 +1525,7 @@ async function adminAddMember(){
   const r=await adminCall('add_member',{ club_id:Number(cid), name, gender, initial_rating:Number(rating), pin });
   if(!r.ok){ msg.innerHTML='<span style="color:#c0392b;">'+r.error+'</span>'; return; }
   msg.innerHTML='<span style="color:#1e8449;">Added '+name+'.</span>';
-  _playersLoaded=false;   // roster changed — refresh cached player list on next open
+  _playersLoaded=false;
   document.getElementById('amName').value=''; document.getElementById('amRating').value=''; document.getElementById('amPin').value='';
   adminLoadMembers();
 }
@@ -1534,7 +1549,7 @@ async function adminBulkReset(gender){
   msg.innerHTML='Resetting '+who+' and recomputing…';
   const r=await adminCall('bulk_reset_ratings',{ club_id:Number(cid), gender:gender, rating:val }, pin.trim());
   if(!r.ok){ msg.innerHTML='<span style="color:#c0392b;">'+(r.error||'Reset failed. Check the PIN.')+'</span>'; return; }
-  _playersLoaded=false;   // seeds changed — refresh cached player list on next open
+  _playersLoaded=false;
   msg.innerHTML='<span style="color:#1e8449;">Reset '+(r.updated||0)+' '+who.toLowerCase()+' to '+val+'. Ratings are recomputing — refresh in a few seconds.</span>';
   document.getElementById(gender==='M'?'resetMenVal':'resetLadiesVal').value='';
   adminLoadMembers();
@@ -1566,7 +1581,7 @@ async function adminBulkAdd(){
       if(res.ok) ok++; else { fail++; failNames.push(r.name); }
     }catch(e){ fail++; failNames.push(r.name); }
   }
-  if(ok>0) _playersLoaded=false;   // roster changed — refresh cached player list on next open
+  if(ok>0) _playersLoaded=false;
   let out='<span style="color:#1e8449;">Added '+ok+' member'+(ok===1?'':'s')+'.</span>';
   if(fail){ out+=' <span style="color:#c0392b;">'+fail+' failed'+(failNames.length?': '+failNames.join(', '):'')+'.</span>'; }
   msg.innerHTML=out;
@@ -1691,14 +1706,15 @@ const CLUBS = {
   // Tennis clubs are added here as they onboard. New numeric ids also work automatically.
   'demo':{id:1,name:'Demo'}
 };
-const _clubParam = (new URLSearchParams(window.location.search).get('club') || '1').toLowerCase();
+// PER-CLUB APP — pinned to Gen-OTR 3 (id 3). Copy + change only this line + title/manifest/apple-title.
+const _clubParam = '3';
 // Known clubs come from the map; any OTHER numeric id (new clubs 20+) is used directly —
 // the real name is fetched from the database on load. Non-numeric unknowns fall back to Demo.
-const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubParam), name:'OTR Club '+_clubParam} : CLUBS['1']);
+const _club = {id:3, name:'Gen-OTR 3'};
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.08.07-14 - FIX: when a live-umpire match completed NATURALLY (a team reached the needed sets), it fell through to the marker's own PIN/submit screen instead of returning to +Enter Score. mkWinSet now honours returnToEntry too, so both natural and manual finishes return to the normal Enter Score verify screen (working 'Who are you?' dropdown). The marker's own mkGoFinish (with the empty submitter dropdown) is no longer reached from the entry flow.";  // -03 ROOT CAUSE of plate "does not match": plate fixtures were never created (DB had only round_type=ko, zero plate rows). The "Advance knockout / plate" button that creates plate fixtures (round_type=plate) via tmAdvanceKnockout was hidden (display:none). Un-hidden it so admins can advance round 1 -> plate fixtures get created -> plate results then place. // UMPIRE RESTYLE: whole marker section now matches the rest of the site — white screen, light-green cards, white "Tap to select" pickers, site-green (#0F6E56) accents and .btn-enter gradient buttons (was a bespoke dark scheme). Live courts kept as two bold green tap-targets on white. RR KNOCKOUT CHOICE: single-group round robin now offers, AT GENERATION, "Table decides / Top 2 / Top 4" so the finish is known up front (stamped on RR fixtures as band KO2/KO4); bracket builds when the RR completes; end-of-RR button kept as failsafe. // -01: (#6) single-group RR→knockout; (#4) draw-complete all-types; (#5 client) plate/main concurrent eligibility (server patched in submit_match.ts); (#2/#8) marker Event-to-top + auto-lock + order-independent Start.
+const OPR_VERSION = "OTR-GEN-OTR-3 v2026.08.07-14 - FIX: when a live-umpire match completed NATURALLY (a team reached the needed sets), it fell through to the marker's own PIN/submit screen instead of returning to +Enter Score. mkWinSet now honours returnToEntry too, so both natural and manual finishes return to the normal Enter Score verify screen (working 'Who are you?' dropdown). The marker's own mkGoFinish (with the empty submitter dropdown) is no longer reached from the entry flow.";  // -03 Same as laptop: un-hid the "Advance knockout / plate" button (was display:none) so plate fixtures (round_type=plate) actually get created; that is why plate results were failing to place. // UMPIRE RESTYLE (same as laptop -02): whole marker section now matches the site — white screen, light-green cards, white "Tap to select" pickers, site-green accents, gradient Start button. Courts stay SIDE-BY-SIDE (#9) as bold green tap-targets on white; Recent Matches centred (#10). RR KNOCKOUT CHOICE at generation (Table/Top 2/Top 4), bracket builds on RR completion, failsafe button kept. // -01: (#6) single-group RR→knockout; (#4) draw-complete all-types; (#5 client) plate/main eligibility (server in submit_match.ts); (#2/#8) marker Event-to-top + auto-lock + order-independent Start.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -1930,8 +1946,6 @@ async function loadLadder(type, title) {
       const data = await sbGet(`doubles_results?select=rank,p1,p2,combined,weighted,level,sets,sets_won,set_win_pct&category=eq.${encodeURIComponent(cat)}&order=rank.asc&club_id=eq.${CLUB_ID}`);
       window._doublesRows = data;
       window._doublesCat = cat;
-      // Pair "Move since inception" isn't stored in doubles_results, so derive it client-side:
-      // sum each pair's rating_delta across their shared matches (same as the team profile).
       const _pairMove = {};
       try{
         const mAll = await sbGet(`matches?select=t1p1,t1p2,t2p1,t2p2,rating_delta&club_id=eq.${CLUB_ID}&t1p2=not.is.null`) || [];
@@ -2251,13 +2265,11 @@ function filterPlayers() {
 }
 
 function profileBack(){
-  // Team profile → back to the individual's partnerships list.
   if(window._profileFrom==='team'){
     window._profileFrom = (window._teamFor && window._teamFor.name) ? 'search' : null;
     const who=(window._teamFor||{}).name;
     if(who){ loadProfile(who, window._profileGender||'M'); return; }
   }
-  // If this profile was opened from a rating table, go back to that exact table.
   if(window._profileFrom==='ladder' && window._lastLadder){
     window._profileFrom=null;
     loadLadder(window._lastLadder.type, window._lastLadder.title);
@@ -2268,9 +2280,6 @@ function profileBack(){
 }
 
 async function loadProfile(name, gender) {
-  // OPR-style: individual header + rolled-up Partnerships cards (no tabs). Tapping a
-  // partnership opens that pair's team profile (loadTeamProfile). Presentation only —
-  // ratings/stats come from the same queries as before.
   document.getElementById('profileTitle').textContent = name;
   window._profileName = name;
   window._profileGender = gender;
@@ -2279,7 +2288,6 @@ async function loadProfile(name, gender) {
   showScreen('profileScreen');
   loadProfileIndividual(name, gender);
 }
-// category pill (inline; OTR has no odr-cat-pill class)
 function otrCatPill(g){
   const lab = g==='M' ? "Men's" : g==='F' ? 'Ladies' : g==='X' ? 'Mixed' : '';
   const col = g==='F' ? '#c2185b' : g==='X' ? '#12855F' : '#3949ab';
@@ -2363,8 +2371,8 @@ async function loadProfileIndividual(name, gender) {
     const profCard = (r)=>{
       const mvCol = r.mv>=0 ? '#1e8449' : '#c0392b';
       const rt = r.rating!=null ? r.rating : '—';
-      const openArg = r.partner==='' ? `loadTeamProfile('${name.replace(/'/g,"\\'")}','','${r.cat}')`
-                                     : `loadTeamProfile('${name.replace(/'/g,"\\'")}','${r.partner.replace(/'/g,"\\'")}','${r.cat}')`;
+      const openArg = r.partner==='' ? `loadTeamProfile('${name.replace(/'/g,"\'")}','','${r.cat}')`
+                                     : `loadTeamProfile('${name.replace(/'/g,"\'")}','${r.partner.replace(/'/g,"\'")}','${r.cat}')`;
       return `<div onclick="${openArg}" style="cursor:pointer;background:#fff;border:1px solid rgba(15,110,86,.16);border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
             <span style="font-weight:700;flex:1;color:#04241b;">${r.label}</span>${otrCatPill(r.cat)}
@@ -2391,7 +2399,8 @@ async function loadProfileIndividual(name, gender) {
         <div class="stat-card"><div class="stat-value">${setsWon}</div><div class="stat-label">Sets Won</div></div>
         <div class="stat-card"><div class="stat-value">${setWinPct}%</div><div class="stat-label">Win %</div></div>
         <div class="stat-card"><div class="stat-value">${gdpsTxt}</div><div class="stat-label">Game Diff/Set</div></div>
-      </div>`;
+      </div>
+      `;
     // Singles card (if any) sits on its own, ABOVE the Partnerships section.
     if(singlesRow){
       html += `<div class="section-header">Singles</div>` + profCard(singlesRow);
@@ -2520,7 +2529,6 @@ function toggleTeamMatch(i){
   const m=(window._teamMatches||[])[i]; if(!m) return;
   const d=document.getElementById('tmatchdetail_'+i); if(!d) return;
   if(d.style.display==='none'){
-    // Perspective: was the viewed player/side on T1? (stored on the match when the row was built)
     const onT1 = (m._onT1!=null) ? m._onT1 : true;
     const ss=(m.set_scores||'').trim();
     let chips='';
@@ -3772,8 +3780,6 @@ function mkOpen(){
   mkRenderPicks(); mkFillEvent(); mkReady();
 }
 function mkClose(){ document.getElementById('markerScreen').classList.remove('on'); }
-// Header back arrow: during a live match, confirm before leaving (score is lost); otherwise
-// just close back to the entry teams screen. Mirrors OPR's marker back behaviour.
 function mkHeaderBack(){
   if(MK.live){ if(!confirm('Leave this match? The live score will be lost.')) return; MK.live=false; }
   const hdr=document.getElementById('mkHeaderTitle'); if(hdr) hdr.textContent='Live Umpire';
@@ -3820,18 +3826,14 @@ async function mkEventChanged(){
     const trow = await sbGet(`tournaments?select=divisions&name=eq.${encodeURIComponent(ev)}&club_id=eq.${CLUB_ID}&limit=1`);
     const divs = (trow && trow.length && trow[0].divisions) ? trow[0].divisions.split(',').map(s=>s.trim()).filter(Boolean) : [];
     if(divs.length){
-      // format lock: all-singles or all-doubles
       const allSingles = divs.every(d=>/singles/i.test(d));
       const allDoubles = divs.every(d=>!/singles/i.test(d));
       if(allSingles) setFmtLocked(true,'singles');
       else if(allDoubles) setFmtLocked(true,'doubles');
       else setFmtLocked(false);
-      // category lock: reduce to BASE types; if exactly one, lock it
       const bases = [...new Set(divs.map(d=>d.replace(/\s*Singles$/i,'').trim()))];
       if(bases.length===1){ setCatLocked(true, bases[0]); }
       else {
-        // multiple categories in this tournament — leave selectable, but if the
-        // current pick isn't part of the tournament, default to the first one.
         setCatLocked(false);
         if(bases.indexOf(MK.cat)<0){
           const first=bases[0];
@@ -5351,31 +5353,16 @@ async function loadTournamentSheet(tournament, division) {
         const _secFin = fixtures.some(f=> f.round_type==='ko' && typeof f.band==='string' && /^[A-Z]·/.test(f.band));
         h += '<div style="text-align:center;margin-top:10px;"><p class="sub" style="margin:6px 0;">Group stage complete — the '+(_secFin?'section finals are':'knockout playoff is')+' set. Enter results on the 🗂 Bracket tab; winners advance automatically.</p></div></div>';
       } else {
-        // Was a knockout finish CHOSEN UP FRONT? It's stamped on a round-1 RR fixture
-        // as band 'KO2' / 'KO4'. If so, the knockout builds AUTOMATICALLY the moment the
-        // round robin is complete (that's when the final standings — the top 2/4 — exist).
-        const _koMark = _rrFix.map(f=> (typeof f.band==='string' && /^KO([24])$/.test(f.band)) ? Number(RegExp.$1) : 0).find(x=>x>0) || 0;
-        const _hasKOalready = fixtures.some(f=> f.round_type==='ko');
-        if(_koMark && _rrComplete && !_hasKOalready){
-          h += '<div style="text-align:center;margin-top:10px;"><p class="sub" style="margin:6px 0;">Round robin complete — setting up the top-'+_koMark+' knockout from the final table…</p>'
-            + '<div style="max-width:520px;margin:8px auto 0;">'
-            + '<button class="menu-btn" style="padding:10px 16px;border-color:#F1C40F;font-weight:700;text-align:center;line-height:1.35;" onclick="tmGeneratePlayoffSingle('+_koMark+')">'
-            + '🏆 <b>Build the top-'+_koMark+' knockout now</b></button>'
+        h += '<div style="text-align:center;margin-top:10px;"><p class="sub" style="margin:6px 0;">The full round robin is already scheduled. Play the fixtures in any order — the standings table updates as results come in, and the leader is the winner once every fixture is played.</p>';
+        if(_rrComplete){
+          h += '<div style="font-size:12px;font-weight:700;color:#5aa98d;margin:10px 0 6px;">Add a knockout finish (optional)</div>'
+            + '<div style="max-width:520px;margin:0 auto;">'
+            + '<button class="menu-btn" style="padding:10px 16px;border-color:#F1C40F;font-weight:700;text-align:left;line-height:1.35;" onclick="tmGeneratePlayoffSingle()">'
+            + '🏆 <b>Top teams into a knockout</b> — the round robin seeds a final (top 2) or semi-finals + final (top 4)</button>'
             + '</div>'
-            + '<div class="sub" style="margin-top:8px;">This was chosen when the round robin was created. Tap to seed the bracket.</div></div></div>';
-        } else {
-          h += '<div style="text-align:center;margin-top:10px;"><p class="sub" style="margin:6px 0;">The full round robin is already scheduled. Play the fixtures in any order — the standings table updates as results come in, and the leader is the winner once every fixture is played.</p>';
-          if(_rrComplete && !_hasKOalready){
-            // Failsafe: no knockout was pre-chosen, but the admin can still add one now.
-            h += '<div style="font-size:12px;font-weight:700;color:#5aa98d;margin:10px 0 6px;">Add a knockout finish (optional)</div>'
-              + '<div style="max-width:520px;margin:0 auto;">'
-              + '<button class="menu-btn" style="padding:10px 16px;border-color:#F1C40F;font-weight:700;text-align:left;line-height:1.35;" onclick="tmGeneratePlayoffSingle()">'
-              + '🏆 <b>Top teams into a knockout</b> — the round robin seeds a final (top 2) or semi-finals + final (top 4)</button>'
-              + '</div>'
-              + '<div class="sub" style="margin-top:8px;">The round robin stays on record. The table order decides who goes through.</div>';
-          }
-          h += '</div></div>';
+            + '<div class="sub" style="margin-top:8px;">The round robin stays on record. The table order decides who goes through.</div>';
         }
+        h += '</div></div>';
       }
     } else {
       h += '<div style="text-align:center;margin-top:10px;"><button class="menu-btn" style="display:inline-block;width:auto;padding:10px 18px;border-color:#12855F;font-weight:700;" onclick="tmGenerateNextRound()">➕ Generate next round (Swiss)</button>'
@@ -5974,7 +5961,7 @@ async function loadTournamentSheet(tournament, division) {
   // SINGLE-GROUP round robin → knockout finals. A plain (ungrouped) RR has no group
   // letters, so tmGeneratePlayoff can't seed it. This takes the top-N teams by final
   // standings and seeds them straight into a bracket via the SAME tested KO helpers.
-  window.tmGeneratePlayoffSingle = async function(preSize){
+  window.tmGeneratePlayoffSingle = async function(){
     const groupLabels = [...new Set(entries.map(e=>e.grp).filter(Boolean))].sort();
     if(groupLabels.length >= 2){ alert('This is a grouped round robin — use the group finals options.'); return; }
     const rrFix = fixtures.filter(f=> f.round_type==='rr');
@@ -5984,11 +5971,9 @@ async function loadTournamentSheet(tournament, division) {
     const ranked = standings(maxPlayed).map(r=>r.seed);   // best..worst by the live table
     const fieldMax = ranked.length;
     if(fieldMax < 2){ alert('Need at least 2 teams for a final.'); return; }
-    // Size chosen UP FRONT (preSize 2/4) skips the prompt; otherwise ask (failsafe path).
+    // how many advance to the knockout
     let take = 2;
-    if(preSize===2 || preSize===4){
-      take = preSize;
-    } else if(fieldMax >= 4){
+    if(fieldMax >= 4){
       const ans = prompt('How many of the top teams go through to the knockout?\n\n  2  = top two → straight final\n  4  = top four → semi-finals (1v4, 2v3) + final\n\nEnter 2 or 4:', '4');
       if(ans===null) return;
       take = (ans.trim()==='4') ? 4 : 2;

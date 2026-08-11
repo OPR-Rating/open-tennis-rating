@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Tennis OTR</title>
+<title>OTR · Demo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600;1,9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="manifest" href='data:application/manifest+json,{"name":"Tennis OTR","short_name":"Tennis OTR","start_url":"./tennisotr.html","scope":"./","display":"standalone","background_color":"%23071a12","theme_color":"%23071a12","icons":[{"src":"./icon-192.png","sizes":"192x192","type":"image/png"},{"src":"./icon-512.png","sizes":"512x512","type":"image/png"}]}'>
+<link rel="manifest" href='data:application/manifest+json,{"name":"OTR Demo","short_name":"OTR Demo","start_url":"./tennisotr.html","scope":"./","display":"standalone","background_color":"%23071a12","theme_color":"%23071a12","icons":[{"src":"./icon-192.png","sizes":"192x192","type":"image/png"},{"src":"./icon-512.png","sizes":"512x512","type":"image/png"}]}'>
 <meta name="theme-color" content="#0F6E56">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -496,6 +496,7 @@
   .amr-mv{ justify-self:start; white-space:nowrap; font-variant-numeric:tabular-nums; font-weight:700; }
   .amr-sc{ justify-self:start; white-space:nowrap; font-variant-numeric:tabular-nums; font-weight:700; }
   .amr-chip{ text-align:center; color:#fff; border-radius:3px; padding:1px 6px; font-size:11px; font-weight:700; }
+  .amr-chiprow{ display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
   .amr-date{ color:#888; font-size:11px; }
   /* profile row (no chips): just two bracket columns; score/▼ stay in .match-meta */
   .opponents.amr-prof{ display:grid; align-items:baseline; column-gap:6px;
@@ -779,7 +780,7 @@
           <span class="about-badge">Mixed</span>
           <span class="about-badge">All Sorts</span>
         </div>
-        <p style="margin-top:8px;">OTR handles any combination — two men, two women, mixed gender, or any All Sorts configuration. Mixed and All Sorts pairs use a weighted rating that gives more weight to the stronger partner, reflecting their greater influence on the match.</p>
+        <p style="margin-top:8px;">OTR handles any combination — singles, two men, two women, mixed gender, or any All Sorts configuration. Doubles pairs use a weighted rating that gives more weight to the stronger partner, reflecting their greater influence on the match; singles are rated on the individual alone.</p>
       </div>
 
       <div class="about-section">
@@ -796,7 +797,7 @@
 
       <div class="about-section">
         <h3>Version</h3>
-        <p>OTR Version 2.0 — June 2026</p>
+        <p id="aboutVersion">OTR Version 2.0 — June 2026</p>
         <p>Built with passion for the game of tennis.</p>
       </div>
 
@@ -1026,7 +1027,10 @@ let MEN = [];
 let OTR_RATING = {};   // name -> current rating, for the entry pairing/player preview
 let LADIES = [];
 
-async function loadPlayers() {
+let _playersLoaded = false;
+async function loadPlayers(force) {
+  // Cache the roster: fetch once, then reuse. Pass force=true after adding/editing members.
+  if (_playersLoaded && !force) return;
   try {
     const data = await sbGet(`players_public?select=name,gender&order=name.asc&club_id=eq.${CLUB_ID}`);
     const m = data.filter(p=>p.gender==='M').map(p=>p.name);
@@ -1037,6 +1041,7 @@ async function loadPlayers() {
       const pr = await sbGet(`player_results?select=name,current_rating&club_id=eq.${CLUB_ID}`) || [];
       OTR_RATING = {}; pr.forEach(r=>{ if(r.name!=null && r.current_rating!=null) OTR_RATING[r.name]=Number(r.current_rating); });
     }catch(_e){}
+    _playersLoaded = true;
   } catch(e){}
 }
 
@@ -1106,9 +1111,15 @@ async function adminUnlock(){
   const r=await adminCall('list_clubs');
   if(!r.ok){ document.getElementById('adminGateErr').textContent=r.error||'Access denied.'; document.getElementById('adminGateErr').style.display='block'; ADMIN_PIN=''; return; }
   window._adminRole = r.role || 'club';
+  const isMaster = (window._adminRole === 'master');
+  const allowed = isMaster || (Array.isArray(r.clubs) && r.clubs.some(c=>Number(c.id)===Number(CLUB_ID)));
+  if(!allowed){
+    var ge=document.getElementById('adminGateErr'); if(ge){ ge.textContent='That PIN is not valid for this club.'; ge.style.display='block'; }
+    ADMIN_PIN=''; return;
+  }
   document.getElementById('adminGate').style.display='none';
   document.getElementById('adminPanel').style.display='block';
-  fillClubs(r.clubs);
+  fillClubs(isMaster ? r.clubs : r.clubs.filter(c=>Number(c.id)===Number(CLUB_ID)));
 }
 // ---- Admin Control Room: tabs + context ----
 function adminExit(){
@@ -1514,6 +1525,7 @@ async function adminAddMember(){
   const r=await adminCall('add_member',{ club_id:Number(cid), name, gender, initial_rating:Number(rating), pin });
   if(!r.ok){ msg.innerHTML='<span style="color:#c0392b;">'+r.error+'</span>'; return; }
   msg.innerHTML='<span style="color:#1e8449;">Added '+name+'.</span>';
+  _playersLoaded=false;
   document.getElementById('amName').value=''; document.getElementById('amRating').value=''; document.getElementById('amPin').value='';
   adminLoadMembers();
 }
@@ -1537,6 +1549,7 @@ async function adminBulkReset(gender){
   msg.innerHTML='Resetting '+who+' and recomputing…';
   const r=await adminCall('bulk_reset_ratings',{ club_id:Number(cid), gender:gender, rating:val }, pin.trim());
   if(!r.ok){ msg.innerHTML='<span style="color:#c0392b;">'+(r.error||'Reset failed. Check the PIN.')+'</span>'; return; }
+  _playersLoaded=false;
   msg.innerHTML='<span style="color:#1e8449;">Reset '+(r.updated||0)+' '+who.toLowerCase()+' to '+val+'. Ratings are recomputing — refresh in a few seconds.</span>';
   document.getElementById(gender==='M'?'resetMenVal':'resetLadiesVal').value='';
   adminLoadMembers();
@@ -1568,6 +1581,7 @@ async function adminBulkAdd(){
       if(res.ok) ok++; else { fail++; failNames.push(r.name); }
     }catch(e){ fail++; failNames.push(r.name); }
   }
+  if(ok>0) _playersLoaded=false;
   let out='<span style="color:#1e8449;">Added '+ok+' member'+(ok===1?'':'s')+'.</span>';
   if(fail){ out+=' <span style="color:#c0392b;">'+fail+' failed'+(failNames.length?': '+failNames.join(', '):'')+'.</span>'; }
   msg.innerHTML=out;
@@ -1593,11 +1607,11 @@ async function adminEditMember(id,name,rating,pin){
   const newRating=prompt('Initial rating:',Math.round(rating)); if(newRating===null) return;
   const newPin=prompt('PIN (4 digits):',pin); if(newPin===null) return;
   const r=await adminCall('edit_member',{ id, name:name, initial_rating:Number(newRating), pin:newPin.trim() });
-  if(!r.ok){ alert(r.error); return; } adminLoadMembers();
+  if(!r.ok){ alert(r.error); return; } _playersLoaded=false; adminLoadMembers();
 }
 async function adminDeleteMember(id,name){
   if(!confirm('Delete member "'+name+'"?')) return;
-  const r=await adminCall('delete_member',{ id }); if(!r.ok){ alert(r.error); return; } adminLoadMembers();
+  const r=await adminCall('delete_member',{ id }); if(!r.ok){ alert(r.error); return; } _playersLoaded=false; adminLoadMembers();
 }
 
 function goHome() {
@@ -1686,17 +1700,21 @@ const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 // Map of club code -> {id, name}. Add clubs here as they onboard.
 const CLUBS = {
   '1':  {id:1,  name:'Demo'},
+  '2':  {id:2,  name:'Mbabane Club'},
+  '3':  {id:3,  name:'Gen-OTR 3'},
+  '4':  {id:4,  name:'Gen-OTR 4'},
   // Tennis clubs are added here as they onboard. New numeric ids also work automatically.
   'demo':{id:1,name:'Demo'}
 };
-const _clubParam = (new URLSearchParams(window.location.search).get('club') || '1').toLowerCase();
+// PER-CLUB APP — pinned to Demo (id 1). Copy + change only this line + title/manifest/apple-title.
+const _clubParam = '1';
 // Known clubs come from the map; any OTHER numeric id (new clubs 20+) is used directly —
 // the real name is fetched from the database on load. Non-numeric unknowns fall back to Demo.
-const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubParam), name:'OTR Club '+_clubParam} : CLUBS['1']);
+const _club = {id:1, name:'Demo'};
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-PHONE (tennisotr) v2026.08.07-11 - FIX: when a live-umpire match completed NATURALLY (a team reached the needed sets), it fell through to the marker's own PIN/submit screen instead of returning to +Enter Score. mkWinSet now honours returnToEntry too, so both natural and manual finishes return to the normal Enter Score verify screen (working 'Who are you?' dropdown). The marker's own mkGoFinish (with the empty submitter dropdown) is no longer reached from the entry flow.";  // -03 Same as laptop: un-hid the "Advance knockout / plate" button (was display:none) so plate fixtures (round_type=plate) actually get created; that is why plate results were failing to place. // UMPIRE RESTYLE (same as laptop -02): whole marker section now matches the site — white screen, light-green cards, white "Tap to select" pickers, site-green accents, gradient Start button. Courts stay SIDE-BY-SIDE (#9) as bold green tap-targets on white; Recent Matches centred (#10). RR KNOCKOUT CHOICE at generation (Table/Top 2/Top 4), bracket builds on RR completion, failsafe button kept. // -01: (#6) single-group RR→knockout; (#4) draw-complete all-types; (#5 client) plate/main eligibility (server in submit_match.ts); (#2/#8) marker Event-to-top + auto-lock + order-independent Start.
+const OPR_VERSION = "OTR-TENNISOTR v2026.08.07-14 - FIX: when a live-umpire match completed NATURALLY (a team reached the needed sets), it fell through to the marker's own PIN/submit screen instead of returning to +Enter Score. mkWinSet now honours returnToEntry too, so both natural and manual finishes return to the normal Enter Score verify screen (working 'Who are you?' dropdown). The marker's own mkGoFinish (with the empty submitter dropdown) is no longer reached from the entry flow.";  // -03 Same as laptop: un-hid the "Advance knockout / plate" button (was display:none) so plate fixtures (round_type=plate) actually get created; that is why plate results were failing to place. // UMPIRE RESTYLE (same as laptop -02): whole marker section now matches the site — white screen, light-green cards, white "Tap to select" pickers, site-green accents, gradient Start button. Courts stay SIDE-BY-SIDE (#9) as bold green tap-targets on white; Recent Matches centred (#10). RR KNOCKOUT CHOICE at generation (Table/Top 2/Top 4), bracket builds on RR completion, failsafe button kept. // -01: (#6) single-group RR→knockout; (#4) draw-complete all-types; (#5 client) plate/main eligibility (server in submit_match.ts); (#2/#8) marker Event-to-top + auto-lock + order-independent Start.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -2344,9 +2362,31 @@ async function loadProfileIndividual(name, gender) {
       .filter(r=>r.mc>0)
       .sort((a,b)=> b.mc-a.mc || (b.rating||0)-(a.rating||0));
 
+    // Split out the Singles pseudo-partnership so it renders ABOVE the Partnerships list
+    // (it isn't a partnership). Doubles partnerships stay under the Partnerships header.
+    const singlesRow = partnerRows.find(r=>r.partner==='');
+    const doublesRows = partnerRows.filter(r=>r.partner!=='');
+
+    // Shared card renderer (same look for Singles and partnership cards).
+    const profCard = (r)=>{
+      const mvCol = r.mv>=0 ? '#1e8449' : '#c0392b';
+      const rt = r.rating!=null ? r.rating : '—';
+      const openArg = r.partner==='' ? `loadTeamProfile('${name.replace(/'/g,"\'")}','','${r.cat}')`
+                                     : `loadTeamProfile('${name.replace(/'/g,"\'")}','${r.partner.replace(/'/g,"\'")}','${r.cat}')`;
+      return `<div onclick="${openArg}" style="cursor:pointer;background:#fff;border:1px solid rgba(15,110,86,.16);border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <span style="font-weight:700;flex:1;color:#04241b;">${r.label}</span>${otrCatPill(r.cat)}
+          </div>
+          <div style="display:flex;gap:16px;font-size:13px;color:#0F6E56;">
+            <span>Rating <b style="color:#12855F;">${rt}</b></span>
+            <span>Matches <b>${r.mc}</b></span>
+            <span>Move <b style="color:${mvCol};">${r.mv>0?'+':''}${r.mv}</b></span>
+          </div>
+        </div>`;
+    };
+
     const catLine = isMen ? "Men's" : 'Ladies';
     let html = `
-      <div style="background:rgba(15,110,86,.08);border:1px solid rgba(15,110,86,.30);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#0F6E56;line-height:1.5;text-align:center;">Includes All your Matches Recorded on the system</div>
       <div class="profile-card">
         <div class="profile-name">${name}</div>
         <div class="profile-rating">${rating}</div>
@@ -2360,24 +2400,14 @@ async function loadProfileIndividual(name, gender) {
         <div class="stat-card"><div class="stat-value">${setWinPct}%</div><div class="stat-label">Win %</div></div>
         <div class="stat-card"><div class="stat-value">${gdpsTxt}</div><div class="stat-label">Game Diff/Set</div></div>
       </div>
-      <div class="section-header">Partnerships</div>`;
-    if(partnerRows.length){
-      html += partnerRows.map(r=>{
-        const mvCol = r.mv>=0 ? '#1e8449' : '#c0392b';
-        const rt = r.rating!=null ? r.rating : '—';
-        const openArg = r.partner==='' ? `loadTeamProfile('${name.replace(/'/g,"\\'")}','','${r.cat}')`
-                                       : `loadTeamProfile('${name.replace(/'/g,"\\'")}','${r.partner.replace(/'/g,"\\'")}','${r.cat}')`;
-        return `<div onclick="${openArg}" style="cursor:pointer;background:#fff;border:1px solid rgba(15,110,86,.16);border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <span style="font-weight:700;flex:1;color:#04241b;">${r.label}</span>${otrCatPill(r.cat)}
-          </div>
-          <div style="display:flex;gap:16px;font-size:13px;color:#0F6E56;">
-            <span>Rating <b style="color:#12855F;">${rt}</b></span>
-            <span>Matches <b>${r.mc}</b></span>
-            <span>Move <b style="color:${mvCol};">${r.mv>0?'+':''}${r.mv}</b></span>
-          </div>
-        </div>`;
-      }).join('');
+      `;
+    // Singles card (if any) sits on its own, ABOVE the Partnerships section.
+    if(singlesRow){
+      html += `<div class="section-header">Singles</div>` + profCard(singlesRow);
+    }
+    html += `<div class="section-header">Partnerships</div>`;
+    if(doublesRows.length){
+      html += doublesRows.map(profCard).join('');
     } else {
       html += '<div class="empty-state" style="padding:20px 0;"><p>No matches yet</p></div>';
     }
@@ -2456,6 +2486,7 @@ async function loadTeamProfile(name, partner, cat){
       tm.forEach((m,midx)=>{
         const type=m.match_type||'';
         const onT1=sideIsT1(m);
+        m._onT1=onT1;
         const opp1=onT1?m.t2p1:m.t1p1, opp2=onT1?m.t2p2:m.t1p2;
         const mysets=onT1?(m.t1_sets||0):(m.t2_sets||0), oppsets=onT1?(m.t2_sets||0):(m.t1_sets||0);
         const won=mysets>oppsets;
@@ -2478,7 +2509,6 @@ async function loadTeamProfile(name, partner, cat){
 
     box.innerHTML = `
       <div class="tm-nav" style="margin-bottom:12px;"><button class="active" style="width:100%;">👥 Team Profile</button></div>
-      <div style="background:rgba(15,110,86,.08);border:1px solid rgba(15,110,86,.30);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#0F6E56;line-height:1.5;text-align:center;">Includes All your Matches Recorded on the system</div>
       <div class="profile-card">
         <div class="profile-name">${title}</div>
         <div class="profile-rating">${bannerRating}</div>
@@ -2499,8 +2529,19 @@ function toggleTeamMatch(i){
   const m=(window._teamMatches||[])[i]; if(!m) return;
   const d=document.getElementById('tmatchdetail_'+i); if(!d) return;
   if(d.style.display==='none'){
+    const onT1 = (m._onT1!=null) ? m._onT1 : true;
     const ss=(m.set_scores||'').trim();
-    d.innerHTML = (ss? ('Set scores: '+ss) : 'No set detail')+(m.event&&m.event!=='Social'?(' · '+m.event):'');
+    let chips='';
+    if(ss){
+      chips = ss.split(',').map(x=>x.trim()).filter(x=>x).map(sc=>{
+        const [x,y]=sc.split('-').map(n=>parseInt(n)||0);
+        const mine=onT1?x:y, theirs=onT1?y:x;
+        return '<span class="amr-chip" style="background:'+(mine>theirs?'#1e8449':'#c0392b')+';">'+mine+'/'+theirs+'</span>';
+      }).join('');
+    }
+    const _meta=[(m.match_date||''),(m.match_type||''),(m.event&&m.event!=='Social'?m.event:'')].filter(x=>x).join(' · ');
+    const evt=_meta?('<div style="margin-top:6px;color:#5aa98d;">'+_meta+'</div>'):'';
+    d.innerHTML = (chips? ('<div class="amr-chiprow">'+chips+'</div>') : 'No set detail')+evt;
     d.style.display='block';
   } else d.style.display='none';
 }
@@ -4241,7 +4282,7 @@ async function toggleProfileMatch(idx){
     }
     const mysets = onT1 ? (m.t1_sets||0) : (m.t2_sets||0);
     const oppsets = onT1 ? (m.t2_sets||0) : (m.t1_sets||0);
-    detail.innerHTML='<div style="text-align:center;padding:4px 0;">'+(scoresHTML||'<span style="color:#888;font-size:11px;">'+mysets+'-'+oppsets+' sets</span>')+'</div><div style="font-size:11px;color:#888;text-align:center;">'+date+' · '+type+'</div>';
+    detail.innerHTML='<div style="text-align:center;padding:4px 0;">'+(scoresHTML||'<span style="color:#888;font-size:11px;">'+mysets+'-'+oppsets+' sets</span>')+'</div><div style="font-size:11px;color:#888;text-align:center;">'+[date,type,(m.event&&m.event!=='Social'?m.event:'')].filter(x=>x).join(' · ')+'</div>';
   } else {
     detail.style.display='none';
   }
@@ -4272,7 +4313,7 @@ async function togglePartnerMatch(idx){
     }
     const mysets = onT1 ? (m.t1_sets||0) : (m.t2_sets||0);
     const oppsets = onT1 ? (m.t2_sets||0) : (m.t1_sets||0);
-    detail.innerHTML='<div style="text-align:center;padding:4px 0;">'+(scoresHTML||'<span style="color:#888;font-size:11px;">'+mysets+'-'+oppsets+' sets</span>')+'</div><div style="font-size:11px;color:#888;text-align:center;">'+date+' · '+type+'</div>';
+    detail.innerHTML='<div style="text-align:center;padding:4px 0;">'+(scoresHTML||'<span style="color:#888;font-size:11px;">'+mysets+'-'+oppsets+' sets</span>')+'</div><div style="font-size:11px;color:#888;text-align:center;">'+[date,type,(m.event&&m.event!=='Social'?m.event:'')].filter(x=>x).join(' · ')+'</div>';
   } else {
     detail.style.display='none';
   }
@@ -4435,7 +4476,7 @@ function closePlayerModal() {
   if (bar) bar.style.display = 'none';
 }
 
-window.onload=function(){ var ht=document.getElementById('heroTitle'); if(ht) ht.textContent='OTR · '+CLUB_NAME; var vt=document.getElementById('oprVerTag'); if(vt) vt.textContent=OPR_VERSION; refreshClubName(); loadRecent(); loadPlayers(); loadClubStats(); };
+window.onload=function(){ var ht=document.getElementById('heroTitle'); if(ht) ht.textContent='OTR · '+CLUB_NAME; var vt=document.getElementById('oprVerTag'); if(vt) vt.textContent=OPR_VERSION; var av=document.getElementById('aboutVersion'); if(av){ var _vm=(OPR_VERSION.match(/OTR-[A-Z]+ v[0-9.]+-[0-9]+/)||[OPR_VERSION])[0]; av.textContent=_vm; } refreshClubName(); loadRecent(); loadPlayers(); loadClubStats(); };
 // Pull the current club name from the database so admin renames appear on the front page.
 async function refreshClubName(){
   try{
