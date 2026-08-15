@@ -65,13 +65,6 @@
   .mk-start { width:100%; padding:17px; background:linear-gradient(180deg,#39ffb0,#12b488); color:#04241b; border:none; border-radius:14px; font-size:17px; font-weight:800; cursor:pointer; margin-top:6px; box-shadow:0 8px 22px rgba(15,110,86,.4), inset 0 1px 0 rgba(255,255,255,.55); }
   .mk-start:disabled { opacity:.4; box-shadow:none; }
 
-  .mk-banner{ position:absolute; inset:0; z-index:40; background:linear-gradient(160deg,#0d5b43,#0F6E56); display:flex; align-items:center; justify-content:center; cursor:pointer; animation:mkBannerIn .18s ease-out; }
-  .mk-banner-inner{ text-align:center; padding:24px; }
-  .mk-banner-kind{ font-size:64px; font-weight:800; letter-spacing:2px; color:#fff; line-height:1; }
-  .mk-banner-who{ font-size:22px; font-weight:700; color:#8fd6bf; margin-top:10px; }
-  .mk-banner-sub{ font-size:15px; color:#FFD966; margin-top:14px; font-weight:600; }
-  .mk-banner-tap{ font-size:13px; color:#cfeee2; margin-top:20px; text-transform:uppercase; letter-spacing:1px; }
-  @keyframes mkBannerIn{ from{ opacity:0; transform:scale(.96); } to{ opacity:1; transform:scale(1); } }
   .mk-live { flex:1; display:none; flex-direction:column; background:#fff; } .mk-live.on{ display:flex; }
   .mk-top { padding:10px 14px 8px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #eee; }
   .mk-top .mk-fmt { font-size:11px; color:#6b6b76; }
@@ -1705,7 +1698,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.08.07-15 - FIX: when a live-umpire match completed NATURALLY (a team reached the needed sets), it fell through to the marker's own PIN/submit screen instead of returning to +Enter Score. mkWinSet now honours returnToEntry too, so both natural and manual finishes return to the normal Enter Score verify screen (working 'Who are you?' dropdown). The marker's own mkGoFinish (with the empty submitter dropdown) is no longer reached from the entry flow. | HANDICAP (display + umpire, no rating effect): tennis fifteens head-start (OPR-parity); both bracket renderers (koBox + bracketColumnHTML) + rounds-table labels already present; live umpire resolves + applies per-game alternating head-start with tap-to-continue GAME/SET banner; entry-flow launch arms the handicap. Engine/submit/recompute UNTOUCHED; handicap events routed via record_fixture_result (Architecture B). | Profile speed: player profile fetches run in parallel (faster load). Look unchanged.";  // -03 ROOT CAUSE of plate "does not match": plate fixtures were never created (DB had only round_type=ko, zero plate rows). The "Advance knockout / plate" button that creates plate fixtures (round_type=plate) via tmAdvanceKnockout was hidden (display:none). Un-hidden it so admins can advance round 1 -> plate fixtures get created -> plate results then place. // UMPIRE RESTYLE: whole marker section now matches the rest of the site — white screen, light-green cards, white "Tap to select" pickers, site-green (#0F6E56) accents and .btn-enter gradient buttons (was a bespoke dark scheme). Live courts kept as two bold green tap-targets on white. RR KNOCKOUT CHOICE: single-group round robin now offers, AT GENERATION, "Table decides / Top 2 / Top 4" so the finish is known up front (stamped on RR fixtures as band KO2/KO4); bracket builds when the RR completes; end-of-RR button kept as failsafe. // -01: (#6) single-group RR→knockout; (#4) draw-complete all-types; (#5 client) plate/main concurrent eligibility (server patched in submit_match.ts); (#2/#8) marker Event-to-top + auto-lock + order-independent Start.
+const OPR_VERSION = "OTR-LAPTOP v2026.08.13-17 · Player PIN removed from match entry (hidden, not required); who-entered name dropdown kept; admin + master PIN unchanged.'s own PIN/submit screen instead of returning to +Enter Score. mkWinSet now honours returnToEntry too, so both natural and manual finishes return to the normal Enter Score verify screen (working 'Who are you?' dropdown). The marker's own mkGoFinish (with the empty submitter dropdown) is no longer reached from the entry flow.";  // -03 ROOT CAUSE of plate "does not match": plate fixtures were never created (DB had only round_type=ko, zero plate rows). The "Advance knockout / plate" button that creates plate fixtures (round_type=plate) via tmAdvanceKnockout was hidden (display:none). Un-hidden it so admins can advance round 1 -> plate fixtures get created -> plate results then place. // UMPIRE RESTYLE: whole marker section now matches the rest of the site — white screen, light-green cards, white "Tap to select" pickers, site-green (#0F6E56) accents and .btn-enter gradient buttons (was a bespoke dark scheme). Live courts kept as two bold green tap-targets on white. RR KNOCKOUT CHOICE: single-group round robin now offers, AT GENERATION, "Table decides / Top 2 / Top 4" so the finish is known up front (stamped on RR fixtures as band KO2/KO4); bracket builds when the RR completes; end-of-RR button kept as failsafe. // -01: (#6) single-group RR→knockout; (#4) draw-complete all-types; (#5 client) plate/main concurrent eligibility (server patched in submit_match.ts); (#2/#8) marker Event-to-top + auto-lock + order-independent Start.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -2300,13 +2293,7 @@ async function loadProfileIndividual(name, gender) {
   try {
     const isMen = gender==='M';
     // individual rating / level / initial (for since-inception move)
-    // Fetch this player's rating row and their matches in PARALLEL (independent queries).
-    const enc=encodeURIComponent(name);
-    const q=`matches?select=match_date,match_type,event,t1p1,t1p2,t2p1,t2p2,t1_sets,t2_sets,t1_games,t2_games,set_scores,rating_delta,t1_rating_at,t2_rating_at&or=(t1p1.eq.${enc},t1p2.eq.${enc},t2p1.eq.${enc},t2p2.eq.${enc})&order=match_date.desc,id.desc&club_id=eq.${CLUB_ID}`;
-    const [prArr, playerMatches] = await Promise.all([
-      sbGet(`player_results?select=current_rating,initial_rating,form_npi,form_sets&name=eq.${encodeURIComponent(name)}&club_id=eq.${CLUB_ID}`).then(r=>r||[]),
-      sbGet(q).then(r=>r||[])
-    ]);
+    const prArr = await sbGet(`player_results?select=current_rating,initial_rating,form_npi,form_sets&name=eq.${encodeURIComponent(name)}&club_id=eq.${CLUB_ID}`);
     const pr = prArr[0]||{};
     const rating = pr.current_rating!=null ? Math.round(pr.current_rating) : '-';
     const level  = pr.current_rating!=null ? (pr.current_rating/200).toFixed(1) : '-';
@@ -2314,6 +2301,11 @@ async function loadProfileIndividual(name, gender) {
     const move   = (pr.current_rating!=null && initR!=null) ? (Math.round(pr.current_rating)-initR) : null;
     const moveStr= move==null ? '' : ((move>0?'+':'')+move);
     const moveCol= (move==null||move>=0) ? '#c4e000' : '#ff9e80';
+
+    // all the person's matches (any of the 4 slots)
+    const enc=encodeURIComponent(name);
+    const q=`matches?select=match_date,match_type,event,t1p1,t1p2,t2p1,t2p2,t1_sets,t2_sets,t1_games,t2_games,set_scores,rating_delta,t1_rating_at,t2_rating_at&or=(t1p1.eq.${enc},t1p2.eq.${enc},t2p1.eq.${enc},t2p2.eq.${enc})&order=match_date.desc,id.desc&club_id=eq.${CLUB_ID}`;
+    const playerMatches = await sbGet(q);
 
     // top-line stats
     let setsPlayed=0, setsWon=0, gamesFor=0, gamesAgainst=0;
@@ -3297,8 +3289,6 @@ function umpireFromEntry(){
   MK.matchFormat = singles ? 'singles' : 'doubles';
   MK.format = (Number(entryData.sets)===5) ? 5 : 3;   // Best-of from the entry's set count
   MK.cat = entryData.type || "Men's";
-  MK.event = entryData.event || 'Social';
-  MK.handicap = undefined;   // entry-flow launch skips mkEventChanged; mkStart resolves it
   MK.firstServe = 1;
   MK.returnToEntry = true;   // finish returns to Step 3, not the marker's own PIN/submit
   mkServePrompt();
@@ -3423,9 +3413,8 @@ function renderStep4(){
         </select>
       </div>
       <div class="field" style="margin-bottom:0;">
-        <label>Your PIN</label>
-        <input type="password" id="submitterPin" maxlength="4" placeholder="4-digit PIN"
-          style="width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:10px;font-size:18px;font-weight:700;letter-spacing:6px;text-align:center;">
+        <!-- Player PIN hidden (not required to submit) -->
+        <input type="hidden" id="submitterPin" value="">
         <div style="font-size:11px;color:#5aa98d;margin-top:6px;">Players use their own PIN. A club admin can use the club admin code to enter on anyone's behalf.</div>
       </div>
     </div>
@@ -3442,7 +3431,7 @@ async function submitMatch(){
   const err=document.getElementById('err4');
 
   if(!submitter){err.textContent='Please select your name.';err.style.display='block';return;}
-  if(!pin||pin.length<4){err.textContent='Please enter your 4-digit PIN.';err.style.display='block';return;}
+  // Player PIN no longer required — only the submitter name is needed.
 
   err.style.display='none';
   // TOURNAMENT ENTRY GUARD (division-aware). A tournament runs a set of live divisions
@@ -3805,10 +3794,6 @@ function mkSetCat(btn,v){ MK.cat=v; const seg=document.getElementById('mkCatSeg'
 // everything free. Called from the event <select>'s onchange.
 async function mkEventChanged(){
   const ev=(document.getElementById('mkEvent').value||'').trim();
-  MK.handicap = false;
-  if(ev && ev!=='Social' && ev!=='Ladder Match'){
-    try{ const hrow=await sbGet(`tournaments?select=handicap&club_id=eq.${CLUB_ID}&name=eq.${encodeURIComponent(ev)}&limit=1`); MK.handicap=!!(hrow&&hrow[0]&&hrow[0].handicap); window._mkEventHc=window._mkEventHc||{}; window._mkEventHc[ev]=MK.handicap; }catch(e){ MK.handicap=false; }
-  }
   const seg=document.getElementById('mkCatSeg');
   const catBtns = seg ? [...seg.querySelectorAll('button')] : [];
   const setCatLocked = (locked, val)=>{
@@ -3912,13 +3897,9 @@ function mkSideName(team){
   return MK.matchFormat==='singles'? (p1||'Player') : ((p1||'—')+' / '+(p2||'—'));
 }
 
-async function mkStart(){
-  await mkComputeHandicap();          // TENNIS handicap: sets MK.hcTeam = [{base,alt,frac}, …] or null
-  MK.games=[0,0]; MK.setsWon=[0,0]; MK.setScores=[];
+function mkStart(){
+  MK.pts=[0,0]; MK.games=[0,0]; MK.setsWon=[0,0]; MK.setScores=[];
   MK.server=MK.firstServe; MK.serve=1; MK.inTB=false; MK.tb=[0,0]; MK.hist=[]; MK.live=true;
-  MK.hcGameNo=0; MK._pending=null;
-  MK.pts=mkNewGamePts();              // first game's starting head-start (0,0 if no handicap)
-  { const bn=document.getElementById('mkBanner'); if(bn) bn.style.display='none'; }
   document.getElementById('mkSetup').style.display='none';
   document.getElementById('mkLive').classList.add('on');
   const _hdr=document.getElementById('mkHeaderTitle'); if(_hdr) _hdr.textContent='Match in progress';
@@ -3927,113 +3908,9 @@ async function mkStart(){
   document.getElementById('mkTopFmt').textContent='Best of '+MK.format;
   mkRender();
 }
-// ===== TENNIS HANDICAP — OPR parity (fractional/alternating fifteens) =================
-// Underdog RECEIVES (starts each game ahead, +pts), favourite OWES (starts behind, −pts).
-// A fractional handicap ALTERNATES per game via mkNewGamePts (g%2 / g%4), same as OPR/OTR draw.
-// The head-start only sets each game's STARTING point score on the live board; the final score
-// submitted is the real played score. Handicap events never touch ratings (routed separately).
-function mkNewGamePts(){
-  if(!MK.hcTeam || MK.inTB) return [0,0];
-  MK.hcGameNo = (MK.hcGameNo||0) + 1;
-  const g = MK.hcGameNo;
-  const startFor = (t)=>{
-    if(!t) return 0;
-    if(!t.frac || t.alt===t.base) return t.base;
-    let useAlt=false;
-    if(t.frac===0.5) useAlt=(g%2===0);
-    else if(t.frac===0.25) useAlt=(g%4===0);
-    else if(t.frac===0.75) useAlt=(g%4!==0);
-    else useAlt=(g%2===0);
-    return useAlt ? t.alt : t.base;
-  };
-  return [ startFor(MK.hcTeam[0]), startFor(MK.hcTeam[1]) ];
-}
-function mkPeekNextGamePts(){
-  if(!MK.hcTeam) return null;
-  const g = (MK.hcGameNo||0) + 1;
-  const startFor = (t)=>{
-    if(!t) return 0;
-    if(!t.frac || t.alt===t.base) return t.base;
-    let useAlt=false;
-    if(t.frac===0.5) useAlt=(g%2===0);
-    else if(t.frac===0.25) useAlt=(g%4===0);
-    else if(t.frac===0.75) useAlt=(g%4!==0);
-    else useAlt=(g%2===0);
-    return useAlt ? t.alt : t.base;
-  };
-  return [ startFor(MK.hcTeam[0]), startFor(MK.hcTeam[1]) ];
-}
-// Resolve the handicap for the two sides from live ratings (tennis fifteens).
-async function mkComputeHandicap(){
-  MK.hcTeam=null; MK.hcInfo=null;
-  // arm the flag if it was not set on the way in (entry-flow launch skips mkEventChanged)
-  if(MK.handicap===undefined){
-    const ev=(MK.event||'').trim(); MK.handicap=false;
-    if(ev && ev!=='Social' && ev!=='Ladder Match'){
-      if(window._mkEventHc && (ev in window._mkEventHc)){ MK.handicap=(window._mkEventHc[ev]===true); }
-      else { try{ const hrow=await sbGet(`tournaments?select=handicap&club_id=eq.${CLUB_ID}&name=eq.${encodeURIComponent(ev)}&limit=1`); MK.handicap=!!(hrow&&hrow[0]&&hrow[0].handicap); }catch(e){ MK.handicap=false; } }
-    }
-  }
-  if(!MK.handicap) return;
-  const na1=MK.players.t1p1, na2=MK.players.t1p2, nb1=MK.players.t2p1, nb2=MK.players.t2p2;
-  const singles=(MK.matchFormat==='singles');
-  if(!(na1 && nb1 && (singles || (na2 && nb2)))) return;
-  // rating for a side: singles = individual; doubles = live 60/40 (or Combined via TM.pairRating)
-  // (Live ratings — same approach as OPR and ODR. Seed and play a handicap event without other
-  // matches in between and live == seed, so the umpire matches the draw.)
-  const R = async (nm)=>{ try{ if(typeof OTR_RATING!=='undefined' && OTR_RATING[nm]!=null) return Number(OTR_RATING[nm]); if(TM && TM.readCurrentRating){ const v=await TM.readCurrentRating(nm); return (v==null?null:Number(v)); } }catch(e){} return null; };
-  const sideRating = async (p1,p2)=>{
-    if(singles){ return await R(p1); }
-    const ra=await R(p1), rb=await R(p2);
-    if(ra==null||rb==null) return null;
-    if(TM && TM.pairRating){ return Math.round(TM.pairRating(ra, rb, MK.cat)); }
-    return Math.round(Math.max(ra,rb)*0.6+Math.min(ra,rb)*0.4);
-  };
-  const rA=await sideRating(na1,na2), rB=await sideRating(nb1,nb2);
-  if(rA==null||rB==null) return;
-  if(Math.round(rA)===Math.round(rB)){ MK.hcInfo={scratch:true}; mkRenderHandicap(); return; }
-  const favIsT1=(rA>rB);
-  const hc=TM.computeHandicap(Math.max(rA,rB), Math.min(rA,rB));
-  if(hc.steps===0){ MK.hcInfo={scratch:true}; mkRenderHandicap(); return; }
-  // per-game start values (fifteens indices): underdog positive (receive), favourite negative (owe)
-  const undBase=Math.min(2,hc.receive||0), undAlt=(hc.altReceive?Math.min(2,hc.altReceive):undBase);
-  const favBase=-Math.min(3,hc.owe||0),    favAlt=(hc.altOwe?-Math.min(3,hc.altOwe):favBase);
-  const undFrac=(undAlt!==undBase?(hc.frac||0.5):0), favFrac=(favAlt!==favBase?(hc.frac||0.5):0);
-  const undT={base:undBase,alt:undAlt,frac:undFrac};
-  const favT={base:favBase,alt:favAlt,frac:favFrac};
-  MK.hcTeam = favIsT1 ? [favT, undT] : [undT, favT];
-  // EXPLICIT labels (matches the bracket & OPR): built from the SAME base/alt the board scores,
-  // so the umpire header can never disagree with the draw.
-  const _idxPts=(idx)=>({1:'15',2:'30',3:'40'})[Math.abs(idx)]||'0';
-  const _altEvery=(f)=> f===0.5?'every 2nd game': f===0.25?'every 4th game': f===0.75?'3 of every 4 games':'alternating';
-  const _lbl=(base,alt,frac,isFav)=>{ const s=isFav?'\u2212':'+'; const cap=hc.capped?' (max)':'';
-    if(base===0&&alt===0) return null;
-    if(!frac||alt===base){ return base===0?null:(s+_idxPts(base)+cap); }
-    if(base===0) return s+_idxPts(alt)+' ('+_altEvery(frac)+')';
-    return s+_idxPts(base)+' ('+s+_idxPts(alt)+' '+_altEvery(frac)+')'; };
-  const undLabel=_lbl(undBase,undAlt,undFrac,false);
-  const favLabel=_lbl(favBase,favAlt,favFrac,true);
-  MK.hcInfo = { scratch:false, favIsT1, t1Label:(favIsT1?favLabel:undLabel), t2Label:(favIsT1?undLabel:favLabel) };
-  mkRenderHandicap();
-}
-function mkRenderHandicap(){
-  const el=document.getElementById('mkHcChip'); if(!el) return;
-  const info=MK.hcInfo;
-  if(MK.handicap && info && !info.scratch){
-    el.style.display='flex';
-    el.innerHTML = 'HANDICAP · <b>'+mkSideName(1)+'</b> '+(info.t1Label||'scratch')+'  ·  <b>'+mkSideName(2)+'</b> '+(info.t2Label||'scratch');
-  } else if(MK.handicap && info && info.scratch){
-    el.style.display='flex'; el.textContent='HANDICAP · Scratch — evenly matched, no head-start';
-  } else { el.style.display='none'; el.innerHTML=''; }
-}
-function mkPtDisp(v){ return v<0 ? ('−'+([15,30,40][Math.min(2,-v-1)])) : (v>=4?'Ad':(['0','15','30','40'][Math.min(3,v)])); }
-function mkTeamShort(team){ try{ return mkSideName(team) || ('Team '+team); }catch(e){ return 'Team '+team; } }
 
 function mkSnap(){ MK.hist.push(JSON.stringify({pts:MK.pts,games:MK.games,setsWon:MK.setsWon,setScores:MK.setScores,server:MK.server,serve:MK.serve,inTB:MK.inTB,tb:MK.tb})); if(MK.hist.length>300)MK.hist.shift(); }
-function mkUndo(){
-  if(MK._pending){ MK._pending=null; const bn=document.getElementById('mkBanner'); if(bn) bn.style.display='none'; }
-  if(!MK.hist.length)return; const s=JSON.parse(MK.hist.pop()); Object.assign(MK,s); mkRender();
-}
+function mkUndo(){ if(!MK.hist.length)return; const s=JSON.parse(MK.hist.pop()); Object.assign(MK,s); mkRender(); }
 
 // award a point to team (1|2)
 function mkPoint(team){
@@ -4042,7 +3919,7 @@ function mkPoint(team){
   if(MK.inTB){
     MK.tb[i]++;
     // tiebreak: first to 7, win by 2. Serve rotates every 2 points (we don't track box in TB).
-    if(MK.tb[i]>=7 && MK.tb[i]-MK.tb[j]>=2){ MK._pending={type:'set',team,viaTB:true}; mkShowBanner('set',team); }
+    if(MK.tb[i]>=7 && MK.tb[i]-MK.tb[j]>=2){ mkWinSet(team, true); }
     else { MK.serve=1; mkRender(); }
     return;
   }
@@ -4062,41 +3939,15 @@ function mkPoint(team){
   mkRender();
 }
 function mkWinGame(team){
-  // Freeze the game; show the GAME/SET banner. The advance (increment, next-game head-start,
-  // server swap, tiebreak/set) happens on the tap in mkBannerTap — one clean moment to compute
-  // the next game's alternating head-start (OPR parity).
   const i=team-1;
-  const g=[MK.games[0],MK.games[1]]; g[i]++;                 // provisional tally
-  const other=1-i;
-  const setDone = (g[i]>=6 && g[i]-g[other]>=2);
-  MK._pending = { type: setDone?'set':'game', team, viaTB:false };
-  mkShowBanner(setDone?'set':'game', team);
-}
-function mkShowBanner(kind, team){
-  const bn=document.getElementById('mkBanner'); if(!bn){ mkAdvanceGame(); return; }
-  document.getElementById('mkBannerKind').textContent = (kind==='set'?'SET':'GAME');
-  document.getElementById('mkBannerWho').textContent = mkTeamShort(team);
-  let sub='';
-  if(kind==='game' && MK.hcTeam){
-    const peek = mkPeekNextGamePts();
-    if(peek){ sub = 'Next game starts  '+mkPtDisp(peek[0])+'  /  '+mkPtDisp(peek[1]); }
-  }
-  document.getElementById('mkBannerSub').textContent = sub;
-  bn.style.display='flex';
-}
-function mkBannerTap(){
-  const bn=document.getElementById('mkBanner'); if(bn) bn.style.display='none';
-  const p=MK._pending; MK._pending=null;
-  if(!p) return;
-  if(p.type==='set'){ mkWinSet(p.team, !!p.viaTB); }
-  else { mkAdvanceGame(p.team); }
-}
-function mkAdvanceGame(team){
-  const i=(team||1)-1;
-  MK.games[i]++; MK.pts=mkNewGamePts();
+  MK.games[i]++; MK.pts=[0,0];
+  // set won? 6 games win by 2
   const g=MK.games, other=1-i;
-  // tiebreak trigger (tie-break sets only, non-handicap safe): 6-6
-  if(MK.setFmt!=='long' && g[i]===6 && g[other]===6){ MK.inTB=true; MK.tb=[0,0]; MK.pts=[0,0]; }
+  if(g[i]>=6 && g[i]-g[other]>=2){ mkWinSet(team,false); return; }
+  // LONG SETS (setFmt==='long'): no tiebreak — keep playing until win-by-2 (7-5, 8-6, …).
+  // TIE-BREAKER SETS (default 'tb'): tiebreak at 6-6.
+  if(MK.setFmt!=='long' && g[i]===6 && g[other]===6){ MK.inTB=true; MK.tb=[0,0]; }
+  // swap server each game
   MK.server = MK.server===1?2:1; MK.serve=1;
   mkRender();
 }
@@ -4151,7 +4002,6 @@ function mkRender(){
   document.getElementById('mkSide2').classList.toggle('serving',MK.server===2);
   document.getElementById('mkBox1').textContent=MK.serve===1?'1st':'2nd';
   document.getElementById('mkBox2').textContent=MK.serve===1?'1st':'2nd';
-  if(typeof mkRenderHandicap==='function') mkRenderHandicap();
 }
 
 function mkGoFinish(){
@@ -4227,7 +4077,7 @@ async function mkSubmit(){
   const errEl=document.getElementById('mkSubErr');
   const submitter=document.getElementById('mkSubmitter').value;
   const pin=(document.getElementById('mkPin').value||'').trim();
-  if(!pin){ errEl.textContent='Please enter your PIN.'; errEl.style.display='block'; return; }
+  // Player PIN no longer required.
   // build entryData exactly as the normal entry flow does
   const sc={};
   MK.setScores.forEach((s,idx)=>{ const [a,b]=s.split('-').map(Number); sc['set'+(idx+1)+'t1']=a; sc['set'+(idx+1)+'t2']=b; });
@@ -5239,18 +5089,6 @@ async function loadTournamentSheet(tournament, division) {
   // for Mixed/All Sorts — since that's what seeded them). Returns a short display string
   // telling each team its on-court head start, per the approved ladder. Display only; never
   // touches ratings. (Living per-round recompute from live ratings can layer on later.)
-  // Shared handicap label builder — the EXPLICIT format (matches OPR):
-  //   "+15 (+30 every 4th game)", "\u221230 (\u221240 3 of every 4 games)", "+30", "\u221240 (max)".
-  function tmHcTeamLabel(base, alt, frac, isFav, capped){
-    const sign = isFav ? '\u2212' : '+';
-    const idxToPts = (idx)=>({1:'15',2:'30',3:'40'})[Math.abs(idx)] || '0';
-    const altEvery = (f)=> f===0.5?'every 2nd game' : f===0.25?'every 4th game' : f===0.75?'3 of every 4 games' : 'alternating';
-    const capTag = capped ? ' (max)' : '';
-    if(base===0 && alt===0) return null;
-    if(!frac || alt===base){ return base===0 ? null : (sign + idxToPts(base) + capTag); }
-    if(base===0) return sign + idxToPts(alt) + ' (' + altEvery(frac) + ')';
-    return sign + idxToPts(base) + ' (' + sign + idxToPts(alt) + ' ' + altEvery(frac) + ')';
-  }
   const tmFixtureHandicap = (seedA, seedB) => {
     const eA = bySeed[seedA], eB = bySeed[seedB];
     if(!eA || !eB || eA.seed_rating==null || eB.seed_rating==null) return null;
@@ -5260,14 +5098,13 @@ async function loadTournamentSheet(tournament, division) {
     const undSeed = rA > rB ? seedB : seedA;      // weaker side
     const hc = TM.computeHandicap(Math.max(rA,rB), Math.min(rA,rB));
     if(hc.steps === 0) return { scratch:true, bySeed:{} };
-    // Compute the per-team base/alt values FIRST (the equation truth), then build BOTH the
-    // labels and the umpire's start values from them, so display and scoring never diverge.
-    const undBase = Math.min(2, hc.receive||0);
-    const undAlt  = (hc.altReceive? Math.min(2, hc.altReceive) : undBase);
-    const favBase = -Math.min(3, hc.owe||0);
-    const favAlt  = (hc.altOwe? -Math.min(3, hc.altOwe) : favBase);
-    const undLabel = tmHcTeamLabel(undBase, undAlt, (undAlt!==undBase?(hc.frac||0.5):0), false, hc.capped);
-    const favLabel = tmHcTeamLabel(favBase, favAlt, (favAlt!==favBase?(hc.frac||0.5):0), true, hc.capped);
+    // Court-friendly shorthand per team. + = receive (start ahead), − = owe (behind).
+    // "alt." = the value alternates each game. Returns a label per seed so each sits under
+    // its own team name in the fixture row.
+    const recVal = (n, alt) => alt ? ((n ? (n===1?'15':'30')+'/'+(n===1?'30':'40') : '15/30') + ' alt.') : (n===1?'15':'30');
+    const oweVal = (n, alt) => alt ? ((n ? (n===1?'15':n===2?'30':'40')+'/'+(n===1?'30':'40') : '15/30') + ' alt.') : (n===1?'15':n===2?'30':'40');
+    const undLabel = (hc.receive || hc.altReceive) ? ('+' + recVal(hc.receive, hc.altReceive)) : null;
+    const favLabel = (hc.owe || hc.altOwe) ? ('−' + oweVal(hc.owe, hc.altOwe)) : null;
     const byS = {};
     if(undLabel) byS[undSeed] = undLabel;
     if(favLabel) byS[favSeed] = favLabel;
@@ -5560,25 +5397,11 @@ async function loadTournamentSheet(tournament, division) {
       const aWin = w===f.seed_a, bWin = w===f.seed_b;
       const bye = f.seed_b===0;
       const score = played ? (f.sets_a+'–'+f.sets_b) : '';
-      // Handicap head-start under each team name (handicap events only) — bracket tab parity.
-      let hcA='', hcB='';
-      if(window._tmIsHandicap && !bye){
-        try{
-          const hc = tmFixtureHandicap(f.seed_a, f.seed_b);
-          if(hc && !hc.scratch){
-            const tag = v => '<div class="bkt-hc" style="font-size:10px;font-weight:700;color:#B9770E;">'+v+(hc.capped?' <span style="color:#c0392b;">(max)</span>':'')+'</div>';
-            if(hc.bySeed[f.seed_a]) hcA = tag(hc.bySeed[f.seed_a]);
-            if(hc.bySeed[f.seed_b]) hcB = tag(hc.bySeed[f.seed_b]);
-          } else if(hc && hc.scratch){
-            hcA = '<div class="bkt-hc" style="font-size:10px;color:#5aa98d;">scratch</div>';
-          }
-        }catch(e){}
-      }
       h += '<div class="bkt-match'+(bye?' bkt-bye':'')+'" '+(bye?'':'onclick="tmEnterFixtureResult('+f.id+')" title="Tap to enter/edit score"')+'>'
-        + '<div class="bkt-team'+(aWin?' bkt-win':'')+'"><span class="bkt-sd">'+f.seed_a+'</span>'+tName(f.seed_a)+hcA+'<span class="bkt-sc">'+(played?f.sets_a:'')+'</span></div>'
+        + '<div class="bkt-team'+(aWin?' bkt-win':'')+'"><span class="bkt-sd">'+f.seed_a+'</span>'+tName(f.seed_a)+'<span class="bkt-sc">'+(played?f.sets_a:'')+'</span></div>'
         + (bye
             ? '<div class="bkt-team bkt-byerow"><span class="bkt-sd">–</span>BYE<span class="bkt-sc"></span></div>'
-            : '<div class="bkt-team'+(bWin?' bkt-win':'')+'"><span class="bkt-sd">'+f.seed_b+'</span>'+tName(f.seed_b)+hcB+'<span class="bkt-sc">'+(played?f.sets_b:'')+'</span></div>')
+            : '<div class="bkt-team'+(bWin?' bkt-win':'')+'"><span class="bkt-sd">'+f.seed_b+'</span>'+tName(f.seed_b)+'<span class="bkt-sc">'+(played?f.sets_b:'')+'</span></div>')
         + '</div>';
     });
     h += '</div>';
@@ -5767,28 +5590,14 @@ async function loadTournamentSheet(tournament, division) {
     const emptyA = (m.a==null), emptyB=(m.b==null && m.b!==0);
     const scoreA = played? m.fx.sets_a : '';
     const scoreB = played? m.fx.sets_b : '';
-    // Handicap head-start under each team name on the bracket (handicap events only).
-    let hcA='', hcB='';
-    if(window._tmIsHandicap && m.a!=null && m.b!=null && m.b!==0){
-      try{
-        const hc = tmFixtureHandicap(m.a, m.b);
-        if(hc && !hc.scratch && hc.bySeed){
-          const tag = v => '<div class="bkt-hc" style="font-size:10px;font-weight:700;color:#B9770E;">'+v+(hc.capped?' <span style="color:#c0392b;">(max)</span>':'')+'</div>';
-          if(hc.bySeed[m.a]) hcA = tag(hc.bySeed[m.a]);
-          if(hc.bySeed[m.b]) hcB = tag(hc.bySeed[m.b]);
-        } else if(hc && hc.scratch){
-          hcA = '<div class="bkt-hc" style="font-size:10px;color:#5aa98d;">scratch</div>';
-        }
-      }catch(e){}
-    }
     const click = ready ? (' onclick="tmEnterFixtureResult('+m.fx.id+')" title="Tap to enter score" style="cursor:pointer;"') : '';
     return '<div class="bkt-match'+(bye?' bkt-bye':'')+(ready?' bkt-ready':'')+'"'+click+'>'
       + '<div class="bkt-team'+(aWin?' bkt-win':'')+(emptyA?' bkt-empty':'')+'">'
         + (m.a!=null?'<span class="bkt-sd">'+m.a+'</span>':'<span class="bkt-sd bkt-sd-e"></span>')
-        + '<span class="bkt-nm">'+(aName||'&nbsp;')+hcA+'</span><span class="bkt-sc">'+scoreA+'</span></div>'
+        + '<span class="bkt-nm">'+(aName||'&nbsp;')+'</span><span class="bkt-sc">'+scoreA+'</span></div>'
       + '<div class="bkt-team'+(bWin?' bkt-win':'')+((emptyB)?' bkt-empty':'')+'">'
         + (m.b===0?'<span class="bkt-sd">–</span>':(m.b!=null?'<span class="bkt-sd">'+m.b+'</span>':'<span class="bkt-sd bkt-sd-e"></span>'))
-        + '<span class="bkt-nm">'+(bName||'&nbsp;')+hcB+'</span><span class="bkt-sc">'+scoreB+'</span></div>'
+        + '<span class="bkt-nm">'+(bName||'&nbsp;')+'</span><span class="bkt-sc">'+scoreB+'</span></div>'
       + '</div>';
   }
   function koTreeHTML(rounds, title, isPlate){
@@ -7677,16 +7486,7 @@ async function clRemove(id, label){
   </div>
 
   <!-- LIVE -->
-  <div class="mk-live" id="mkLive" style="position:relative;">
-    <div class="mk-banner" id="mkBanner" onclick="mkBannerTap()" style="display:none;">
-      <div class="mk-banner-inner">
-        <div class="mk-banner-kind" id="mkBannerKind">GAME</div>
-        <div class="mk-banner-who" id="mkBannerWho"></div>
-        <div class="mk-banner-sub" id="mkBannerSub"></div>
-        <div class="mk-banner-tap">tap to continue ▸</div>
-      </div>
-    </div>
-    <div id="mkHcChip" style="display:none;align-items:center;justify-content:center;gap:6px;font-size:12px;font-weight:700;color:#0F6E56;padding:5px 10px;background:#e6f5ef;border-bottom:1px solid #cfe9df;text-align:center;"></div>
+  <div class="mk-live" id="mkLive">
     <div class="mk-top">
       <div class="mk-fmt" id="mkTopFmt">Best of 3</div>
       <div class="mk-setnum" id="mkSetNum">Set 1</div>
@@ -7733,8 +7533,8 @@ async function clRemove(id, label){
       <h3>Confirm &amp; submit</h3>
       <div style="font-size:11px;color:#8fd6bd;margin-bottom:5px;">Who is submitting?</div>
       <select id="mkSubmitter" class="mk-pick" style="display:block;margin-bottom:10px;"></select>
-      <div style="font-size:11px;color:#8fd6bd;margin-bottom:5px;">Your PIN</div>
-      <input id="mkPin" type="tel" inputmode="numeric" class="mk-pick" style="display:block;" placeholder="PIN">
+      <!-- Player PIN hidden (not required to submit) -->
+      <input id="mkPin" type="hidden" value="">
     </div>
     <div id="mkSubErr" style="display:none;color:#ff9b9b;font-size:13px;margin:2px 0 6px;font-weight:600;"></div>
     <div class="mk-fbtns">
