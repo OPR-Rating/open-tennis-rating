@@ -671,7 +671,10 @@
       <h1>Member Profile</h1>
     </div>
     <div class="screen-content">
-      <input type="text" class="search-box" id="playerSearch" placeholder="Search your name..." oninput="filterPlayers()">
+      <div style="position:sticky;top:0;z-index:30;background:#0a1a12;">
+        <div style="text-align:center;font-size:12px;color:#8fd6bd;padding:8px 12px 4px;">Tap a name to open the profile.</div>
+        <input type="text" class="search-box" id="playerSearch" placeholder="Search your name..." oninput="filterPlayers()">
+      </div>
       <ul class="player-list" id="playerList"></ul>
     </div>
   </div>
@@ -1705,7 +1708,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.08.17-19";  // -03 ROOT CAUSE of plate "does not match": plate fixtures were never created (DB had only round_type=ko, zero plate rows). The "Advance knockout / plate" button that creates plate fixtures (round_type=plate) via tmAdvanceKnockout was hidden (display:none). Un-hidden it so admins can advance round 1 -> plate fixtures get created -> plate results then place. // UMPIRE RESTYLE: whole marker section now matches the rest of the site — white screen, light-green cards, white "Tap to select" pickers, site-green (#0F6E56) accents and .btn-enter gradient buttons (was a bespoke dark scheme). Live courts kept as two bold green tap-targets on white. RR KNOCKOUT CHOICE: single-group round robin now offers, AT GENERATION, "Table decides / Top 2 / Top 4" so the finish is known up front (stamped on RR fixtures as band KO2/KO4); bracket builds when the RR completes; end-of-RR button kept as failsafe. // -01: (#6) single-group RR→knockout; (#4) draw-complete all-types; (#5 client) plate/main concurrent eligibility (server patched in submit_match.ts); (#2/#8) marker Event-to-top + auto-lock + order-independent Start.
+const OPR_VERSION = "OTR-LAPTOP v2026.08.17-20";  // -03 ROOT CAUSE of plate "does not match": plate fixtures were never created (DB had only round_type=ko, zero plate rows). The "Advance knockout / plate" button that creates plate fixtures (round_type=plate) via tmAdvanceKnockout was hidden (display:none). Un-hidden it so admins can advance round 1 -> plate fixtures get created -> plate results then place. // UMPIRE RESTYLE: whole marker section now matches the rest of the site — white screen, light-green cards, white "Tap to select" pickers, site-green (#0F6E56) accents and .btn-enter gradient buttons (was a bespoke dark scheme). Live courts kept as two bold green tap-targets on white. RR KNOCKOUT CHOICE: single-group round robin now offers, AT GENERATION, "Table decides / Top 2 / Top 4" so the finish is known up front (stamped on RR fixtures as band KO2/KO4); bracket builds when the RR completes; end-of-RR button kept as failsafe. // -01: (#6) single-group RR→knockout; (#4) draw-complete all-types; (#5 client) plate/main concurrent eligibility (server patched in submit_match.ts); (#2/#8) marker Event-to-top + auto-lock + order-independent Start.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -2251,6 +2254,13 @@ async function loadTournamentForm(category, title) {
 function renderPlayerList(players) {
   const M = window._plRateMap||{};
   const _pill=(txt,bg,fg,w)=>`<span style="display:inline-block;width:${w}px;text-align:center;padding:2px 0;border-radius:99px;font-size:10px;font-weight:800;background:${bg};color:${fg};margin-left:4px;">${txt}</span>`;
+  
+  // Per-gender rank by current rating (from _plRateMap). List stays in its given order; rank is a pill.
+  const _rk={};
+  ['M','F'].forEach(g=>{
+    players.filter(x=>x.gender===g).map(x=>({name:x.name, r:(M[x.name]&&M[x.name].cur!=null)?M[x.name].cur:null}))
+      .filter(x=>x.r!=null).sort((a,b)=>b.r-a.r).forEach((x,idx)=>{ _rk[x.name]=idx+1; });
+  });
   document.getElementById('playerList').innerHTML = players.map(p=>{
     const rr = M[p.name];
     const cur = (rr && rr.cur!=null) ? Math.round(rr.cur) : null;
@@ -2262,7 +2272,8 @@ function renderPlayerList(players) {
     const mvFg=(mv==null||mv>=0)?'#1e8449':'#c0392b';
     const pills = _pill(cur!=null?cur:'',rateBg,rateFg,46)
       + _pill(lvl!=null?lvl:'','#efe9e3','#6b4a2f',34)
-      + _pill(mvStr,'#f0f0f0',mvFg,40);
+      + _pill(mvStr,'#f0f0f0',mvFg,40)
+      + _pill((_rk[p.name]!=null?('('+_rk[p.name]+')'):'\u2014'),rateBg,rateFg,34);
     return `
     <li class="player-item" onclick="window._profileFrom='search';loadProfile('${p.name.replace(/'/g,"\\'")}','${p.gender}')">
       <div class="player-avatar">${p.name[0]}</div>
