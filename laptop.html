@@ -253,7 +253,7 @@
   .recent-item .match-header { display: flex; justify-content: center; gap: 10px; margin-bottom: 1px; }
   .recent-item .match-date { color: #888; font-size: 11px; }
   .recent-item .match-type { color: #0F6E56; font-weight: 600; font-size: 11px; }
-  .recent-item .match-teams { color: #333; text-align: center; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recent-item .match-teams { color: #333; text-align: center; font-size: 11px; white-space: normal; overflow-wrap: break-word; line-height: 1.45; }  /* wrap-when-needed: one line where it fits, wraps instead of clipping where it doesn't */
 
   /* About */
   .about-section { margin-bottom: 20px; }
@@ -1709,7 +1709,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.08.23-25";  // 60/40 EVERYWHERE, FINAL PASS: doubles listings and tournament results now SHOW the weighted rating for every category (Rating (Wtd)) matching the R1 rank order, and tournament banding/seeding strength is weighted for every category. (Individuals listings unchanged.) Includes v23-v24.
+const OPR_VERSION = "OTR-LAPTOP v2026.08.23-26";  // RECENT MATCHES WRAP-WHEN-NEEDED (same as OPR v35). Includes v25 and all prior.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
