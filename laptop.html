@@ -366,6 +366,7 @@
   .bkt-match{border:1px solid #d9cbe8;border-radius:9px;overflow:hidden;cursor:pointer;transition:box-shadow .15s;background:#fff;}
   .bkt-match:hover{box-shadow:0 2px 8px rgba(108,52,131,.18);}
   .bkt-bye{cursor:default;opacity:.75;}
+  .bkt-ghost{visibility:hidden;border:none;}  /* staggered col-1 bye slot */
   .bkt-team{display:flex;align-items:center;gap:6px;padding:6px 9px;font-size:12.5px;border-bottom:1px solid #f0ecf4;}
   .bkt-team:last-child{border-bottom:none;}
   .bkt-win{background:#eafaf0;font-weight:700;color:#1e7a34;}
@@ -1064,7 +1065,7 @@ function otrUpdatePreview(){
     if(!(na && nb)){ el.style.display='none'; return; }
     const ra=R(na), rb=R(nb);
     const usesComb=(entryData.type==="Men's"||entryData.type==='Ladies');
-    const val = usesComb ? Math.round((ra+rb)/2) : Math.round(Math.max(ra,rb)*0.6+Math.min(ra,rb)*0.4);
+    const val = Math.round(Math.max(ra,rb)*0.6+Math.min(ra,rb)*0.4);  // 60/40 THROUGHOUT (v24)
     el.innerHTML='Pair rating · <b style="color:#D35400;">'+val+'</b>';
     el.style.display='block';
   });
@@ -1708,7 +1709,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.08.17-22";  // -03 ROOT CAUSE of plate "does not match": plate fixtures were never created (DB had only round_type=ko, zero plate rows). The "Advance knockout / plate" button that creates plate fixtures (round_type=plate) via tmAdvanceKnockout was hidden (display:none). Un-hidden it so admins can advance round 1 -> plate fixtures get created -> plate results then place. // UMPIRE RESTYLE: whole marker section now matches the rest of the site — white screen, light-green cards, white "Tap to select" pickers, site-green (#0F6E56) accents and .btn-enter gradient buttons (was a bespoke dark scheme). Live courts kept as two bold green tap-targets on white. RR KNOCKOUT CHOICE: single-group round robin now offers, AT GENERATION, "Table decides / Top 2 / Top 4" so the finish is known up front (stamped on RR fixtures as band KO2/KO4); bracket builds when the RR completes; end-of-RR button kept as failsafe. // -01: (#6) single-group RR→knockout; (#4) draw-complete all-types; (#5 client) plate/main concurrent eligibility (server patched in submit_match.ts); (#2/#8) marker Event-to-top + auto-lock + order-independent Start.
+const OPR_VERSION = "OTR-LAPTOP v2026.08.23-24";  // 60/40 THROUGHOUT: the three remaining display spots that used same-gender 50/50 (pair preview, profile cards, team banner) now use stronger*0.6 + weaker*0.4 for every pair — matching the engine, whose ranking has been all-60/40 since 2026-08-10. Includes v23 box-centric knockout.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -2452,7 +2453,8 @@ async function loadProfileIndividual(name, gender) {
       const ra=rmap[a], rb=rmap[b];
       if(ra==null||rb==null) return null;
       const same=(gmap[a]===gmap[b]);
-      return Math.round(same ? (ra+rb)/2 : (Math.max(ra,rb)*0.6+Math.min(ra,rb)*0.4));
+      // 60/40 THROUGHOUT (v24): stronger*0.6 + weaker*0.4 for EVERY pair — no 50/50.
+      return Math.round(Math.max(ra,rb)*0.6+Math.min(ra,rb)*0.4);
     };
     const pairCat=(a,b)=> (gmap[a]&&gmap[b]&&gmap[a]!==gmap[b]) ? 'X' : (gmap[a]||myG);
     const partnerRows = Object.values(groups)
@@ -2549,7 +2551,7 @@ async function loadTeamProfile(name, partner, cat){
     if(isSingles){ if(rmap[name]!=null){ bannerRating=Math.round(rmap[name]); bannerLevel=(rmap[name]/200).toFixed(1);} }
     else if(rmap[name]!=null && rmap[partner]!=null){
       const same=(gmap[name]===gmap[partner]);
-      const v= same ? (rmap[name]+rmap[partner])/2 : (Math.max(rmap[name],rmap[partner])*0.6+Math.min(rmap[name],rmap[partner])*0.4);
+      const v= (Math.max(rmap[name],rmap[partner])*0.6+Math.min(rmap[name],rmap[partner])*0.4);  // 60/40 THROUGHOUT (v24)
       bannerRating=Math.round(v); bannerLevel=(v/200).toFixed(1);
     }
 
@@ -5902,13 +5904,18 @@ async function loadTournamentSheet(tournament, division) {
         + '<span class="bkt-nm">'+(bName||'&nbsp;')+hcB+'</span><span class="bkt-sc">'+scoreB+'</span></div>'
       + '</div>';
   }
-  function koTreeHTML(rounds, title, isPlate){
+  function koTreeHTML(rounds, title, isPlate, staggerR1){
     if(!rounds || !rounds.length) return '';
     let cols='';
     rounds.forEach((rd,ri)=>{
       const label = koRoundName(rd.length, isPlate);
+      // BOX-CENTRIC (v23): staggered column 1 — a bye slot renders as an invisible
+      // spacer (same footprint, no "vs BYE" box); the bye seed appears seated in col 2.
       cols += '<div class="bkt-colwrap"><div class="bkt-rlabel">'+label+'</div><div class="bkt-col">'
-        + rd.map(m=>koBox(m,isPlate)).join('') + '</div></div>';
+        + rd.map(m=>{
+            if(staggerR1 && ri===0 && m.b===0) return '<div class="bkt-match bkt-ghost"></div>';
+            return koBox(m,isPlate);
+          }).join('') + '</div></div>';
     });
     // champion banner
     const finalRd = rounds[rounds.length-1];
@@ -5954,7 +5961,7 @@ async function loadTournamentSheet(tournament, division) {
 
     const mainRounds = computeMainBracket();
     const plateRounds = computePlateBracket();
-    const main = koTreeHTML(mainRounds, _isPlayoff ? 'Knockout Playoff' : 'Main Draw', false);
+    const main = koTreeHTML(mainRounds, _isPlayoff ? 'Knockout Playoff' : 'Main Draw', false, !_isPlayoff);
     const plate = koTreeHTML(plateRounds, 'Plate (first-round losers)', true);
     let h = '<div class="card bkt-card" id="bktPrintArea">'
       + '<div class="bkt-head"><h2>'+(_isPlayoff?'Playoff':'Knockout Draw')+' <span class="tm-divtag">'+tmDivLabel(TM_DIVISION)+'</span></h2>'
@@ -7207,12 +7214,10 @@ async function tmGenerateKnockoutDraw(tournament, division){
     rows.push({ tournament, division, round:1, round_type:'ko',
       band: (r1.size>=32?'R'+r1.size:label), seed_a:a, seed_b:b });
   });
-  // Byes: record as a played fixture where the bye seed "wins" vs seed 0 (BYE marker),
-  // so the bracket shows the top seed advancing. seed_b=0 => BYE (rendered as such).
-  r1.byes.forEach(sd=>{
-    rows.push({ tournament, division, round:1, round_type:'ko',
-      band:'bye', seed_a:sd, seed_b:0 });
-  });
+  // BOX-CENTRIC (v23): byes are NOT written as fixtures. A bye seed starts pre-seeded
+  // in its column-2 box — both the display (computeMainBracket) and the edge fn's
+  // advanceKnockout compute bye positions from the seed list, so a bye needs no row.
+  // (Old draws with stored seed_b=0 bye rows still render/advance correctly.)
   if(!TM_ADMIN_PIN){ TM_ADMIN_PIN = prompt('Admin PIN to generate the knockout draw:')||''; }
   if(!TM_ADMIN_PIN) return;
   // CRITICAL: persist the seeds first. seedEntries() only numbers them in memory;
