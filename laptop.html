@@ -126,6 +126,12 @@
   .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
   /* Club panel (shows beside Recent Matches on laptop; stacks below on phone) */
   .home-lower { margin-top: 4px; }
+  /* v28: hide the Club Overview panel on phones — it belongs on the laptop/desktop view
+     only, where it sits beside Recent Matches. OTR was the only fork missing this rule
+     (OPR/ODR/OSR/MDR all have it), so the panel was eating space in the club app. */
+  @media (max-width: 899px){
+    .home-club-col { display: none; }
+  }
   .club-panel { background:#fff; border:1px solid rgba(15,110,86,.16); border-radius:14px; overflow:hidden; box-shadow:0 2px 10px rgba(108,52,131,0.06); margin-top:22px; }
   .club-panel-head { background:linear-gradient(135deg,#0F6E56,#063d2c); color:#fff; font-size:13px; font-weight:800; letter-spacing:0.5px; padding:11px 16px; }
   .club-stats { padding:6px 16px 4px; }
@@ -1735,7 +1741,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.08.26-27";  // PORT PASS from OPR v44: uneven 2-group RR splits (15→8+7, 17→9+8, 19→10+9, 20→10+10) with size-aware tiers; tournaments land on Draw & Rounds with a prominent switch under the title; fixture names stacked two lines (Band hidden on phones); pre-generation Standings says entry is open; round chips numbered by position (no "Rbye", no gaps/duplicates); + admin Recompute-now button. Includes v26 and all prior.
+const OPR_VERSION = "OTR-LAPTOP v2026.08.26-28";  // CLUB OVERVIEW HIDDEN ON PHONES: OTR was the only fork missing the @media(max-width:899px){.home-club-col{display:none}} rule, so the desktop-only Club Overview panel was taking space in the club app. Now matches OPR/ODR/OSR/MDR. Includes v27 port pass and all prior.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
