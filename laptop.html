@@ -1741,7 +1741,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.09.02-29";  // CLUB OVERVIEW HIDDEN ON PHONES: OTR was the only fork missing the @media(max-width:899px){.home-club-col{display:none}} rule, so the desktop-only Club Overview panel was taking space in the club app. Now matches OPR/ODR/OSR/MDR. Includes v27 port pass and all prior.
+const OPR_VERSION = "OTR-LAPTOP v2026.09.03-30";  // DOUBLE-TAP GUARD ON SUBMIT MATCH: the button is disabled on the FIRST tap, before any network call, so a weak signal can no longer let repeated taps save duplicate matches. Built ON TOP of the live file — nothing from any parallel session removed. Keeps the 2026-09-02 set-score off-by-one fix.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -3571,7 +3571,8 @@ function renderStep4(){
     </div>`;
 }
 
-async function submitMatch(){
+// Inner: original logic. Returns true ONLY when it has handed off to doSubmit().
+async function _submitMatchInner(){
   const submitter=document.getElementById('submitterName').value;
   const pin=document.getElementById('submitterPin').value;
   const err=document.getElementById('err4');
@@ -3811,6 +3812,7 @@ async function submitMatch(){
   entryData._submitter=submitter;
   entryData._pin=pin;
   doSubmit(btn);
+  return true;   // handed off: doSubmit owns the button from here
 }
 
 // Route a handicap-event score (entered on the main screen) to the SAFE tournament path.
@@ -4435,6 +4437,30 @@ function mkAfterSubmit(msg){
   if(typeof loadRecent==='function') loadRecent();
   if(typeof showScreen==='function') showScreen('homeScreen');
   alert(msg+'\n\n'+mkSideName(1)+'  '+MK.setsWon[0]+'–'+MK.setsWon[1]+'  '+mkSideName(2));
+}
+
+
+// DOUBLE-TAP GUARD (ported from OPR v46). On a weak club signal the checks before
+// submission take seconds, and the button used to stay live that whole time — so an
+// impatient tap-tap-tap fired several full submissions and saved duplicate matches.
+// The button is now disabled SYNCHRONOUSLY on the first tap, before any network call;
+// every existing failure path re-enables it exactly as before. The disabled state IS
+// the guard, so no second tap can start a second submission.
+async function submitMatch(){
+  const btn=document.getElementById('submitBtn');
+  if(btn){
+    if(btn.disabled) return;              // a submission is already running — ignore the tap
+    btn.disabled=true;
+    btn.textContent='Checking\u2026';
+  }
+  let handed=false;
+  try{
+    handed = await _submitMatchInner();
+  }finally{
+    // Only re-enable if we never reached doSubmit (validation failed, or a confirm was
+    // cancelled). Once handed off, doSubmit owns the button.
+    if(!handed && btn){ btn.disabled=false; btn.textContent='\u2713 Submit Match'; }
+  }
 }
 
 async function doSubmit(btn){  const err=document.getElementById('err4');  if(!navigator.onLine){
