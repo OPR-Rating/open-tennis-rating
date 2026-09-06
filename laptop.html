@@ -1745,7 +1745,7 @@ const _club = CLUBS[_clubParam] || (/^\d+$/.test(_clubParam) ? {id:Number(_clubP
 const CLUB_ID = _club.id;
 document.title = 'OTR · ' + _club.name;
 const CLUB_NAME = _club.name;  // shown in the logo as "OPR · <name>"
-const OPR_VERSION = "OTR-LAPTOP v2026.09.03-36";  // TAP A PAIR ROW = TEAM PROFILE (parity with OPR/OSR/ODR): the whole row now opens that pair’s profile page; the ▼ chevron alone still expands the inline match history. Fixes v34/v35, which passed loadTeamProfile a display category ("Men’s") where it expects a gender code (M/F/X), so the profile never opened. Includes all prior work.
+const OPR_VERSION = "OTR-LAPTOP v2026.09.03-37";  // DOUBLES ROW OPENS THE TEAM PROFILE (parity with OPR/OSR/ODR, ported from the proven CC g38/g39 glue): tapping a pair in the doubles rating table opens its full profile page — the screen is SHOWN first, because OTR’s loadTeamProfile fills the profile screen without switching to it (this is why earlier attempts appeared to do nothing); Back returns to the same table. The ▼ chevron still expands the inline history. Supersedes the withdrawn v34–v36. Includes all prior work.
 // Explanation shown above the individual ladder. Open on load so it's read; collapsible
 // (state kept for the session) and scrolls away. Mechanics only — no outcome framing, so
 // members aren't nudged away from playing stronger opponents. Every clause maps to a real
@@ -1854,6 +1854,25 @@ async function sbGet(pathq){
 // Singles-aware side name: "A & B" for doubles, just "A" when the partner slot is null.
 function sideName(p1,p2,sep){ sep=sep||" & "; return p2?((p1||"")+sep+p2):(p1||""); }
 function rankBadge(n){ const cls=n===1?'rank-1':n===2?'rank-2':n===3?'rank-3':''; return `<span class="rank-badge ${cls}">${n}</span>`; }
+
+// DOUBLES ROW → TEAM PROFILE (parity with OPR/OSR/ODR). Tapping a pair in the doubles
+// rating table opens that pair's full Team Profile page; the ▼ chevron still expands the
+// inline match history. IMPORTANT: OTR's loadTeamProfile fills the profile screen but does
+// NOT switch to it (OSR's does) — so the screen must be shown first, otherwise the profile
+// loads onto a hidden screen and the tap appears to do nothing. Setting _profileFrom
+// 'ladder' makes the existing profileBack return to this exact table.
+function openPairProfile(i){
+  try{
+    const p=(window._doublesRows||[])[i];
+    if(p && p.p1 && p.p2){
+      window._profileFrom='ladder';
+      showScreen('profileScreen');
+      loadTeamProfile(p.p1, p.p2, window._doublesCat);
+      return;
+    }
+  }catch(e){}
+  togglePairMatches(i);   // fallback: behave exactly as before
+}
 
 async function togglePairMatches(i){
   const detail=document.getElementById('pairdetail_'+i);
@@ -1974,7 +1993,7 @@ async function loadLadder(type, title) {
       const catMap={'mensdoubles':"Men's",'ladiesdoubles':'Ladies','mixed':'Mixed','allsorts':'All Sorts','universal':'Universal'};
       const cat = catMap[type];
       const usesCombined = false;  // 60/40 THROUGHOUT: rating shown = weighted, matching the R1 recompute rank order.
-      const data = await sbGet(`doubles_results?select=rank,p1,p2,combined,weighted,level,sets,sets_won,set_win_pct,p1_gender,p2_gender&category=eq.${encodeURIComponent(cat)}&order=rank.asc&club_id=eq.${CLUB_ID}`);   // genders added: the row tap needs a gender code (M/F/X) for loadTeamProfile
+      const data = await sbGet(`doubles_results?select=rank,p1,p2,combined,weighted,level,sets,sets_won,set_win_pct&category=eq.${encodeURIComponent(cat)}&order=rank.asc&club_id=eq.${CLUB_ID}`);
       window._doublesRows = data;
       window._doublesCat = cat;
       // Pair "Move since inception" isn't stored in doubles_results, so derive it client-side:
@@ -2000,17 +2019,7 @@ async function loadLadder(type, title) {
         const swp = p.set_win_pct==null?'—':Number(p.set_win_pct).toFixed(1);
         const mv = pairMoveOf(p.p1,p.p2);
         const mvCell = mv==null?'—':`<span style="color:${mv<0?'#c0392b':'#1e8449'};font-weight:700;">${mv>0?'+':''}${mv}</span>`;
-        // TAP THE ROW = OPEN THE PAIR'S TEAM PROFILE (parity with OPR/OSR/ODR). The ▼ chevron
-        // keeps the inline match history, so nothing is lost. NOTE: loadTeamProfile's third
-        // argument is a GENDER CODE ('M'/'F'/'X'), not a display category — the partnership
-        // cards derive it the same way, from the two members' genders.
-        const _pesc = x => String(x==null?'':x).replace(/'/g,"\\'");
-        const _catG = (function(c){ c=String(c||''); if(/mixed/i.test(c)) return 'X'; if(/ladies|women/i.test(c)) return 'F'; if(/men/i.test(c)) return 'M'; return null; })(window._doublesCat);
-        const _gc = (p.p1_gender && p.p2_gender)
-          ? ((p.p1_gender !== p.p2_gender) ? 'X' : p.p1_gender)
-          : (_catG || p.p1_gender || p.p2_gender || 'M');
-        const _openTeam = `loadTeamProfile('${_pesc(p.p1)}','${_pesc(p.p2)}','${_gc}')`;
-        let h = `<tr class="pair-row" style="cursor:pointer;${rowStyle}" onclick="${_openTeam}" id="pairrow_${i}"><td>${rankCell}</td><td>${p.p1} & ${p.p2} <span onclick="event.stopPropagation();togglePairMatches(${i});" style="color:#12855F;font-size:12px;padding:2px 6px;cursor:pointer;">▼</span></td><td>${rating}</td><td>${Number(p.level).toFixed(1)}</td><td>${mvCell}</td><td>${p.sets}</td><td>${p.sets_won==null?'—':Math.round(p.sets_won)}</td><td>${swp}</td></tr>`;
+        let h = `<tr class="pair-row" style="cursor:pointer;${rowStyle}" onclick="openPairProfile(${i})" id="pairrow_${i}"><td>${rankCell}</td><td>${p.p1} & ${p.p2} <span onclick="event.stopPropagation();togglePairMatches(${i});" style="color:#12855F;font-size:12px;padding:2px 7px;cursor:pointer;">▼</span></td><td>${rating}</td><td>${Number(p.level).toFixed(1)}</td><td>${mvCell}</td><td>${p.sets}</td><td>${p.sets_won==null?'—':Math.round(p.sets_won)}</td><td>${swp}</td></tr>`;
         h += `<tr id="pairdetail_${i}" style="display:none;"><td colspan="8" style="background:rgba(15,110,86,.12);padding:0;"><div id="pairdetailinner_${i}" style="padding:10px 14px;font-size:12px;"></div></td></tr>`;
         return h;
       };
